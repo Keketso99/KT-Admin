@@ -4913,7 +4913,7 @@ let currentNotificationTabButton = null;
 // ACTION -> ICON / LABEL MAPPING
 // ===============================
 
-const ACTIVITY_ICONS = {
+const NOTIFICATION_ICONS = {
     approved_deposit: "fa-solid fa-wallet",
     rejected_deposit: "fa-solid fa-wallet",
     approved_withdrawal: "fa-solid fa-money-bill-transfer",
@@ -4974,7 +4974,7 @@ function loadNotifications(){
 
             notificationsData = data.map(row => ({
                 id: row.id,
-                icon: ACTIVITY_ICONS[row.action] || "fa-solid fa-bell",
+                icon: NOTIFICATION_ICONS[row.action] || "fa-solid fa-bell",
                 title: labelForAction(row.action),
                 message: row.target_table
                     ? `${labelForAction(row.action)} (${row.target_table})`
