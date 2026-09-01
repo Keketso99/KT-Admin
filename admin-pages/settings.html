@@ -1,0 +1,2296 @@
+<!-- =========================================================
+     KT CLOUD MINING ADMIN
+     SETTINGS / CONTENT MANAGEMENT PAGE
+     ========================================================= -->
+
+<div class="settings-page">
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
+
+    <div class="settings-header">
+
+        <div class="settings-header-text">
+
+            <h1>
+                <i class="fa-solid fa-gear"></i>
+                Settings
+            </h1>
+
+            <p>
+                Manage videos, photos, tutorials, guides and
+                downloadable files available in the user app.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         SETTINGS NAVIGATION
+         ===================================================== -->
+
+    <div class="settings-tabs">
+
+        <button
+            type="button"
+            class="settings-tab active"
+            data-settings-tab="overview"
+            onclick="showSettingsTab('overview')">
+
+            <i class="fa-solid fa-chart-pie"></i>
+
+            <span>Overview</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="settings-tab"
+            data-settings-tab="videos"
+            onclick="showSettingsTab('videos')">
+
+            <i class="fa-solid fa-film"></i>
+
+            <span>Videos</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="settings-tab"
+            data-settings-tab="guides"
+            onclick="showSettingsTab('guides')">
+
+            <i class="fa-solid fa-book-open"></i>
+
+            <span>Guides</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="settings-tab"
+            data-settings-tab="tutorials"
+            onclick="showSettingsTab('tutorials')">
+
+            <i class="fa-solid fa-graduation-cap"></i>
+
+            <span>Tutorials</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="settings-tab"
+            data-settings-tab="downloads"
+            onclick="showSettingsTab('downloads')">
+
+            <i class="fa-solid fa-download"></i>
+
+            <span>Downloads</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="settings-tab"
+            data-settings-tab="media"
+            onclick="showSettingsTab('media')">
+
+            <i class="fa-solid fa-photo-film"></i>
+
+            <span>Media Library</span>
+
+        </button>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         OVERVIEW
+         ===================================================== -->
+
+    <section
+        id="settings-overview"
+        class="settings-section active">
+
+
+        <div class="settings-section-header">
+
+            <div>
+
+                <h2>
+                    Content Overview
+                </h2>
+
+                <p>
+                    Manage all content displayed throughout
+                    the KT Cloud Mining user app.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             STATISTICS
+             ================================================= -->
+
+        <div class="settings-stats">
+
+
+            <!-- VIDEOS -->
+
+            <div class="settings-stat-card">
+
+                <div class="settings-stat-icon">
+
+                    <i class="fa-solid fa-film"></i>
+
+                </div>
+
+                <div class="settings-stat-info">
+
+                    <span class="settings-stat-label">
+                        Educational Videos
+                    </span>
+
+                    <strong id="settingsVideoCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- GUIDES -->
+
+            <div class="settings-stat-card">
+
+                <div class="settings-stat-icon">
+
+                    <i class="fa-solid fa-book-open"></i>
+
+                </div>
+
+                <div class="settings-stat-info">
+
+                    <span class="settings-stat-label">
+                        Guides
+                    </span>
+
+                    <strong id="settingsGuideCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- TUTORIALS -->
+
+            <div class="settings-stat-card">
+
+                <div class="settings-stat-icon">
+
+                    <i class="fa-solid fa-graduation-cap"></i>
+
+                </div>
+
+                <div class="settings-stat-info">
+
+                    <span class="settings-stat-label">
+                        Tutorials
+                    </span>
+
+                    <strong id="settingsTutorialCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- DOWNLOADS -->
+
+            <div class="settings-stat-card">
+
+                <div class="settings-stat-icon">
+
+                    <i class="fa-solid fa-file-arrow-down"></i>
+
+                </div>
+
+                <div class="settings-stat-info">
+
+                    <span class="settings-stat-label">
+                        Downloads
+                    </span>
+
+                    <strong id="settingsDownloadCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- PHOTOS -->
+
+            <div class="settings-stat-card">
+
+                <div class="settings-stat-icon">
+
+                    <i class="fa-solid fa-images"></i>
+
+                </div>
+
+                <div class="settings-stat-info">
+
+                    <span class="settings-stat-label">
+                        Photos
+                    </span>
+
+                    <strong id="settingsPhotoCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- FILES -->
+
+            <div class="settings-stat-card">
+
+                <div class="settings-stat-icon">
+
+                    <i class="fa-solid fa-folder"></i>
+
+                </div>
+
+                <div class="settings-stat-info">
+
+                    <span class="settings-stat-label">
+                        Files
+                    </span>
+
+                    <strong id="settingsFileCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             QUICK ACTIONS
+             ================================================= -->
+
+        <div class="settings-card">
+
+            <div class="settings-card-header">
+
+                <div>
+
+                    <h3>
+                        Quick Actions
+                    </h3>
+
+                    <p>
+                        Quickly add new content to the user app.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="settings-quick-actions">
+
+
+                <button
+                    type="button"
+                    class="settings-action-btn"
+                    onclick="openAddVideoModal()">
+
+                    <i class="fa-solid fa-circle-play"></i>
+
+                    <span>
+                        Add Video
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="settings-action-btn"
+                    onclick="openAddGuideModal()">
+
+                    <i class="fa-solid fa-book"></i>
+
+                    <span>
+                        Add Guide
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="settings-action-btn"
+                    onclick="openAddTutorialModal()">
+
+                    <i class="fa-solid fa-graduation-cap"></i>
+
+                    <span>
+                        Add Tutorial
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="settings-action-btn"
+                    onclick="openAddDownloadModal()">
+
+                    <i class="fa-solid fa-file-arrow-up"></i>
+
+                    <span>
+                        Add Download
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="settings-action-btn"
+                    onclick="openUploadMediaModal()">
+
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                    <span>
+                        Upload Media
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         VIDEOS
+         ===================================================== -->
+
+    <section
+        id="settings-videos"
+        class="settings-section">
+
+
+        <div class="settings-section-header">
+
+            <div>
+
+                <h2>
+                    Educational Videos
+                </h2>
+
+                <p>
+                    Manage educational videos displayed in the
+                    film section of the user app.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="settings-primary-btn"
+                onclick="openAddVideoModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Video
+
+            </button>
+
+        </div>
+
+
+        <!-- SEARCH / FILTER -->
+
+        <div class="settings-toolbar">
+
+            <div class="settings-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="videoSearchInput"
+                    placeholder="Search videos..."
+                    oninput="filterSettingsVideos()">
+
+            </div>
+
+
+            <select
+                id="videoCategoryFilter"
+                onchange="filterSettingsVideos()">
+
+                <option value="all">
+                    All Categories
+                </option>
+
+                <option value="getting-started">
+                    Getting Started
+                </option>
+
+                <option value="mining">
+                    Mining
+                </option>
+
+                <option value="wallet">
+                    Wallet
+                </option>
+
+                <option value="deposits">
+                    Deposits
+                </option>
+
+                <option value="withdrawals">
+                    Withdrawals
+                </option>
+
+                <option value="security">
+                    Security
+                </option>
+
+                <option value="other">
+                    Other
+                </option>
+
+            </select>
+
+
+            <select
+                id="videoStatusFilter"
+                onchange="filterSettingsVideos()">
+
+                <option value="all">
+                    All Status
+                </option>
+
+                <option value="active">
+                    Active
+                </option>
+
+                <option value="inactive">
+                    Inactive
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- VIDEO LIST -->
+
+        <div
+            id="settingsVideoList"
+            class="settings-content-list">
+
+            <!--
+                Videos will be inserted here by JavaScript.
+            -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         GUIDES
+         ===================================================== -->
+
+    <section
+        id="settings-guides"
+        class="settings-section">
+
+
+        <div class="settings-section-header">
+
+            <div>
+
+                <h2>
+                    Guides
+                </h2>
+
+                <p>
+                    Manage help and support guides displayed
+                    in the user app.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="settings-primary-btn"
+                onclick="openAddGuideModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Guide
+
+            </button>
+
+        </div>
+
+
+        <div class="settings-toolbar">
+
+            <div class="settings-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="guideSearchInput"
+                    placeholder="Search guides..."
+                    oninput="filterSettingsGuides()">
+
+            </div>
+
+
+            <select
+                id="guideCategoryFilter"
+                onchange="filterSettingsGuides()">
+
+                <option value="all">
+                    All Categories
+                </option>
+
+                <option value="account">
+                    Account
+                </option>
+
+                <option value="mining">
+                    Mining
+                </option>
+
+                <option value="wallet">
+                    Wallet
+                </option>
+
+                <option value="deposits">
+                    Deposits
+                </option>
+
+                <option value="withdrawals">
+                    Withdrawals
+                </option>
+
+                <option value="security">
+                    Security
+                </option>
+
+                <option value="other">
+                    Other
+                </option>
+
+            </select>
+
+
+            <select
+                id="guideStatusFilter"
+                onchange="filterSettingsGuides()">
+
+                <option value="all">
+                    All Status
+                </option>
+
+                <option value="active">
+                    Active
+                </option>
+
+                <option value="inactive">
+                    Inactive
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div
+            id="settingsGuideList"
+            class="settings-content-list">
+
+            <!-- Guides inserted by JavaScript -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         TUTORIALS
+         ===================================================== -->
+
+    <section
+        id="settings-tutorials"
+        class="settings-section">
+
+
+        <div class="settings-section-header">
+
+            <div>
+
+                <h2>
+                    Tutorials
+                </h2>
+
+                <p>
+                    Manage step-by-step tutorials containing
+                    text, photos and videos.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="settings-primary-btn"
+                onclick="openAddTutorialModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Tutorial
+
+            </button>
+
+        </div>
+
+
+        <div class="settings-toolbar">
+
+            <div class="settings-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="tutorialSearchInput"
+                    placeholder="Search tutorials..."
+                    oninput="filterSettingsTutorials()">
+
+            </div>
+
+
+            <select
+                id="tutorialCategoryFilter"
+                onchange="filterSettingsTutorials()">
+
+                <option value="all">
+                    All Categories
+                </option>
+
+                <option value="getting-started">
+                    Getting Started
+                </option>
+
+                <option value="mining">
+                    Mining
+                </option>
+
+                <option value="wallet">
+                    Wallet
+                </option>
+
+                <option value="deposits">
+                    Deposits
+                </option>
+
+                <option value="withdrawals">
+                    Withdrawals
+                </option>
+
+                <option value="other">
+                    Other
+                </option>
+
+            </select>
+
+
+            <select
+                id="tutorialStatusFilter"
+                onchange="filterSettingsTutorials()">
+
+                <option value="all">
+                    All Status
+                </option>
+
+                <option value="active">
+                    Active
+                </option>
+
+                <option value="inactive">
+                    Inactive
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div
+            id="settingsTutorialList"
+            class="settings-content-list">
+
+            <!-- Tutorials inserted by JavaScript -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         DOWNLOADS
+         ===================================================== -->
+
+    <section
+        id="settings-downloads"
+        class="settings-section">
+
+
+        <div class="settings-section-header">
+
+            <div>
+
+                <h2>
+                    Downloads
+                </h2>
+
+                <p>
+                    Manage files available for users to download
+                    from the Help & Support section.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="settings-primary-btn"
+                onclick="openAddDownloadModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Download
+
+            </button>
+
+        </div>
+
+
+        <div class="settings-toolbar">
+
+            <div class="settings-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="downloadSearchInput"
+                    placeholder="Search files..."
+                    oninput="filterSettingsDownloads()">
+
+            </div>
+
+
+            <select
+                id="downloadCategoryFilter"
+                onchange="filterSettingsDownloads()">
+
+                <option value="all">
+                    All Categories
+                </option>
+
+                <option value="documents">
+                    Documents
+                </option>
+
+                <option value="guides">
+                    Guides
+                </option>
+
+                <option value="forms">
+                    Forms
+                </option>
+
+                <option value="app">
+                    App Files
+                </option>
+
+                <option value="other">
+                    Other
+                </option>
+
+            </select>
+
+
+            <select
+                id="downloadTypeFilter"
+                onchange="filterSettingsDownloads()">
+
+                <option value="all">
+                    All File Types
+                </option>
+
+                <option value="pdf">
+                    PDF
+                </option>
+
+                <option value="doc">
+                    DOC / DOCX
+                </option>
+
+                <option value="xls">
+                    XLS / XLSX
+                </option>
+
+                <option value="zip">
+                    ZIP
+                </option>
+
+                <option value="image">
+                    Image
+                </option>
+
+                <option value="other">
+                    Other
+                </option>
+
+            </select>
+
+
+            <select
+                id="downloadStatusFilter"
+                onchange="filterSettingsDownloads()">
+
+                <option value="all">
+                    All Status
+                </option>
+
+                <option value="active">
+                    Active
+                </option>
+
+                <option value="inactive">
+                    Inactive
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div
+            id="settingsDownloadList"
+            class="settings-content-list">
+
+            <!-- Downloads inserted by JavaScript -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         MEDIA LIBRARY
+         ===================================================== -->
+
+    <section
+        id="settings-media"
+        class="settings-section">
+
+
+        <div class="settings-section-header">
+
+            <div>
+
+                <h2>
+                    Media Library
+                </h2>
+
+                <p>
+                    Manage uploaded photos, videos and other
+                    media used throughout the user app.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="settings-primary-btn"
+                onclick="openUploadMediaModal()">
+
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                Upload Media
+
+            </button>
+
+        </div>
+
+
+        <!-- MEDIA FILTER -->
+
+        <div class="settings-toolbar">
+
+            <div class="settings-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="mediaSearchInput"
+                    placeholder="Search media..."
+                    oninput="filterSettingsMedia()">
+
+            </div>
+
+
+            <select
+                id="mediaTypeFilter"
+                onchange="filterSettingsMedia()">
+
+                <option value="all">
+                    All Media
+                </option>
+
+                <option value="image">
+                    Photos
+                </option>
+
+                <option value="video">
+                    Videos
+                </option>
+
+                <option value="file">
+                    Files
+                </option>
+
+            </select>
+
+
+            <select
+                id="mediaUsageFilter"
+                onchange="filterSettingsMedia()">
+
+                <option value="all">
+                    All Usage
+                </option>
+
+                <option value="used">
+                    Currently Used
+                </option>
+
+                <option value="unused">
+                    Not Used
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- MEDIA GRID -->
+
+        <div
+            id="settingsMediaGrid"
+            class="settings-media-grid">
+
+            <!-- Media inserted by JavaScript -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT VIDEO MODAL
+         ===================================================== -->
+
+    <div
+        id="settingsVideoModal"
+        class="settings-modal">
+
+
+        
+
+
+        <div class="settings-modal-box">
+
+
+            <div class="settings-modal-header">
+
+                <div>
+
+                    <h2 id="videoModalTitle">
+                        Add Video
+                    </h2>
+
+                    <p>
+                        Add an educational video to the user app.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="settings-modal-close"
+                    onclick="closeVideoModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="videoForm"
+                onsubmit="saveSettingsVideo(event)">
+
+
+                <input
+                    type="hidden"
+                    id="videoEditId">
+
+
+                <div class="settings-form-group">
+
+                    <label for="videoTitle">
+                        Video Title
+                    </label>
+
+                    <input
+                        type="text"
+                        id="videoTitle"
+                        placeholder="Enter video title"
+                        required>
+
+                </div>
+
+
+                <div class="settings-form-row">
+
+
+                    <div class="settings-form-group">
+
+                        <label for="videoCategory">
+                            Category
+                        </label>
+
+                        <select
+                            id="videoCategory"
+                            required>
+
+                            <option value="">
+                                Select Category
+                            </option>
+
+                            <option value="getting-started">
+                                Getting Started
+                            </option>
+
+                            <option value="mining">
+                                Mining
+                            </option>
+
+                            <option value="wallet">
+                                Wallet
+                            </option>
+
+                            <option value="deposits">
+                                Deposits
+                            </option>
+
+                            <option value="withdrawals">
+                                Withdrawals
+                            </option>
+
+                            <option value="security">
+                                Security
+                            </option>
+
+                            <option value="other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="settings-form-group">
+
+                        <label for="videoStatus">
+                            Status
+                        </label>
+
+                        <select
+                            id="videoStatus">
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="videoDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="videoDescription"
+                        rows="4"
+                        placeholder="Describe what this video teaches...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="videoUrl">
+                        Video URL
+                    </label>
+
+                    <input
+                        type="url"
+                        id="videoUrl"
+                        placeholder="https://...">
+
+                    <small>
+                        You can use a hosted video URL or supported
+                        video platform URL.
+                    </small>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="videoFile">
+                        Video File
+                    </label>
+
+                    <input
+                        type="file"
+                        id="videoFile"
+                        accept="video/*">
+
+                    <small>
+                        Upload a video file if you are not using a URL.
+                    </small>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="videoThumbnail">
+                        Thumbnail
+                    </label>
+
+                    <input
+                        type="file"
+                        id="videoThumbnail"
+                        accept="image/*">
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="videoOrder">
+                        Display Order
+                    </label>
+
+                    <input
+                        type="number"
+                        id="videoOrder"
+                        min="0"
+                        value="0">
+
+                </div>
+
+
+                <div class="settings-modal-actions">
+
+                    <button
+                        type="button"
+                        class="settings-secondary-btn"
+                        onclick="closeVideoModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="settings-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Video
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT GUIDE MODAL
+         ===================================================== -->
+
+    <div
+        id="settingsGuideModal"
+        class="settings-modal">
+
+
+        
+
+
+        <div class="settings-modal-box">
+
+
+            <div class="settings-modal-header">
+
+                <div>
+
+                    <h2 id="guideModalTitle">
+                        Add Guide
+                    </h2>
+
+                    <p>
+                        Create a help and support guide.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="settings-modal-close"
+                    onclick="closeGuideModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="guideForm"
+                onsubmit="saveSettingsGuide(event)">
+
+
+                <input
+                    type="hidden"
+                    id="guideEditId">
+
+
+                <div class="settings-form-group">
+
+                    <label for="guideTitle">
+                        Guide Title
+                    </label>
+
+                    <input
+                        type="text"
+                        id="guideTitle"
+                        placeholder="Enter guide title"
+                        required>
+
+                </div>
+
+
+                <div class="settings-form-row">
+
+
+                    <div class="settings-form-group">
+
+                        <label for="guideCategory">
+                            Category
+                        </label>
+
+                        <select
+                            id="guideCategory"
+                            required>
+
+                            <option value="">
+                                Select Category
+                            </option>
+
+                            <option value="account">
+                                Account
+                            </option>
+
+                            <option value="mining">
+                                Mining
+                            </option>
+
+                            <option value="wallet">
+                                Wallet
+                            </option>
+
+                            <option value="deposits">
+                                Deposits
+                            </option>
+
+                            <option value="withdrawals">
+                                Withdrawals
+                            </option>
+
+                            <option value="security">
+                                Security
+                            </option>
+
+                            <option value="other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="settings-form-group">
+
+                        <label for="guideStatus">
+                            Status
+                        </label>
+
+                        <select id="guideStatus">
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="guideDescription">
+                        Short Description
+                    </label>
+
+                    <textarea
+                        id="guideDescription"
+                        rows="3"
+                        placeholder="Enter a short description...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="guideContent">
+                        Guide Content
+                    </label>
+
+                    <textarea
+                        id="guideContent"
+                        rows="8"
+                        placeholder="Write the guide content here...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="guideImage">
+                        Guide Photo
+                    </label>
+
+                    <input
+                        type="file"
+                        id="guideImage"
+                        accept="image/*">
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="guideVideo">
+                        Guide Video
+                    </label>
+
+                    <input
+                        type="url"
+                        id="guideVideo"
+                        placeholder="Video URL (optional)">
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="guideOrder">
+                        Display Order
+                    </label>
+
+                    <input
+                        type="number"
+                        id="guideOrder"
+                        min="0"
+                        value="0">
+
+                </div>
+
+
+                <div class="settings-modal-actions">
+
+                    <button
+                        type="button"
+                        class="settings-secondary-btn"
+                        onclick="closeGuideModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="settings-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Guide
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT TUTORIAL MODAL
+         ===================================================== -->
+
+    <div
+        id="settingsTutorialModal"
+        class="settings-modal">
+
+
+
+
+        <div class="settings-modal-box">
+
+
+            <div class="settings-modal-header">
+
+                <div>
+
+                    <h2 id="tutorialModalTitle">
+                        Add Tutorial
+                    </h2>
+
+                    <p>
+                        Create a tutorial containing text,
+                        photos and videos.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="settings-modal-close"
+                    onclick="closeTutorialModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="tutorialForm"
+                onsubmit="saveSettingsTutorial(event)">
+
+
+                <input
+                    type="hidden"
+                    id="tutorialEditId">
+
+
+                <div class="settings-form-group">
+
+                    <label for="tutorialTitle">
+                        Tutorial Title
+                    </label>
+
+                    <input
+                        type="text"
+                        id="tutorialTitle"
+                        placeholder="Enter tutorial title"
+                        required>
+
+                </div>
+
+
+                <div class="settings-form-row">
+
+
+                    <div class="settings-form-group">
+
+                        <label for="tutorialCategory">
+                            Category
+                        </label>
+
+                        <select
+                            id="tutorialCategory"
+                            required>
+
+                            <option value="">
+                                Select Category
+                            </option>
+
+                            <option value="getting-started">
+                                Getting Started
+                            </option>
+
+                            <option value="mining">
+                                Mining
+                            </option>
+
+                            <option value="wallet">
+                                Wallet
+                            </option>
+
+                            <option value="deposits">
+                                Deposits
+                            </option>
+
+                            <option value="withdrawals">
+                                Withdrawals
+                            </option>
+
+                            <option value="other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="settings-form-group">
+
+                        <label for="tutorialStatus">
+                            Status
+                        </label>
+
+                        <select id="tutorialStatus">
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="tutorialDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="tutorialDescription"
+                        rows="3"
+                        placeholder="Describe this tutorial...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="tutorialContent">
+                        Tutorial Content
+                    </label>
+
+                    <textarea
+                        id="tutorialContent"
+                        rows="8"
+                        placeholder="Write the tutorial instructions...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="tutorialImages">
+                        Tutorial Photos
+                    </label>
+
+                    <input
+                        type="file"
+                        id="tutorialImages"
+                        accept="image/*"
+                        multiple>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="tutorialVideo">
+                        Tutorial Video URL
+                    </label>
+
+                    <input
+                        type="url"
+                        id="tutorialVideo"
+                        placeholder="Video URL (optional)">
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="tutorialOrder">
+                        Display Order
+                    </label>
+
+                    <input
+                        type="number"
+                        id="tutorialOrder"
+                        min="0"
+                        value="0">
+
+                </div>
+
+
+                <div class="settings-modal-actions">
+
+                    <button
+                        type="button"
+                        class="settings-secondary-btn"
+                        onclick="closeTutorialModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="settings-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Tutorial
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT DOWNLOAD MODAL
+         ===================================================== -->
+
+    <div
+        id="settingsDownloadModal"
+        class="settings-modal">
+
+
+        
+
+
+        <div class="settings-modal-box">
+
+
+            <div class="settings-modal-header">
+
+                <div>
+
+                    <h2 id="downloadModalTitle">
+                        Add Download
+                    </h2>
+
+                    <p>
+                        Add a downloadable file to the user app.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="settings-modal-close"
+                    onclick="closeDownloadModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="downloadForm"
+                onsubmit="saveSettingsDownload(event)">
+
+
+                <input
+                    type="hidden"
+                    id="downloadEditId">
+
+
+                <div class="settings-form-group">
+
+                    <label for="downloadTitle">
+                        File Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="downloadTitle"
+                        placeholder="Enter file name"
+                        required>
+
+                </div>
+
+
+                <div class="settings-form-row">
+
+
+                    <div class="settings-form-group">
+
+                        <label for="downloadCategory">
+                            Category
+                        </label>
+
+                        <select
+                            id="downloadCategory"
+                            required>
+
+                            <option value="">
+                                Select Category
+                            </option>
+
+                            <option value="documents">
+                                Documents
+                            </option>
+
+                            <option value="guides">
+                                Guides
+                            </option>
+
+                            <option value="forms">
+                                Forms
+                            </option>
+
+                            <option value="app">
+                                App Files
+                            </option>
+
+                            <option value="other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="settings-form-group">
+
+                        <label for="downloadStatus">
+                            Status
+                        </label>
+
+                        <select id="downloadStatus">
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="downloadDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="downloadDescription"
+                        rows="4"
+                        placeholder="Describe this file...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="downloadFile">
+                        Upload File
+                    </label>
+
+                    <input
+                        type="file"
+                        id="downloadFile">
+
+                    <small>
+                        Select the file users will be able to download.
+                    </small>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="downloadUrl">
+                        File URL
+                    </label>
+
+                    <input
+                        type="url"
+                        id="downloadUrl"
+                        placeholder="https://...">
+
+                    <small>
+                        Alternatively, provide a hosted file URL.
+                    </small>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="downloadOrder">
+                        Display Order
+                    </label>
+
+                    <input
+                        type="number"
+                        id="downloadOrder"
+                        min="0"
+                        value="0">
+
+                </div>
+
+
+                <div class="settings-modal-actions">
+
+                    <button
+                        type="button"
+                        class="settings-secondary-btn"
+                        onclick="closeDownloadModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="settings-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Download
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         UPLOAD MEDIA MODAL
+         ===================================================== -->
+
+    <div
+        id="settingsMediaModal"
+        class="settings-modal">
+
+
+        
+
+
+        <div class="settings-modal-box">
+
+
+            <div class="settings-modal-header">
+
+                <div>
+
+                    <h2>
+                        Upload Media
+                    </h2>
+
+                    <p>
+                        Upload photos, videos or files to the
+                        KT Cloud Mining media library.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="settings-modal-close"
+                    onclick="closeMediaModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="mediaForm"
+                onsubmit="saveSettingsMedia(event)">
+
+
+                <div class="settings-form-group">
+
+                    <label for="mediaTitle">
+                        Media Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="mediaTitle"
+                        placeholder="Enter media name"
+                        required>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="mediaType">
+                        Media Type
+                    </label>
+
+                    <select
+                        id="mediaType"
+                        required>
+
+                        <option value="">
+                            Select Media Type
+                        </option>
+
+                        <option value="image">
+                            Photo / Image
+                        </option>
+
+                        <option value="video">
+                            Video
+                        </option>
+
+                        <option value="file">
+                            File
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="mediaDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="mediaDescription"
+                        rows="3"
+                        placeholder="Optional description...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="mediaFile">
+                        Select File
+                    </label>
+
+                    <input
+                        type="file"
+                        id="mediaFile"
+                        required>
+
+                </div>
+
+
+                <div class="settings-form-group">
+
+                    <label for="mediaUsage">
+                        Intended Usage
+                    </label>
+
+                    <select id="mediaUsage">
+
+                        <option value="general">
+                            General
+                        </option>
+
+                        <option value="video">
+                            Educational Videos
+                        </option>
+
+                        <option value="guide">
+                            Guides
+                        </option>
+
+                        <option value="tutorial">
+                            Tutorials
+                        </option>
+
+                        <option value="download">
+                            Downloads
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="settings-modal-actions">
+
+                    <button
+                        type="button"
+                        class="settings-secondary-btn"
+                        onclick="closeMediaModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="settings-primary-btn">
+
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                        Upload Media
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         DELETE CONFIRMATION MODAL
+         ===================================================== -->
+
+    <div
+        id="settingsDeleteModal"
+        class="settings-modal">
+
+
+
+
+        <div class="settings-modal-box settings-delete-modal">
+
+
+            <div class="settings-delete-icon">
+
+                <i class="fa-solid fa-trash"></i>
+
+            </div>
+
+
+            <h2>
+                Delete Content?
+            </h2>
+
+
+            <p id="settingsDeleteMessage">
+                Are you sure you want to delete this item?
+            </p>
+
+
+            <input
+                type="hidden"
+                id="settingsDeleteId">
+
+
+            <input
+                type="hidden"
+                id="settingsDeleteType">
+
+
+            <div class="settings-modal-actions">
+
+
+                <button
+                    type="button"
+                    class="settings-secondary-btn"
+                    onclick="closeSettingsDeleteModal()">
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="settings-danger-btn"
+                    onclick="confirmSettingsDelete()">
+
+                    <i class="fa-solid fa-trash"></i>
+
+                    Delete
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+</div>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>KT Admin Panel</title>
+<link rel="stylesheet" href="dist/admin.bundle.css">
+  
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KT Admin">
+
+<link 
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+rel="stylesheet">
+</head
+<body>
+
+<div id="login-overlay">
+  <form id="login-form" onsubmit="loginSubmit(event)">
+    <img src="copilot_image_1782453646122.jpeg" alt="KT Cloud Mining">
+    <h2>Admin Sign In</h2>
+    <p id="login-error"></p>
+    <input type="email" id="login-email" placeholder="Email" required>
+    <input type="password" id="login-password" placeholder="Password" required>
+    <button type="submit" id="login-submit-btn">Sign In</button>
+  </form>
+</div>
+
+<div id="admin-app">
+
+<!-- HEADER -->
+<header class="admin-header">
+<button id="menu-btn">
+<i class="fa-solid fa-bars"></i>
+</button>
+
+<div class="logo">
+<img src="copilot_image_1782453646122.jpeg">
+</div>
+
+<div class="admin-profile">
+<i class="fa-solid fa-user-shield"></i>
+Admin
+<i class="fa-solid fa-right-from-bracket" id="logout-btn" style="margin-left:12px;cursor:pointer;" title="Log out" onclick="adminLogout()"></i>
+</div>
+  
+</header>
+<!-- SIDEBAR -->
+<aside id="sidebar">
+<div class="side-title">
+ADMIN MENU
+</div>
+<div class="side-item active"
+onclick="loadAdminPage('dashboard')">
+<i class="fa-solid fa-chart-line"></i>
+Dashboard
+</div>
+<div class="side-item dropdown">
+<div onclick="toggleMenu(this)">
+<i class="fa-solid fa-wallet"></i>
+Finance
+<i class="fa-solid fa-chevron-down arrow"></i>
+</div>
+<div class="submenu">
+<div onclick="loadAdminPage('deposits')">
+Deposits
+</div>
+<div onclick="loadAdminPage('withdrawals')">
+Withdrawals
+</div>
+<div onclick="loadAdminPage('transactions')">
+Transactions
+</div>
+</div>
+</div>
+
+<div class="side-item"
+onclick="loadAdminPage('plans')">
+<i class="fa-solid fa-coins"></i>
+Manage Plans
+</div>
+
+<div class="side-item"
+onclick="loadAdminPage('users')">
+<i class="fa-solid fa-users"></i>
+Users
+</div>
+
+<div class="side-item"
+onclick="loadAdminPage('verification')">
+<i class="fa-solid fa-id-card"></i>
+Verification
+</div>
+
+<div class="side-item"
+onclick="loadAdminPage('exchange')">
+<i class="fa-solid fa-money-bill-transfer"></i>
+Exchange Rates
+</div>
+<div class="side-item"
+onclick="loadAdminPage('support-chat')">
+<i class="fa-solid fa-comments"></i>
+Support Chat
+</div>
+<div class="side-item"
+onclick="loadAdminPage('notifications')">
+<i class="fa-solid fa-bell"></i>
+Notifications
+</div>
+<div class="side-item"
+onclick="loadAdminPage('activity-log')">
+<i class="fa-solid fa-clock-rotate-left"></i>
+Activity Logs
+</div>
+
+<div class="side-item"
+onclick="loadAdminPage('settings')">
+<i class="fa-solid fa-gear"></i>
+Settings
+</div>
+
+
+</aside>
+
+<!-- PAGE CONTENT -->
+<main id="admin-body">
+</main>
+<!-- SIDEBAR OVERLAY (blurs + blocks clicks behind sidebar) -->
+<div id="sidebar-overlay"></div>
+
+</div>
+  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="dist/admin.bundle.js"></script>
+  
+  
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(console.error);
+  });
+}
+</script>
+
+
+
+</body>
+</html>

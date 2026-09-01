@@ -1,0 +1,515 @@
+/* =================================
+   EXCHANGE RATES PAGE
+================================= */
+
+
+.exchange-page{
+
+  
+    width:100%;
+  
+
+}
+
+
+
+
+
+/* =================================
+   HEADER
+================================= */
+
+
+.exchange-header{
+
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+
+}
+
+
+
+.exchange-header h2{
+
+    margin:0;
+    font-size:24px;
+    color:#333;
+
+}
+
+
+
+#lastUpdated{
+
+    margin-top:6px;
+    font-size:13px;
+    color:#777;
+
+}
+
+
+
+
+
+/* =================================
+   ADD BUTTON
+================================= */
+
+
+.add-rate-btn{
+
+    background:#1b8ef2;
+    color:white;
+    border:none;
+    padding:15px 20px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    margin-bottom: 20px;
+
+}
+
+
+.add-rate-btn:hover{
+
+    opacity:.9;
+
+}
+
+
+
+
+/* =================================
+   TABLE
+================================= */
+
+
+.exchange-table{
+    background:white;
+    border-radius:12px;
+    padding: 5px;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+    margin-bottom:20px;
+}
+
+.exchange-table table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+
+.exchange-table th{
+    background:#f3f4f6;
+    text-align:left;
+}
+
+
+
+.exchange-table th, td{
+    padding:14px;
+    border-bottom:1px solid #ddd;
+}
+
+
+
+
+
+
+
+/* =================================
+   EDIT BUTTON
+================================= */
+
+
+.edit-rate-btn{
+
+    background:#1b8ef2;
+    color:white;
+    border:none;
+    padding:8px 18px;
+    border-radius:6px;
+    cursor:pointer;
+
+}
+
+
+.edit-rate-btn:hover{
+
+    opacity:.85;
+
+}
+
+
+
+
+
+
+
+/* =================================
+   MODALS
+================================= */
+
+
+.rate-modal{
+
+    display:none;
+    position:fixed;
+    top:65px; /* below your fixed header */
+    right: 40px; /* beside sidebar */
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+    background:rgba(0,0,0,.55);
+    z-index:5000;
+    padding: 15px;
+    overflow-y:auto;
+
+}
+
+
+
+
+
+.rate-modal-box{
+
+    background:white;
+    width:100%;
+    max-width:400px;
+    padding:25px;
+    border-radius:12px;
+    box-sizing:border-box;
+
+}
+
+
+
+
+
+.rate-modal-box h3{
+
+    margin:0 0 20px;
+    color:#333;
+    font-size:20px;
+
+}
+
+
+
+
+
+
+/* =================================
+   INPUTS
+================================= */
+
+
+.rate-modal-box label{
+
+    display:block;
+    margin-top:15px;
+    margin-bottom:7px;
+    font-size:14px;
+    color:#555;
+
+}
+
+
+
+.rate-modal-box input{
+
+    width:100%;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    outline:none;
+    font-size:15px;
+    box-sizing:border-box;
+
+}
+
+
+
+.rate-modal-box input:focus{
+
+    border-color:#1b8ef2;
+
+}
+
+
+
+
+
+
+/* =================================
+   MODAL BUTTONS
+================================= */
+
+
+.rate-modal-buttons{
+
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:25px;
+
+}
+
+
+
+
+.cancel-rate-btn{
+
+    background:#eee;
+    color:#555;
+    border:none;
+    padding:10px 18px;
+    border-radius:7px;
+    cursor:pointer;
+
+}
+
+
+
+
+.save-rate-btn{
+
+    background:#1b8ef2;
+    color:white;
+    border:none;
+    padding:10px 18px;
+    border-radius:7px;
+    cursor:pointer;
+
+}
+
+
+
+
+.save-rate-btn:hover,
+.cancel-rate-btn:hover{
+
+    opacity:.85;
+
+}
+
+
+
+
+
+
+
+
+/* =================================
+   MOBILE RESPONSIVE
+================================= */
+
+
+@media(max-width:768px){
+
+
+
+
+
+
+.exchange-header{
+
+    flex-direction:column;
+    align-items:flex-start;
+    gap:15px;
+
+}
+
+
+
+.add-rate-btn{
+
+    width: 50%;
+
+}
+
+
+
+
+
+.exchange-table th,
+.exchange-table td{
+
+    padding:10px;
+    font-size:13px;
+
+}
+
+
+
+
+.edit-rate-btn{
+
+    padding:7px 12px;
+    font-size:12px;
+
+}
+
+
+
+.rate-modal-box{
+
+    padding:20px;
+
+}
+
+
+
+}
+
+/* =================================
+   DELETE BUTTON
+================================= */
+
+
+.exchange-confirm-modal{
+
+    display:none;
+
+    position:fixed;
+
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+
+    width:100%;
+    height:100%;
+
+    background:rgba(0,0,0,.35);
+
+    z-index:99999;
+
+    padding:15px;
+
+    box-sizing:border-box;
+
+    justify-content:center;
+
+    align-items:flex-end;
+
+    overflow:hidden;
+
+    backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);
+}
+
+
+.exchange-modal-box{
+
+    background:white;
+
+    width:100%;
+
+    max-width:none;
+
+    border-radius:14px 14px 0 0;
+
+    padding:20px;
+
+    text-align:center;
+
+    box-sizing:border-box;
+
+    box-shadow:0 -5px 20px rgba(0,0,0,.15);
+
+}
+
+
+.exchange-confirm-icon{
+    width:45px;
+
+    height: 40px;
+
+    margin:0 auto 15px;
+
+    border-radius:50%;
+
+    background:#fde8e8;
+
+    color:#e74c3c;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:22px;
+
+}
+
+
+.exchange-modal-box h3{
+
+    margin:0 0 10px;
+
+    font-size:20px;
+
+    color:#111827;
+
+}
+
+
+.exchange-modal-box p{
+
+    margin:0 0 20px;
+
+    color:#666;
+
+    font-size:14px;
+
+}
+
+
+.exchange-modal-buttons{
+
+    display:flex;
+
+    gap:30px;
+
+    justify-content:center;
+
+}
+
+
+.cancel-rate-btn,
+.delete-rate-btn{
+
+    border:none;
+
+    padding:10px 25px;
+
+    border-radius:7px;
+
+    cursor:pointer;
+
+    color:white;
+
+    font-size:14px;
+
+}
+
+
+.cancel-rate-btn{
+
+    background:#777;
+
+}
+
+
+.delete-rate-btn{
+
+    background:#e74c3c;
+
+}

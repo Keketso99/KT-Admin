@@ -1,0 +1,90 @@
+<div class="exchange-page">
+
+    <!-- Header -->
+    <div class="exchange-header">
+        <div>
+            <h2>
+              <i class="fa-solid fa-money-bill-transfer"></i>
+                Exchange Rates
+            </h2>
+            <p id="lastUpdated">
+                Last Updated: Not yet updated
+            </p>
+        </div>
+    </div>
+
+    <button 
+        class="add-rate-btn"
+        onclick="openAddRateModal()">
+        + Add Currency Pair
+    </button>
+
+    <!-- Exchange Rates Table -->
+    <div class="exchange-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Currency Pair</th>
+                    <th>Rate</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="rateTableBody">
+                <!-- Rows will be injected by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- EDIT RATE MODAL -->
+    <div class="rate-modal" id="rateModal">
+        <div class="rate-modal-box">
+            <h3>Edit Exchange Rate</h3>
+
+            <label>Currency Pair</label>
+            <input type="text" id="currencyPair" readonly>
+
+            <label>Exchange Rate</label>
+            <input type="number" id="newRate" step="0.0001">
+
+            <div class="rate-modal-buttons">
+                <button class="delete-rate-btn" onclick="deleteCurrencyPair()">Delete</button>
+                <button class="cancel-rate-btn" onclick="closeRateModal()">Cancel</button>
+                <button class="save-rate-btn" onclick="saveRate()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD NEW CURRENCY PAIR MODAL -->
+    <div class="rate-modal" id="addRateModal">
+        <div class="rate-modal-box">
+            <h3>Add Currency Pair</h3>
+
+            <label>Currency Pair</label>
+            <input type="text" id="newCurrencyPair" placeholder="Example: BTC/USDT">
+
+            <label>Exchange Rate</label>
+            <input type="number" id="newCurrencyRate" placeholder="Enter rate" step="0.0001">
+
+            <div class="rate-modal-buttons">
+                <button class="cancel-rate-btn" onclick="closeAddRateModal()">Cancel</button>
+                <button class="save-rate-btn" onclick="addCurrencyPair()">Add</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- CONFIRM DELETE MODAL -->
+<div class="exchange-confirm-modal" id="confirmDeleteModal">
+    <div class="exchange-modal-box">
+        <div class="exchange-confirm-icon">
+            <i class="fa-solid fa-trash"></i>
+        </div>
+        <h3>Confirm Delete</h3>
+        <p id="confirmDeleteMessage">Are you sure you want to delete?</p>
+        <div class="exchange-modal-buttons">
+            <button class="cancel-rate-btn" onclick="closeConfirmDeleteModal()">Cancel</button>
+            <button class="delete-rate-btn" onclick="confirmDelete()">Delete</button>
+        </div>
+    </div>
+</div>

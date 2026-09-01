@@ -1,0 +1,666 @@
+
+
+<div class="users-page">
+  
+    <!-- Header -->
+    <div class="users-header">
+            <h2 class="users-title">
+              <i class="fa-solid fa-users"></i>
+                Users Management
+            </h2>
+       </div>
+        <button class="add-user-btn">
+            + Add User
+        </button>
+
+
+
+
+    <!-- Statistics -->
+
+    <div class="users-stats">
+
+        <div class="user-stat-card">
+
+                <h3 id="totalUsers">
+                    0
+                </h3>
+
+                <span>Total Users</span>
+
+        </div>
+
+
+        <div class="user-stat-card">
+
+                <h3 id="activeUsers">
+                    0
+                </h3>
+
+                <span>Active Users</span>
+
+        </div>
+
+
+        <div class="user-stat-card">
+
+
+                <h3 id="blockedUsers">
+                    0
+                </h3>
+
+                <span>Blocked Users</span>
+
+
+        </div>
+
+
+        <div class="user-stat-card">
+
+
+                <h3 id="vipUsers">
+                    0
+                </h3>
+
+                <span>VIP Users</span>
+
+
+        </div>
+
+    </div>
+
+
+    <!-- Search -->
+
+    <div class="users-toolbar">
+
+        <input
+            type="text"
+            id="userSearch"
+            placeholder="Search by name, email or ID">
+
+        <select id="statusFilter">
+
+            <option value="all">
+                All Users
+            </option>
+
+            <option value="active">
+                Active
+            </option>
+
+            <option value="blocked">
+                Blocked
+            </option>
+
+            <option value="vip">
+                VIP
+            </option>
+
+        </select>
+
+        <button class="refresh-btn">
+            Refresh
+        </button>
+
+    </div>
+
+
+
+
+<!-- Users Table -->
+
+<div class="users-table">
+
+
+<table>
+
+    <thead>
+
+        <tr>
+
+            <th>User</th>
+
+            <th>Status</th>
+
+            <th>Action</th>
+
+        </tr>
+
+    </thead>
+
+
+    <tbody id="usersList">
+
+        <!-- Rows are rendered from usersData in Users.js -->
+
+    </tbody>
+
+
+</table>
+
+
+</div>
+
+
+
+
+
+
+
+    <!-- Pagination -->
+
+    <div class="pagination">
+
+        <button>&laquo;</button>
+
+        <button class="active-page">1</button>
+
+        <button>2</button>
+
+        <button>3</button>
+
+        <button>4</button>
+
+        <button>&raquo;</button>
+
+    </div>
+
+</div>
+
+
+
+<!-- ========================= -->
+<!-- Manage User Modal -->
+<!-- ========================= -->
+
+<div class="user-modal" id="userModal">
+
+    <div class="user-modal-content">
+
+        <span class="close-modal">
+
+            &times;
+
+        </span>
+
+        <h2>
+
+            User Management
+
+        </h2>
+
+        <div class="modal-profile">
+
+            <img src="images/avatar.png">
+
+            <h3 id="modalUserName">
+
+            </h3>
+
+            <p id="modalUserID">
+
+            </p>
+
+        </div>
+
+        <div class="user-details">
+
+            <div class="detail-item">
+
+                <span>Email</span>
+
+                <strong id="modalEmail">
+
+                </strong>
+
+            </div>
+
+            <div class="detail-item">
+
+                <span>Balance</span>
+
+                <strong id="modalBalance">
+
+                </strong>
+
+            </div>
+
+            <div class="detail-item">
+
+                <span>Mining Plan</span>
+
+                <strong id="modalPlan">
+
+                </strong>
+
+            </div>
+
+            <div class="detail-item">
+
+                <span>Status</span>
+
+                <strong id="modalStatus">
+
+                </strong>
+
+            </div>
+
+        </div>
+        
+        
+            <!-- Admin Actions -->
+
+        <div class="admin-actions">
+
+            <button class="action-btn credit-btn">
+
+                Credit Balance
+
+            </button>
+
+            <button class="action-btn debit-btn">
+
+                Debit Balance
+
+            </button>
+
+            <button class="action-btn mining-btn">
+
+                Change Mining Plan
+
+            </button>
+
+            <button class="action-btn reward-btn">
+
+                Add Bonus
+
+            </button>
+
+            <button class="action-btn verify-btn" >
+
+                Verify User
+
+            </button>
+
+            <button class="action-btn block-btn" id="toggleUserStatus">
+                 Block User
+             </button>
+
+            <button class="action-btn password-btn">
+
+                Reset Password
+
+            </button>
+
+            <button class="action-btn deposit-btn">
+
+                Deposit History
+
+            </button>
+
+            <button class="action-btn withdraw-btn">
+
+                Withdrawal History
+
+            </button>
+
+            <button class="action-btn transaction-btn">
+
+                Transaction History
+
+            </button>
+
+            <button class="action-btn referral-btn">
+
+                Referral List
+
+            </button>
+
+            <button class="action-btn edit-btn">
+
+                Edit User
+
+            </button>
+
+            <button class="action-btn delete-btn">
+
+                Delete User
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Add User Modal -->
+
+<div class="add-user-modal" id="addUserModal">
+
+    <div class="add-user-content">
+
+        <span class="close-modal">
+            &times;
+        </span>
+
+
+        <h2>Add New User</h2>
+
+
+        <label>Full Name</label>
+        <input id="newUserName" type="text" placeholder="Enter name">
+
+
+        <label>Email</label>
+        <input id="newUserEmail" type="email" placeholder="Enter email">
+
+
+        <label>Phone</label>
+        <input id="newUserPhone" type="text" placeholder="Phone number">
+
+
+        <label>Balance</label>
+        <input id="newUserBalance" type="number" placeholder="0.00">
+
+
+        <label>Mining Plan</label>
+
+        <select id="newUserPlan">
+
+            <option>Starter Plan</option>
+            <option>Silver Plan</option>
+            <option>Gold Plan</option>
+            <option>Premium Plan</option>
+            <option>Diamond Plan</option>
+
+        </select>
+
+
+        <button id="createUserBtn" class="save-btn">
+
+            Create User
+
+        </button>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- Credit Balance Modal -->
+
+<div class="credit-modal" id="creditModal">
+
+    <div class="credit-content">
+
+        <span class="close-modal">&times;</span>
+
+        <h2>Credit User Balance</h2>
+
+        <label>Amount</label>
+
+        <input
+        type="number"
+        id="creditAmount"
+        placeholder="Enter amount">
+
+        <label>Reason</label>
+
+        <textarea
+        id="creditReason"
+        rows="4"
+        placeholder="Reason"></textarea>
+
+        <button class="save-btn">
+
+            Credit User
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<!-- Debit Balance Modal -->
+
+<div class="debit-modal" id="debitModal">
+
+    <div class="debit-content">
+
+        <span class="close-modal">&times;</span>
+
+        <h2>Debit User Balance</h2>
+
+        <label>Amount</label>
+
+        <input
+        type="number"
+        id="debitAmount"
+        placeholder="Enter amount">
+
+        <label>Reason</label>
+
+        <textarea
+        id="debitReason"
+        rows="4"
+        placeholder="Reason"></textarea>
+
+        <button class="danger-btn">
+
+            Debit User
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<!-- Mining Plan Modal -->
+
+<div class="plan-modal" id="planModal">
+
+    <div class="plan-content">
+
+        <span class="close-modal">&times;</span>
+
+        <h2>Assign Mining Plan</h2>
+
+        <select id="userPlan">
+
+            <option>Starter Plan</option>
+
+            <option>Silver Plan</option>
+
+            <option>Gold Plan</option>
+
+            <option>Premium Plan</option>
+
+            <option>Diamond Plan</option>
+
+            <option>VIP Plan</option>
+
+        </select>
+
+        <button class="save-btn">
+
+            Save Plan
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<!-- Edit User -->
+
+<div class="edit-user-modal" id="editUserModal">
+
+    <div class="edit-user-content">
+
+        <span class="close-modal">&times;</span>
+
+        <h2>Edit User</h2>
+
+        <label>Full Name</label>
+
+        <input
+        type="text"
+        id="editName">
+
+        <label>Email</label>
+
+        <input
+        type="email"
+        id="editEmail">
+
+        <label>Phone</label>
+
+        <input
+        type="text"
+        id="editPhone">
+
+        <label>Country</label>
+
+        <input
+        type="text"
+        id="editCountry">
+
+        <button class="save-btn">
+
+            Save Changes
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<!-- Delete Confirmation -->
+
+<div class="delete-modal" id="deleteModal">
+
+    <div class="delete-content">
+
+        <h2>
+
+            Delete User
+
+        </h2>
+
+        <p>
+
+            Are you sure you want to permanently delete this user?
+
+        </p>
+
+        <div class="confirm-buttons">
+
+            <button class="cancel-btn">
+
+                Cancel
+
+            </button>
+
+            <button class="delete-btn">
+
+                Delete
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Block Confirmation -->
+
+<div class="block-modal" id="blockModal">
+
+    <div class="block-content">
+
+        <h2>
+
+            Block User
+
+        </h2>
+
+        <p>
+
+            This user will not be able to login until activated again.
+
+        </p>
+
+        <div class="confirm-buttons">
+
+            <button class="cancel-btn">
+
+                Cancel
+
+            </button>
+
+            <button class="block-btn">
+
+                Block User
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Reset Password Confirmation -->
+
+<div class="reset-password-modal" id="resetPasswordModal">
+
+    <div class="reset-password-content">
+
+        <h2>
+
+            Reset Password
+
+        </h2>
+
+        <p>
+
+            Send a password reset link to this user's email address?
+
+        </p>
+
+        <div class="confirm-buttons">
+
+            <button class="cancel-btn">
+
+                Cancel
+
+            </button>
+
+            <button class="reset-btn">
+
+                Send Reset Link
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>

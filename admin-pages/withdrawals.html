@@ -1,0 +1,138 @@
+
+<div class="withdrawal-page">
+    <!-- Page Header -->
+    <div class="wadmin-card">
+        <h2>
+            <i class="fa-solid fa-wallet"></i>
+            Withdrawal Management
+        </h2>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="wtab">
+        <button class="wtab-btn active"
+          onclick="showWithdrawalTab('pending', this)">
+            Pending
+           <span id="wpendingCount" class="wtab-count">0</span>
+        </button>
+        <button class="wtab-btn"
+        onclick="showWithdrawalTab('approved', this)">
+            Approved
+            <span id="wapprovedCount" class="wtab-count">0</span>
+        </button>
+        <button class="wtab-btn"
+        onclick="showWithdrawalTab('rejected', this)">
+            Rejected
+            <span id="wrejectedCount" class="wtab-count">0</span>
+         </button>
+  </div>
+
+    <!-- ========================= -->
+    <!-- Pending Withdrawals -->
+    <!-- ========================= -->
+
+<div id="wpending" class="withdrawal-section active-section">
+    <div class="withdrawal-table">
+       <!--div class="table-container"-->
+          <table>
+            <thead>
+             <tr>
+               <th>User</th>
+                 <th>Date</th>
+                   <th>Action</th>
+                </tr>
+            </thead>
+          <tbody id="pendingWithdrawalList">
+    </tbody>
+    </table>
+ </div>
+</div>
+
+    <!-- ========================= -->
+    <!-- Approved -->
+    <!-- ========================= -->
+<div id="wapproved" class="withdrawal-section">
+    <div class="withdrawal-table">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+      <tbody id="approvedWithdrawalList">
+    </tbody>
+  </table>
+</div>
+</div>
+
+    <!-- ========================= -->
+    <!-- Rejected -->
+    <!-- ========================= -->
+<div id="wrejected" class="withdrawal-section">
+    <div class="withdrawal-table">
+     <table>
+      <thead>
+         <tr>
+         <th>User</th>
+         <th>Date</th>
+         <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+     <tbody id="rejectedWithdrawalList">
+    </tbody>
+   </table>
+ </div>
+</div>
+
+    <!-- ========================= -->
+    <!-- Review Modal -->
+    <!-- ========================= -->
+<div id="withdrawalModal" class="withdrawal-modal">
+       <div class="withdrawal-modal-content">
+         <div class="wmodal-header">
+              <h2>
+                   withdrawal Review
+              </h2>
+              <button
+                class="wclose-modal"
+                onclick="closeWithdrawalReview()">
+                    ×
+               </button>
+            </div>
+            <div class="withdrawal-details">
+                <div class="wdetail-row">
+                    <strong>User</strong>
+                    <span id="review-user"></span>
+                </div>
+                <div class="wdetail-row">
+                    <strong>Method</strong>
+                    <span id="review-method"></span>
+                </div>
+                <div class="wdetail-row">
+                    <strong>Amount</strong>
+                    <span id="review-amount"></span>
+                </div>
+                <div class="wdetail-row">
+                    <strong>Date</strong>
+                    <span id="review-date"></span>
+                </div>
+            </div>
+            <div class="wmodal-buttons">
+                <button class="approve-btn">
+                    Approve
+                </button>
+                <button class="reject-btn">
+                    Reject
+                </button>
+                <button class="wclose-btn"
+                onclick="closeWithdrawalReview()">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

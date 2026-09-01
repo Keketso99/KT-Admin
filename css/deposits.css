@@ -1,0 +1,325 @@
+/* ==================================
+   DEPOSIT PAGE
+================================== */
+.deposit-page{
+    width:100%;
+}
+/* welcome card */
+.dpadmin-card{
+    background:white;
+    padding: 20px;
+    border-radius:15px;
+    margin-bottom:20px;
+    margin-top: 15px;
+    border: none;
+}
+
+.dpadmin-card h2{
+    font-size:22px;
+    color:#111827;
+    margin-bottom:1px;
+}
+
+/* ==================================
+   TABS
+================================== */
+.deposit-tabs{
+    display:flex;
+    gap:15px;
+    margin:20px 0;
+    flex-wrap:wrap;
+}
+
+.dtab-btn{
+    border:none;
+    outline:none;
+    background:#fff;
+    color:#444;
+    padding:15px 20px;
+    align-self: center;
+    border-radius: 30px;
+    font-size:15px;
+    font-weight:600;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    transition:.25s;
+}
+
+.dtab-btn:hover{
+    background:#FDBA05;
+    color:#fff;
+}
+.dtab-btn.active{
+    background:#FDBA05;
+    color:#fff;
+}
+
+.dtab-count{
+    background:rgba(255,255,255,.25);
+    padding:3px 10px;
+    border-radius:20px;
+    margin-left: none;
+    font-size:13px;
+}
+
+.dtab {
+  display: flex;  /* enables flexbox */
+  justify-content: space-around;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dtab button {
+  flex: 1;  /*buttons grow/shrink equally */
+  margin: 5px;
+  padding: 10px;
+  min-width: 40px;
+}
+
+/* ==================================
+   TAB CONTENT
+================================== */
+.deposit-section{
+    display:none;
+}
+
+.active-section{
+    display:block;
+}
+
+/* ==================================
+   TABLE
+================================== */
+
+.deposits-table{
+    background:white;
+    border-radius:12px;
+    padding: 5px;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+    margin-bottom:20px;
+}
+
+.deposits-table table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+.deposits-table th{
+    background:#f3f4f6;
+    text-align:left;
+}
+
+.deposits-table th,td{
+    padding:14px;
+    border-bottom:1px solid #ddd;
+}
+
+
+/* ==================================
+   STATUS
+================================== */
+
+.approved{
+    background:#dcfce7;
+    color:#15803d;
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:13px;
+    font-weight:600;
+}
+
+.rejected{
+    background:#fee2e2;
+    color:#dc2626;
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:13px;
+    font-weight:600;
+}
+
+/* ==================================
+   BUTTONS
+================================== */
+.review-btn,
+.view-btn,
+.approve-btn,
+.reject-btn,
+.close-btn{
+    border:none;
+    cursor:pointer;
+    border-radius:8px;
+    padding:10px 16px;
+    font-size:14px;
+    transition:.25s;
+}
+
+.review-btn{
+    background:#2563eb;
+    color:#fff;
+}
+
+.view-btn{
+    background:#374151;
+    color:#fff;
+}
+
+.approve-btn{
+    background:#16a34a;
+    color:#fff;
+}
+
+.reject-btn{
+    background:#dc2626;
+    color:#fff;
+}
+
+.close-btn{
+    background:#6b7280;
+    color:#fff;
+}
+
+.review-btn:hover,
+.view-btn:hover,
+.approve-btn:hover,
+.reject-btn:hover,
+.close-btn:hover{
+    opacity:.9;
+}
+
+/* ==================================
+   MODAL
+================================== */
+.deposit-modal{
+    display:none;
+    position:fixed;
+    top:65px; /* below your fixed header */
+    right: 40px; /* beside sidebar */
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+    background:rgba(0,0,0,.55);
+    z-index:5000;
+    padding: 15px;
+    overflow-y:auto;
+}
+
+.deposit-modal h3{
+  margin-left: 17px;
+  font-size: 17px;
+}
+
+.deposit-modal-content{
+    width:100%;
+    max-width:600px;
+    max-height:90%;
+    overflow-y:auto;
+    background:white;
+    border-radius:15px;
+}
+
+@keyframes popup{
+    from{
+        transform:scale(.9);
+        opacity:0;
+    }
+    to{
+        transform:scale(1);
+        opacity:1;
+    }
+}
+
+/* ==================================
+   MODAL HEADER
+================================== */
+.modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 20px;
+    border-bottom:1px solid #eee;
+}
+
+.modal-header h2{
+    font-size:22px;
+}
+
+.close-modal{
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:28px;
+}
+
+/* ==================================
+   DETAILS
+================================== */
+.deposit-details{
+    padding:20px;
+}
+
+.detail-row{
+    display:flex;
+    justify-content:space-between;
+    padding:12px 0;
+    border-bottom:1px solid #f1f1f1;
+}
+
+.detail-row strong{
+    color:#444;
+}
+
+.detail-row span{
+    color:#666;
+}
+
+/* ==================================
+   PROOF IMAGE
+================================== */
+.proof-image{
+    padding:20px;
+}
+
+.proof-image img{
+    width:100%;
+    max-height:350px;
+    object-fit:contain;
+    border-radius:10px;
+    border:1px solid #ddd;
+}
+
+/* ==================================
+   MODAL BUTTONS
+================================== */
+.modal-buttons{
+    display:flex;
+    gap:15px;
+    justify-content:flex-end;
+    padding:20px;
+    border-top:1px solid #eee;
+}
+
+/* ==================================
+   MOBILE
+================================== */
+@media(max-width:768px){
+.deposit-tabs{
+    gap:10px;
+}
+
+.dtab-btn{
+    flex:1;
+    padding:12px;
+}
+
+.detail-row{
+    flex-direction:column;
+    gap:5px;
+}
+
+.modal-buttons{
+    flex-direction:column;
+}
+
+.modal-buttons button{
+    width:100%;
+}
+}

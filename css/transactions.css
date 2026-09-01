@@ -1,0 +1,737 @@
+.transaction-page{
+
+    width: 100%;
+
+}
+
+.transaction-header{
+
+    background:white;
+    padding: 20px;
+    border-radius:15px;
+    margin-bottom:20px;
+    margin-top: 15px;
+    border: none;
+
+}
+
+.transaction-header h2{
+    font-size:22px;
+    color:#111827;
+    margin-bottom:1px;
+}
+
+.transaction-controls{
+
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom: 20px;
+
+}
+
+.transaction-search,
+.transaction-filter{
+
+    padding:10px 12px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    outline:none;
+    font-size:14px;
+
+}
+
+.transaction-search{
+
+    width:230px;
+
+}
+
+/* =================================
+   TABLE CONTAINER
+================================= */
+
+.transaction-table-wrapper{
+    background:white;
+
+    border-radius:12px;
+
+    padding: 15px 5px;
+
+    overflow:hidden;
+}
+
+
+/* =================================
+   TABLE
+================================= */
+
+.transaction-table{
+    width:100%;
+
+    border-collapse:collapse;
+
+    table-layout:fixed;
+}
+
+.transaction-table th{
+    background:#f5f5f5;
+
+    padding:14px;
+
+    text-align:left;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    color:#374151;
+}
+
+.transaction-table td{
+    padding:14px;
+
+    border-bottom:1px solid #eee;
+
+    font-size:13px;
+
+    color:#374151;
+
+    word-wrap:break-word;
+}
+
+
+/* =================================
+   TABLE COLUMN WIDTHS
+================================= */
+
+.transaction-table th:nth-child(1),
+.transaction-table td:nth-child(1){
+    width:25%;
+}
+
+.transaction-table th:nth-child(2),
+.transaction-table td:nth-child(2){
+    width:30%;
+}
+
+.transaction-table th:nth-child(3),
+.transaction-table td:nth-child(3){
+    width:20%;
+}
+
+.transaction-table th:nth-child(4),
+.transaction-table td:nth-child(4){
+    width:25%;
+}
+
+
+/* =================================
+   ACTIVITY ICONS
+================================= */
+
+.transaction-table td i{
+    margin-right:6px;
+    color:#6b7280;
+}
+
+
+
+.transaction-type{
+
+    display:inline-block;
+    padding: 5px;
+    color:#fff;
+    border-radius:20px;
+    font-size:12px;
+    align-items: left;
+    justify-content: left;
+
+}
+
+.transaction-type-deposit{
+
+    background:#27ae60;
+
+}
+
+.transaction-type-withdrawal{
+
+    background:#e74c3c;
+
+}
+
+.transaction-type-mining{
+
+    background:#f39c12;
+
+}
+
+.transaction-type-bonus{
+
+    background:#3498db;
+
+}
+
+.transaction-type-exchange{
+
+    background:#8e44ad;
+
+}
+
+
+
+
+
+
+.transaction-status{
+
+    display:inline-block;
+    padding:6px 14px;
+    color:#fff;
+    border-radius:20px;
+    font-size:12px;
+
+}
+
+.transaction-status-completed{
+
+    background:#27ae60;
+
+}
+
+.transaction-status-pending{
+
+    background:#f39c12;
+
+}
+
+.transaction-status-rejected{
+
+    background:#e74c3c;
+
+}
+
+.transaction-view-btn{
+
+    padding:8px 16px;
+    border:none;
+    border-radius:6px;
+    background:#1b8ef2;
+    color:#fff;
+    cursor:pointer;
+    transition:.3s;
+
+}
+
+.transaction-view-btn:hover{
+
+    background:#166fc0;
+
+}
+
+/* =====================================
+   TRANSACTION DETAILS MODAL
+===================================== */
+
+.transaction-modal{
+
+    display:none;
+    position:fixed;
+    top:65px; /* below your fixed header */
+    right: 40px; /* beside sidebar */
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+    background:rgba(0,0,0,.55);
+    z-index:5000;
+    padding: 15px;
+    overflow-y:auto;
+
+}
+
+
+
+/* =====================================
+   MODAL CONTENT
+===================================== */
+
+.transaction-modal-content{
+
+    width:100%;
+
+    max-width:600px;
+
+    max-height:90vh;
+
+    background:#ffffff;
+
+    border-radius:14px;
+
+    overflow:hidden;
+
+    box-shadow:0 15px 45px rgba(0,0,0,0.20);
+
+    animation:transactionModalOpen 0.2s ease;
+
+}
+
+
+
+@keyframes transactionModalOpen{
+
+    from{
+
+        opacity:0;
+
+        transform:translateY(-15px) scale(0.98);
+
+    }
+
+    to{
+
+        opacity:1;
+
+        transform:translateY(0) scale(1);
+
+    }
+
+}
+
+
+
+/* =====================================
+   MODAL HEADER
+===================================== */
+
+.transaction-modal-header{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    padding:18px 20px;
+
+    border-bottom:1px solid #eeeeee;
+
+}
+
+
+
+.transaction-modal-header h3{
+
+    margin:0;
+
+    font-size:18px;
+
+    font-weight:600;
+
+    color:#222222;
+
+}
+
+
+
+.transaction-modal-header h3 i{
+
+    margin-right:8px;
+
+}
+
+
+
+.transaction-modal-header span{
+
+    display:block;
+
+    margin-top:4px;
+
+    font-size:12px;
+
+    color:#888888;
+
+}
+
+
+
+/* =====================================
+   CLOSE ICON
+===================================== */
+
+.transaction-modal-close{
+
+    width:36px;
+
+    height:36px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#f5f5f5;
+
+    color:#555555;
+
+    cursor:pointer;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:16px;
+
+    transition:0.2s;
+
+}
+
+
+
+.transaction-modal-close:hover{
+
+    background:#eeeeee;
+
+}
+
+
+
+/* =====================================
+   MODAL BODY
+===================================== */
+
+.transaction-modal-body{
+
+    padding:20px;
+
+    max-height:60vh;
+
+    overflow-y:auto;
+
+}
+
+
+
+/* =====================================
+   STATUS SECTION
+===================================== */
+
+.transaction-detail-status{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    padding:14px 15px;
+
+    margin-bottom:18px;
+
+    background:#f8f9fa;
+
+    border-radius:10px;
+
+}
+
+
+
+/* =====================================
+   DETAIL LABEL
+===================================== */
+
+.transaction-detail-label{
+
+    display:block;
+
+    font-size:12px;
+
+    color:#888888;
+
+    margin-bottom:5px;
+
+}
+
+
+
+/* =====================================
+   DETAILS GRID
+===================================== */
+
+.transaction-details-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:14px;
+
+}
+
+
+
+/* =====================================
+   DETAIL ITEM
+===================================== */
+
+.transaction-detail-item{
+
+    padding:14px;
+
+    background:#f8f9fa;
+
+    border:1px solid #eeeeee;
+
+    border-radius:10px;
+
+    min-width:0;
+
+}
+
+
+
+.transaction-detail-item strong{
+
+    display:block;
+
+    font-size:15px;
+
+    color:#222222;
+
+    font-weight:600;
+
+    word-break:break-word;
+
+}
+
+
+
+.transaction-detail-item span:not(.transaction-detail-label){
+
+    display:block;
+
+    font-size:14px;
+
+    color:#333333;
+
+    word-break:break-word;
+
+}
+
+
+
+/* =====================================
+   DESCRIPTION
+===================================== */
+
+.transaction-description{
+
+    margin-top:14px;
+
+    padding:14px;
+
+    background:#f8f9fa;
+
+    border:1px solid #eeeeee;
+
+    border-radius:10px;
+
+}
+
+
+
+.transaction-description p{
+
+    margin:0;
+
+    font-size:14px;
+
+    line-height:1.6;
+
+    color:#444444;
+
+}
+
+
+
+/* =====================================
+   STATUS BADGES
+===================================== */
+
+.transaction-status{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:5px 10px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    white-space:nowrap;
+
+}
+
+
+
+.transaction-status-completed{
+
+    background:#e8f7ee;
+
+    color:#198754;
+
+}
+
+
+
+.transaction-status-pending{
+
+    background:#fff4d6;
+
+    color:#b77900;
+
+}
+
+
+
+.transaction-status-rejected{
+
+    background:#fdeaea;
+
+    color:#dc3545;
+
+}
+
+
+
+/* =====================================
+   MODAL FOOTER
+===================================== */
+
+.transaction-modal-footer{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    padding:15px 20px;
+
+    border-top:1px solid #eeeeee;
+
+    background:#ffffff;
+
+}
+
+
+
+.transaction-close-btn{
+
+    border:none;
+
+    padding:10px 20px;
+
+    border-radius:8px;
+
+    background:#f1f1f1;
+
+    color:#333333;
+
+    font-size:14px;
+
+    font-weight:500;
+
+    cursor:pointer;
+
+    transition:0.2s;
+
+}
+
+
+
+.transaction-close-btn:hover{
+
+    background:#e5e5e5;
+
+}
+
+
+
+/* =====================================
+   MOBILE
+===================================== */
+
+@media(max-width:600px){
+
+    .transaction-modal{
+
+        padding:12px;
+
+    }
+
+
+
+    .transaction-modal-content{
+
+        max-height:94vh;
+
+        border-radius:12px;
+
+    }
+
+
+
+    .transaction-modal-header{
+
+        padding:15px;
+
+    }
+
+
+
+    .transaction-modal-body{
+
+        padding:15px;
+
+    }
+
+
+
+    .transaction-details-grid{
+
+        grid-template-columns:1fr;
+
+        gap:10px;
+
+    }
+
+
+
+    .transaction-detail-status{
+
+        padding:12px;
+
+    }
+
+
+
+    .transaction-modal-footer{
+
+        padding:12px 15px;
+
+    }
+
+
+
+    .transaction-close-btn{
+
+        width:100%;
+
+    }
+

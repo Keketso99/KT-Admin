@@ -1,0 +1,132 @@
+<div class="verification-page">
+    <!-- Verification Header -->
+    <div class="verification-header">
+        <h2><i class="fa-solid fa-id-card"></i> KYC Verification </h2>
+    </div>
+
+    <!-- KYC Statistics -->
+    <div class="kyc-stats">
+        <div class="kyc-stat-card">
+            <h4>Total Requests</h4>
+            <span id="totalRequests">0</span>
+        </div>
+        <div class="kyc-stat-card">
+            <h4>Pending</h4>
+            <span id="pendingRequests">0</span>
+        </div>
+        <div class="kyc-stat-card">
+            <h4>Approved</h4>
+            <span id="approvedRequests">0</span>
+        </div>
+        <div class="kyc-stat-card">
+            <h4>Rejected</h4>
+            <span id="rejectedRequests">0</span>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="kyc-tabs">
+        <button class="kyc-tab active" data-status="pending">Pending</button>
+        <button class="kyc-tab" data-status="approved">Approved</button>
+        <button class="kyc-tab" data-status="rejected">Rejected</button>
+    </div>
+
+    <!-- Pending Requests -->
+    <div class="verification-section">
+        <h3>Pending Requests</h3>
+        <div id="pendingList">
+            <div class="verification-row" data-status="pending">
+                <table>
+                    <thead>
+                        <tr>
+                        <th>User</th>
+                        
+                        <th>Date</th>
+                        <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows are injected from verificationData.pending in verification.js -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Users -->
+    <div class="verification-section">
+        <h3>Approved</h3>
+        <div id="approvedList">
+            <div class="verification-row" data-status="approved">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows are injected from verificationData.approved in verification.js -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejected Users -->
+    <div class="verification-section">
+        <h3>Rejected</h3>
+        <div id="rejectedList">
+            <div class="verification-row" data-status="rejected">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+  
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows are injected from verificationData.rejected in verification.js -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div class="review-modal" id="reviewModal">
+        <div class="review-content">
+            <span class="close-review">&times;</span>
+            <h2>User Verification</h2>
+
+            <div class="details-grid">
+                <div><label>Name</label><p id="reviewName"></p></div>
+                <div><label>Date</label><p id="reviewDate"></p></div>
+                <div><label>Email</label><p id="reviewEmail"></p></div>
+                <div><label>Phone</label><p id="reviewPhone"></p></div>
+                <div><label>Country</label><p id="reviewCountry"></p></div>
+            </div>
+
+            <h3>Documents</h3>
+            <div class="documents">
+                <div><h4>ID Front</h4><img id="reviewIdFront"></div>
+                <div><h4>ID Back</h4><img id="reviewIdBack"></div>
+                <div><h4>Selfie</h4><img id="reviewSelfie"></div>
+            </div>
+
+            <label>Admin Notes</label>
+            <textarea placeholder="Write notes..."></textarea>
+
+            <div class="review-actions">
+                <button class="approve-btn">Approve</button>
+                <button class="reject-btn">Reject</button>
+                <button class="request-btn">Request Documents</button>
+                <button class="reset-btn">Reset Verification</button>
+            </div>
+        </div>
+    </div>
+</div>

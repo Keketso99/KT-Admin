@@ -1,0 +1,413 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    html,
+    body{
+    overflow-x: hidden;
+    font-family:Arial, sans-serif;
+    
+}
+}
+
+body{
+    background:#f5f6fa;
+    overflow:hidden;
+}
+
+
+/* =========================================================
+   PREVENT NATIVE LONG-PRESS MENUS — GLOBAL
+   (applies to every admin page loaded into #admin-body,
+   so individual pages never need this repeated)
+========================================================= */
+
+body,
+body * {
+
+    -webkit-touch-callout: none;
+
+}
+
+
+body {
+
+    -webkit-user-select: none;
+    user-select: none;
+
+    touch-action: manipulation;
+
+}
+
+
+/*
+ * Carve-out: still allow normal selection, copy/paste,
+ * and long-press-to-select inside actual input fields —
+ * across every admin page, not just support chat.
+ */
+
+input,
+textarea,
+[contenteditable="true"] {
+
+    -webkit-user-select: text;
+    user-select: text;
+
+    -webkit-touch-callout: default;
+
+    touch-action: auto;
+
+}
+
+/* ===================================
+global buttom stlying, works like div
+====================================== */
+
+
+button {
+
+    -webkit-tap-highlight-color: transparent; /* Android/iPhone */
+}
+
+
+/* =====================================================
+   GLOBAL MODAL OVERLAY (blur + click-block behind ANY
+   modal loaded from any admin page). Relies on the
+   "*-modal" class convention already used on every
+   modal wrapper (.rate-modal, .user-modal, .review-modal,
+   .withdrawal-modal, etc.) — no per-page CSS needed.
+===================================================== */
+#modal-overlay{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,.35);
+    backdrop-filter:blur(1px);
+    -webkit-backdrop-filter:blur(1px);
+    z-index:10; /* above header(3000) & sidebar(2000), below modals */
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .3s;
+}
+
+#modal-overlay.show{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+}
+
+/* Guarantee every modal on every page renders above the overlay,
+   no matter what z-index its own page CSS gives it */
+#modal-overlay{
+    z-index:10; /* just above #admin-body(1), well below any real modal */
+}
+
+/* Blur settings' own built-in overlay too, so it matches
+   the same look as everywhere else */
+[class$="-modal-overlay"]{
+    backdrop-filter:blur(1px);
+    -webkit-backdrop-filter:blur(1px);
+}
+
+/* =====================
+   HEADER
+===================== */
+
+.admin-header{
+    height:calc(65px + env(safe-area-inset-top));
+    width:100%;
+    background:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding-top:env(safe-area-inset-top);
+    padding-left:1px;
+    padding-right:16px;
+
+    position:fixed;
+    top:0;
+    left:0;
+
+    z-index:3000;
+
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+
+    box-sizing:border-box;
+}
+
+.logo {
+  margin-right: 150px;
+}
+
+.logo img{
+width:70px;
+margin-left: 2px;
+}
+
+#menu-btn{
+    border:none;
+    background:none;
+    font-size:30px;
+    cursor:pointer;
+    display:none;
+}
+
+.admin-profile{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight:600;
+    color:#444;
+}
+
+
+
+/* =====================
+   SIDEBAR
+===================== */
+
+#sidebar{
+    position:fixed;
+    top:calc(65px + env(safe-area-inset-top));
+    left:0;
+    right:0;
+    width:200px;
+    height:calc(100vh - 65px - env(safe-area-inset-top));
+    background:#4b5563;
+    color:white;
+    overflow-y:auto;
+    transition:.3s;
+    z-index:2000;
+}
+
+/* =====================
+   SIDEBAR OVERLAY
+===================== */
+#sidebar-overlay{
+    position:fixed;
+    top:calc(65px + env(safe-area-inset-top));
+height:calc(100vh - 65px - env(safe-area-inset-top));
+    left:0;
+    width:100%;
+    background:rgba(0,0,0,.35);
+    backdrop-filter:blur(1px);
+    -webkit-backdrop-filter:blur(1px);
+    z-index:1500; /* above #admin-body (1), below #sidebar (2000) */
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .3s;
+}
+
+#sidebar-overlay.show{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto; /* blocks clicks reaching #admin-body */
+}
+
+.side-title{
+    padding:20px;
+    font-size:12px;
+    color:#9ca3af;
+}
+
+.side-item{
+    padding:15px 20px;
+    display:block;
+    transition:.2s;
+}
+
+.side-item i{
+    width:25px;
+}
+
+.side-item:hover{
+    background:#4b5563;
+}
+
+.side-item.active{
+    background:#2563eb;
+}
+
+/* Dropdown */
+.dropdown > div:first-child{
+    display:flex;
+    align-items:center;
+}
+
+.arrow{
+    margin-left:auto;
+    transition:.3s;
+}
+
+.dropdown.open .arrow{
+    transform:rotate(180deg);
+}
+
+.submenu{
+    max-height:0;
+    overflow:hidden;
+    background:#4b5563;
+    transition:.3s;
+}
+
+.dropdown.open .submenu{
+    max-height:300px;
+}
+
+.submenu div{
+    padding-left: 40px;
+    padding-right: 1px;
+    padding-bottom: 10px;
+    padding-top: 17px;
+    color:#ffffff;
+}
+
+
+
+.submenu div.active {
+    background: linear-gradient(to top, #2563eb 0 80%, transparent 30% 100%);
+  
+}
+
+/* =====================
+   MAIN CONTENT
+===================== */
+#admin-body{
+    position:fixed;
+    top:calc(65px + env(safe-area-inset-top));
+    left:260px;
+    width:calc(100% - 260px);
+    height:calc(100vh - 65px - env(safe-area-inset-top));
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding:7px;
+    transition:.3s;
+    z-index:1;
+}
+
+
+/* =====================
+ MOBILE
+===================== */
+@media(max-width:768px){
+#menu-btn{
+    display:block;
+}
+
+#sidebar{
+    left:-260px;
+}
+
+#sidebar.show{
+    left:0;
+}
+
+#admin-body{
+    left:0;
+    width:100%;
+}
+
+.admin-profile{
+    font-size:14px;
+}
+
+.logo{
+    font-size:16px;
+}
+}
+
+#admin-body {
+    opacity: 0;
+    transition: opacity 0.15s ease-in;
+}
+
+#admin-body.page-fade-in {
+    opacity: 1;
+}
+
+/* =========================================================
+   APP-LIKE VIEWPORT POLISH
+   Stops pull-to-refresh/overscroll bounce and respects
+   notches/home-indicator safe areas so the app fills the
+   screen properly instead of feeling like a scrolled page.
+========================================================= */
+
+html, body {
+    overscroll-behavior: none;
+}
+
+body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+
+#login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+}
+
+#login-form {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.1);
+    width: 90%;
+    max-width: 340px;
+    text-align: center;
+}
+
+#login-form img {
+    width: 90px;
+    margin-bottom: 10px;
+}
+
+#login-form h2 {
+    margin-bottom: 20px;
+    color: #1e3a8a;
+}
+
+#login-form input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+}
+
+#login-form button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #1e3a8a;
+    color: white;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+#login-form button:disabled {
+    opacity: 0.6;
+}
+
+#login-error {
+    color: #dc2626;
+    font-size: 13px;
+    margin-bottom: 10px;
+    display: none;
+}

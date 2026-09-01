@@ -1,0 +1,1171 @@
+/* ===========================
+   USERS PAGE
+=========================== */
+
+.users-page{
+
+    width:100%;
+    background:#f8f9fc;
+    min-height:100%;
+
+}
+
+
+
+/* ===========================
+   HEADER
+=========================== */
+
+.users-header{
+
+    background:white;
+    padding: 20px;
+    border-radius:15px;
+    margin-bottom:20px;
+    margin-top: 15px;
+    border: none;
+
+}
+
+
+.users-title{
+
+    font-size:26px;
+    color:#333;
+    margin:0;
+
+}
+
+
+.users-subtitle{
+
+    color:#777;
+    font-size:14px;
+    margin-top:5px;
+
+}
+
+
+
+.add-user-btn{
+
+    background:#1b8ef2;
+    color:white;
+    border:none;
+    padding: 15px 20px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    margin-bottom: 15px;
+
+}
+
+
+.add-user-btn:hover{
+
+    background:#0876d1;
+
+}
+
+
+
+/* ===========================
+   STATISTICS CARDS
+=========================== */
+
+
+.users-stats{
+
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap: 15px;
+
+}
+
+
+
+.user-stat-card{
+
+    background:white;
+    padding: 15px;
+    border-radius:15px;
+    box-shadow:
+    0 4px 12px rgba(0,0,0,.08);
+    transition:.3s;
+    position:relative;
+    overflow:hidden;
+    z-index: 0;
+
+}
+
+
+
+
+.user-stat-card h3{
+    color:#6b7280;
+    font-size:15px;
+    font-weight:500;
+
+}
+
+
+
+.user-stat-card span{
+
+    font-size:13px;
+    color:#777;
+
+}
+
+.user-stat-card::after{
+    content:"";
+    position:absolute;
+    width:60px;
+    height:60px;
+    right:-20px;
+    bottom:-20px;
+    border-radius:50%;
+    background:#2563eb;
+    opacity:.1;
+
+}
+
+@media(max-width:900px){
+
+.users-stats{  
+
+    grid-template-columns:repeat(2,1fr);  
+}
+
+}
+
+
+
+/* ===========================
+   SEARCH TOOLBAR
+=========================== */
+
+
+.users-toolbar{
+
+    background:white;
+    padding:15px;
+    border-radius:12px;
+    display:flex;
+    gap:12px;
+    margin-bottom:20px;
+    margin-top: 15px;
+    box-shadow:0 3px 10px rgba(0,0,0,.05);
+
+}
+
+
+
+.users-toolbar input{
+
+    flex:1;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    outline:none;
+    font-size:14px;
+
+}
+
+
+.users-toolbar input:focus{
+
+    border-color:#1b8ef2;
+
+}
+
+
+
+.users-toolbar select{
+
+    width:160px;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    background:white;
+    outline:none;
+
+}
+
+
+
+.refresh-btn{
+
+    background:#333;
+    color:white;
+    border:none;
+    padding:0 20px;
+    border-radius:8px;
+    cursor:pointer;
+
+}
+
+
+
+.refresh-btn:hover{
+
+    background:#111;
+
+}
+
+/* ===========================
+   USERS TABLE
+=========================== */
+
+.users-table{
+    background:white;
+    border-radius:12px;
+    padding: 5px;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+    margin-bottom:20px;
+
+}
+
+
+.users-table table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+.users-table th{
+    background:#f3f4f6;
+    text-align:left;
+}
+
+.users-table th,td{
+    padding:14px;
+    border-bottom:1px solid #ddd;
+}
+
+
+
+/* ===========================
+   USER ROW
+=========================== */
+
+
+.user-row{
+
+    display: table-row;
+    grid-template-columns:2fr 1.5fr 1fr 1.5fr 1fr 1fr;
+    align-items:center;
+    padding:15px 20px;
+    border-bottom:1px solid #eee;
+    transition:.2s;
+
+}
+
+
+
+.user-row:hover{
+
+    background:#f8fbff;
+
+}
+
+
+
+.user-row:last-child{
+
+    border-bottom:none;
+
+}
+
+
+
+/* ===========================
+   USER INFORMATION
+=========================== */
+
+
+.user-column{
+
+    display:flex;
+    align-items:center;
+    gap:12px;
+
+}
+
+
+
+.user-column img{
+
+    width:45px;
+    height:45px;
+    border-radius:50%;
+    object-fit:cover;
+    background:#eee;
+
+}
+
+
+
+.user-column h4{
+
+    margin:0;
+    font-size:15px;
+    color:#333;
+
+}
+
+
+
+.user-column small{
+
+    color:#888;
+    font-size:12px;
+
+}
+
+
+
+/* ===========================
+   STATUS BADGES
+=========================== */
+
+
+.status{
+
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:500;
+    width:max-content;
+
+}
+
+
+
+.status.active{
+
+    background:#dff8e7;
+    color:#14963b;
+
+}
+
+
+
+.status.blocked{
+
+    background:#ffe2e2;
+    color:#d12b2b;
+
+}
+
+
+
+.status.vip{
+
+    background:#fff0c7;
+    color:#b47700;
+
+}
+
+
+
+/* ===========================
+   MANAGE BUTTON
+=========================== */
+
+
+.manage-btn{
+
+    background:#1b8ef2;
+    color:white;
+    border:none;
+    padding:9px 16px;
+    border-radius:7px;
+    font-size:13px;
+    cursor:pointer;
+    transition:.2s;
+
+}
+
+
+
+.manage-btn:hover{
+
+    background:#086dcc;
+
+}
+
+
+
+/* ===========================
+   PAGINATION
+=========================== */
+
+
+.pagination{
+
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:25px;
+
+}
+
+
+
+.pagination button{
+
+    width:35px;
+    height:35px;
+    border:none;
+    border-radius:7px;
+    background:white;
+    cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,.08);
+
+}
+
+
+
+.pagination button:hover{
+
+    background:#eaf4ff;
+
+}
+
+
+
+.pagination .active-page{
+
+    background:#1b8ef2;
+    color:white;
+
+}
+
+/* ===========================
+   GENERAL MODAL STYLE
+=========================== */
+
+
+.user-modal,
+.add-user-modal,
+.credit-modal,
+.debit-modal,
+.plan-modal,
+.edit-user-modal,
+.delete-modal,
+.block-modal,
+.reset-password-modal{
+
+    display:none;
+    position:fixed;
+    top:65px; /* below your fixed header */
+    right: 40px; /* beside sidebar */
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+    background:rgba(0,0,0,.55);
+    z-index:5000;
+    padding: 15px;
+    overflow-y:auto;
+
+}
+
+
+
+/* ===========================
+   USER MANAGEMENT MODAL
+=========================== */
+
+
+.user-modal-content{
+
+    width:450px;
+    max-width:100%;
+    background:white;
+    border-radius:15px;
+    padding:25px;
+    position:relative;
+    max-height:90vh;
+    overflow-y:auto;
+
+}
+
+
+
+.close-modal{
+
+    position:absolute;
+    top:15px;
+    right:20px;
+    font-size:28px;
+    cursor:pointer;
+    color:#777;
+
+}
+
+
+
+.close-modal:hover{
+
+    color:#222;
+
+}
+
+
+
+.user-modal-content h2{
+
+    text-align:center;
+    margin-bottom:20px;
+    color:#333;
+
+}
+
+
+
+/* ===========================
+   PROFILE AREA
+=========================== */
+
+
+.modal-profile{
+
+    text-align:center;
+    margin-bottom:20px;
+
+}
+
+
+
+.modal-profile img{
+
+    width:80px;
+    height:80px;
+    border-radius:50%;
+    object-fit:cover;
+
+}
+
+
+
+.modal-profile h3{
+
+    margin:10px 0 5px;
+    color:#333;
+
+}
+
+
+
+.modal-profile p{
+
+    color:#777;
+    font-size:13px;
+
+}
+
+
+
+/* ===========================
+   USER DETAILS
+=========================== */
+
+
+.user-details{
+
+    background:#f7f9fc;
+    border-radius:10px;
+    padding:15px;
+    margin-bottom:20px;
+
+}
+
+
+
+.detail-item{
+
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    border-bottom:1px solid #eee;
+
+}
+
+
+
+.detail-item:last-child{
+
+    border-bottom:none;
+
+}
+
+
+
+.detail-item span{
+
+    color:#777;
+    font-size:14px;
+
+}
+
+
+
+.detail-item strong{
+
+    color:#333;
+    font-size:14px;
+
+}
+
+
+
+/* ===========================
+   ADMIN ACTION BUTTONS
+=========================== */
+
+
+.admin-actions{
+
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+
+}
+
+
+
+.action-btn{
+
+    padding:11px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:13px;
+    background:#edf4ff;
+    color:#1b8ef2;
+
+}
+
+
+
+.action-btn:hover{
+
+    opacity:.8;
+
+}
+
+
+
+.block-btn,
+.delete-btn{
+
+    background:#ffe7e7;
+    color:#d22;
+
+}
+
+
+
+.credit-btn,
+.save-btn{
+
+    background:#1b8ef2;
+    color:white;
+
+}
+
+
+
+.debit-btn{
+
+    background:#ffeded;
+    color:#d22;
+
+}
+
+
+
+/* ===========================
+   SMALL FORM MODALS
+=========================== */
+
+
+.credit-content,
+.add-user-content,
+.debit-content,
+.plan-content,
+.edit-user-content,
+.delete-content,
+.block-content,
+.reset-password-content{
+
+    background:white;
+    width:400px;
+    max-width:100%;
+    padding:25px;
+    border-radius:15px;
+    position:relative;
+
+}
+
+
+
+.credit-content h2,
+.add-user-content h2,
+.debit-content h2,
+.plan-content h2,
+.edit-user-content h2,
+.delete-content h2,
+.block-content h2,
+.reset-password-content h2{
+
+    text-align:center;
+    margin-bottom:20px;
+
+}
+
+
+
+/* ===========================
+   INPUTS
+=========================== */
+
+
+.credit-content input,
+.debit-content input,
+.add-user-content textarea,
+.edit-user-content input,
+.credit-content textarea,
+.debit-content textarea,
+.plan-content select{
+
+    width:100%;
+    padding:12px;
+    margin:8px 0 15px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    outline:none;
+    font-size:14px;
+
+}
+
+
+
+.credit-content input:focus,
+.debit-content input:focus,
+.edit-user-content input:focus,
+.plan-content select:focus{
+
+    border-color:#1b8ef2;
+
+}
+
+
+
+/* ===========================
+   SAVE BUTTON
+=========================== */
+
+
+.save-btn{
+
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+
+}
+
+
+
+/* ===========================
+   DELETE / BLOCK CONFIRMATION
+=========================== */
+
+
+.delete-content,
+.block-content,
+.reset-password-content{
+
+    text-align:center;
+
+}
+
+
+
+.delete-content p,
+.block-content p,
+.reset-password-content p{
+
+    color:#666;
+    margin-bottom:20px;
+
+}
+
+
+
+.confirm-buttons{
+
+    display:flex;
+    gap:10px;
+    justify-content:center;
+
+}
+
+
+
+.confirm-buttons button{
+
+    padding:10px 25px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+
+}
+
+
+
+.cancel-btn{
+
+    background:#eee;
+    color:#333;
+
+}
+
+
+
+.delete-content .delete-btn,
+.block-content .block-btn{
+
+    background:#e53935;
+    color:white;
+
+}
+
+
+
+.reset-password-content .reset-btn{
+
+    background:#1b8ef2;
+    color:white;
+
+}
+
+/* ===========================
+   ADD USER MODAL
+=========================== */
+
+.add-user-modal{
+
+    display:none;
+    position:fixed;
+    top:65px; /* below your fixed header */
+    right: 40px; /* beside sidebar */
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+    background:rgba(0,0,0,.55);
+    z-index:5000;
+    padding: 15px;
+    overflow-y:auto;
+
+}
+
+.add-user-content{
+
+    width:100%;
+    max-width:600px;
+    max-height:100%;
+    overflow-y:auto;
+    background:white;
+    border-radius:15px;
+    
+    box-shadow:0 10px 30px rgba(0,0,0,.15);
+
+}
+
+
+.add-user-content h2{
+
+    font-size:22px;
+    color:#333;
+    margin-bottom:20px;
+
+}
+
+
+.add-user-content label{
+
+    display:block;
+    font-size:14px;
+    font-weight:600;
+    color:#555;
+    margin-top:15px;
+    margin-bottom:8px;
+
+}
+
+
+.add-user-content input,
+.add-user-content select{
+
+    width:100%;
+    height:48px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    padding:0 15px;
+    font-size:15px;
+    background:#fff;
+    outline:none;
+    transition:.25s;
+
+}
+
+
+.add-user-content input:focus,
+.add-user-content select:focus{
+
+    border-color:#1b8ef2;
+    box-shadow:0 0 0 3px rgba(27,142,242,.15);
+
+}
+
+
+.add-user-content .save-btn{
+
+    width:100%;
+    height:48px;
+    margin-top:25px;
+    border:none;
+    border-radius:10px;
+    background:#1b8ef2;
+    color:#fff;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.25s;
+
+}
+
+
+.add-user-content .save-btn:hover{
+
+    background:#1678d4;
+
+}
+
+
+.close-add-user{
+
+    position:absolute;
+    top:15px;
+    right:18px;
+    font-size:28px;
+    color:#777;
+    cursor:pointer;
+    transition:.25s;
+
+}
+
+
+.close-add-user:hover{
+
+    color:#e53935;
+
+}
+
+
+/* Remove arrows on number input (optional) */
+
+.add-user-content input[type="number"]::-webkit-inner-spin-button,
+.add-user-content input[type="number"]::-webkit-outer-spin-button{
+
+    -webkit-appearance:none;
+    margin:0;
+
+}
+
+
+.add-user-content input[type="number"]{
+
+    -moz-appearance:textfield;
+
+}
+
+
+/* Mobile */
+
+@media(max-width:768px){
+
+    .add-user-modal{
+
+        padding:15px;
+
+    }
+
+
+    .add-user-content{
+
+        width:100%;
+        padding:20px;
+        border-radius:14px;
+
+    }
+
+
+    .add-user-content h2{
+
+        font-size:20px;
+
+    }
+
+}
+
+
+/* ===========================
+   MOBILE RESPONSIVE
+=========================== */
+
+
+@media(max-width:900px){
+
+
+
+
+    /* Header */
+
+
+   
+
+
+    /* Statistics */
+
+
+
+
+    /* Toolbar */
+
+    .users-toolbar{
+
+        flex-direction:column;
+
+    }
+
+
+
+    .users-toolbar select,
+    .refresh-btn{
+
+        width:100%;
+        height:45px;
+
+    }
+
+
+
+    /* Table */
+
+    .users-table{
+
+        overflow-x:auto;
+
+    }
+
+
+
+    .table-head,
+    .user-row{
+
+        min-width:900px;
+
+    }
+
+
+}
+
+
+
+
+@media(max-width:600px){
+
+
+    /* Statistics */
+
+
+
+    .users-title{
+
+        font-size:22px;
+
+    }
+
+
+
+    .users-subtitle{
+
+        font-size:13px;
+
+    }
+
+
+
+    /* Modal */
+
+    .user-modal,
+    .add-user-modal,
+    .credit-modal,
+    .debit-modal,
+    .plan-modal,
+    .edit-user-modal,
+    .delete-modal,
+    .block-modal,
+    .reset-password-modal{
+
+        padding:10px;
+
+    }
+
+
+
+    .user-modal-content,
+    .add-user-content,
+    .credit-content,
+    .debit-content,
+    .plan-content,
+    .edit-user-content,
+    .delete-content,
+    .block-content,
+    .reset-password-content{
+
+        width:100%;
+        border-radius:12px;
+        padding:20px;
+
+    }
+
+
+
+    /* Action buttons */
+
+    .admin-actions{
+
+        grid-template-columns:1fr;
+
+    }
+
+
+
+    .detail-item{
+
+        flex-direction:column;
+        gap:5px;
+
+    }
+
+
+
+}

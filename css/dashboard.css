@@ -1,0 +1,143 @@
+/* ==========================
+   DASHBOARD PAGE
+========================== */
+
+/* Dashboard welcome card */
+
+.dadmin-card{
+    background:white;
+    padding: 20px;
+    border-radius:15px;
+    margin-bottom:20px;
+    margin-top: 7px;
+    border: none;
+}
+
+
+.dadmin-card h2{
+    font-size:22px;
+    color:#111827;
+    margin-bottom:1px;
+
+}
+
+
+.dashboard-header p{
+
+    color:#6b7280;
+
+}
+
+
+
+
+/* ==========================
+   STATISTICS CARDS
+========================== */
+
+.dstats{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap: 15px;
+}
+
+.dstats2{
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
+  width: 600px;
+}
+
+.dstat-card{
+    background:white;
+    padding: 15px;
+    border-radius:15px;
+    box-shadow:
+    0 4px 12px rgba(0,0,0,.08);
+    transition:.3s;
+    position:relative;
+    overflow:hidden;
+    z-index: 0;
+}
+
+.dstat-card h3{
+    color:#6b7280;
+    font-size:15px;
+    font-weight:500;
+}
+
+.dstat-card p{
+    margin-top:10px;
+    font-size: 16px;
+    font-weight:600;
+    color:#111827;
+}
+
+/* Small icon circle */
+
+.dstat-card::after{
+    content:"";
+    position:absolute;
+    width:60px;
+    height:60px;
+    right:-20px;
+    bottom:-20px;
+    border-radius:50%;
+    background:#2563eb;
+    opacity:.1;
+
+
+}
+
+/* ==========================
+   QUICK ACTIONS
+========================== */
+
+.dquick-card{
+    display:flex;
+    flex-wrap: wrap;
+    border-radius: 30px;
+    gap:20px;
+    background: white;
+    margin-bottom: 20px;
+    padding: 14px;
+}
+
+.dquick-card h3{
+  margin-right: 55px;
+}
+
+
+.btn-success{
+    padding:10px 15px;
+    border-radius:8px;
+    background:#FDB913;
+    color:#111827;
+    font-size:14px;
+    font-weight: 700;
+    transition:.2s;
+}
+
+
+.btn-success:hover{
+    opacity:.85;
+    transform:scale(1.03);
+}
+
+button{
+    cursor:pointer;
+    border:none;
+    border-radius:6px;
+    padding:8px 14px;
+}
+
+
+/* ==========================
+   RESPONSIVE
+========================== */
+@media(max-width:768px){
+
+.quick-actions button{
+    width:100%;
+}
+}

@@ -1,0 +1,150 @@
+
+<div class="deposit-page">
+    <!-- Page Header -->
+    <div class="dpadmin-card">
+        <h2>
+            <i class="fa-solid fa-wallet"></i>
+            Deposit Management
+        </h2>
+    </div>
+    
+    <!-- Tabs -->
+  <div class="dtab" >
+    <button class="dtab-btn active"
+       onclick="showDepositTab('pending', this)">
+              Pending
+    <span id="dpendingCount" class="dtab-count">0</span>
+    </button>
+
+    <button class="dtab-btn"
+        onclick="showDepositTab('approved', this)">
+              Approved
+     <span id="dapprovedCount" class="dtab-count">0</span>
+    </button>
+
+    <button class="dtab-btn"
+       onclick="showDepositTab('rejected', this)">
+              Rejected
+    <span id="drejectedCount" class="dtab-count">0</span>
+     </button>
+  </div>
+
+    <!-- ========================= -->
+    <!-- Pending Deposits -->
+    <!-- ========================= -->
+
+<div id="dpending" class="deposit-section active-section">
+    <div class="deposits-table">
+       <!--div class="table-container"-->
+          <table>
+            <thead>
+             <tr>
+               <th>User</th>
+                 <th>Date</th>
+                   <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="pendingDepositsList">
+            </tbody>
+     </table>
+ </div>
+</div>
+
+    <!-- ========================= -->
+    <!-- Approved -->
+    <!-- ========================= -->
+<div id="dapproved" class="deposit-section">
+    <div class="deposits-table">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+     <tbody id="approvedDepositsList">
+     </tbody>
+  </table>
+</div>
+</div>
+
+    <!-- ========================= -->
+    <!-- Rejected -->
+    <!-- ========================= -->
+<div id="drejected" class="deposit-section">
+    <div class="deposits-table">
+     <table>
+      <thead>
+         <tr>
+         <th>User</th>
+         <th>Date</th>
+         <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="rejectedDepositsList">
+    </tbody>
+   </table>
+ </div>
+</div>
+
+    <!-- ========================= -->
+    <!-- Review Modal -->
+    <!-- ========================= -->
+<div id="depositModal" class="deposit-modal">
+       <div class="deposit-modal-content">
+         <div class="modal-header">
+              <h2>
+                   Deposit Review
+              </h2>
+              <button
+                class="close-modal"
+                onclick="closeDepositReview()">
+                    ×
+               </button>
+            </div>
+            <div class="deposit-details">
+                <div class="detail-row">
+                    <strong>User</strong>
+                    <span id="review-user"></span>
+                </div>
+                <div class="detail-row">
+                    <strong>Method</strong>
+                    <span id="review-method"></span>
+                </div>
+                <div class="detail-row">
+                    <strong>Transaction ID</strong>
+                    <span id="review-transaction"></span>
+                </div>
+                <div class="detail-row">
+                    <strong>Amount</strong>
+                    <span id="review-amount"></span>
+                </div>
+                <div class="detail-row">
+                    <strong>Date</strong>
+                    <span id="review-date"></span>
+                </div>
+            </div>
+            <h3>
+                Payment Proof
+            </h3>
+            <div class="proof-image">
+                <img id="review-image" src="" alt="Payment Proof">
+            </div>
+            <div class="modal-buttons">
+                <button class="approve-btn">
+                    Approve
+                </button>
+                <button class="reject-btn">
+                    Reject
+                </button>
+                <button class="close-btn"
+                onclick="closeDepositReview()">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

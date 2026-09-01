@@ -1,0 +1,242 @@
+<div class="transaction-page">
+
+    <div class="transaction-header">
+        <h2>
+           <i class="fa-solid fa-exchange-alt"></i>
+            Transactions
+        </h2>
+    </div>
+    
+        <div class="transaction-controls">
+            <input
+                type="text"
+                class="transaction-search"
+                id="transactionSearch"
+                placeholder="Search by User or Transaction ID">
+            <select class="transaction-filter" id="transactionFilter">
+
+                <option value="all">
+                    All Types
+                </option>
+
+                <option value="deposit">
+                    Deposits
+                </option>
+
+                <option value="withdrawal">
+                    Withdrawals
+                </option>
+
+                <option value="mining">
+                    Mining
+                </option>
+
+                <option value="bonus">
+                    Bonus
+                </option>
+
+                <option value="exchange">
+                    Exchange
+                </option>
+
+            </select>
+        </div>
+
+    <div class="transaction-table-wrapper">
+
+        <table class="transaction-table">
+            <thead>
+                <tr>
+                
+                    <th>User</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Action</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="transactionList">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =====================================
+     TRANSACTION DETAILS MODAL
+===================================== -->
+
+<div id="transactionModal" class="transaction-modal">
+
+    <div class="transaction-modal-content">
+
+
+        <!-- HEADER -->
+
+        <div class="transaction-modal-header">
+
+            <div>
+
+                <h3>
+                    <i class="fa-solid fa-receipt"></i>
+                    Transaction Details
+                </h3>
+
+                <span id="modalTransactionId"></span>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="transaction-modal-close"
+                id="closeTransactionModal">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- BODY -->
+
+        <div class="transaction-modal-body">
+
+
+            <!-- STATUS -->
+
+            <div class="transaction-detail-status">
+
+                <span class="transaction-detail-label">
+                    Status
+                </span>
+
+                <span
+                    id="modalTransactionStatus"
+                    class="transaction-status">
+
+                </span>
+
+            </div>
+
+
+
+            <!-- DETAILS -->
+
+            <div class="transaction-details-grid">
+
+
+                <div class="transaction-detail-item">
+
+                    <span class="transaction-detail-label">
+                        User
+                    </span>
+
+                    <strong id="modalTransactionUser"></strong>
+
+                </div>
+
+
+
+                <div class="transaction-detail-item">
+
+                    <span class="transaction-detail-label">
+                        User ID
+                    </span>
+
+                    <span id="modalTransactionUserId"></span>
+
+                </div>
+
+
+
+                <div class="transaction-detail-item">
+
+                    <span class="transaction-detail-label">
+                        Transaction Type
+                    </span>
+
+                    <span id="modalTransactionType"></span>
+
+                </div>
+
+
+
+                <div class="transaction-detail-item">
+
+                    <span class="transaction-detail-label">
+                        Amount
+                    </span>
+
+                    <strong id="modalTransactionAmount"></strong>
+
+                </div>
+
+
+
+                <div class="transaction-detail-item">
+
+                    <span class="transaction-detail-label">
+                        Date
+                    </span>
+
+                    <span id="modalTransactionDate"></span>
+
+                </div>
+
+
+
+                <div class="transaction-detail-item">
+
+                    <span class="transaction-detail-label">
+                        Transaction ID
+                    </span>
+
+                    <span id="modalTransactionIdFull"></span>
+
+                </div>
+
+
+            </div>
+
+
+
+            <!-- DESCRIPTION -->
+
+            <div class="transaction-description">
+
+                <span class="transaction-detail-label">
+                    Description
+                </span>
+
+                <p id="modalTransactionDescription"></p>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- FOOTER -->
+
+        <div class="transaction-modal-footer">
+
+            <button
+                type="button"
+                class="transaction-close-btn"
+                id="closeTransactionModalBtn">
+
+                Close
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>

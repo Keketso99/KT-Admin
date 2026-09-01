@@ -1,0 +1,77 @@
+<!-- Dashboard Header -->
+
+<div class="dadmin-card">
+<h2>
+<i class="fa-solid fa-chart-line"></i>
+ Dashboard Overview
+</h2>
+</div>
+
+<!-- Statistics Cards -->
+<div class="dstats">
+<div class="dstat-card">
+<h3>
+Total Users
+</h3>
+<p id="statTotalUsers">
+</p>
+</div>
+
+<div class="dstat-card">
+<h3>
+Active Mining Plans
+</h3>
+<p id="statActivePlans">
+</p>
+</div>
+
+<div class="dstat-card">
+<h3>
+Total Deposits
+</h3>
+<p id="statTotalDeposits">
+</p>
+</div>
+
+<div class="dstat-card">
+<h3>
+Total Withdrawals
+</h3>
+<p id="statTotalWithdrawals">
+</p>
+</div>
+
+</div>
+<br>
+
+<!-- Quick Actions -->
+<div class="dquick-card">
+<h3>
+Quick Actions
+</h3>
+
+<button class="btn-success"
+onclick="loadAdminPage('deposits')">
+<i class="fa-solid fa-check"></i>
+Approve Deposits
+</button>
+
+<button class="btn-success"
+onclick="loadAdminPage('plans')">
+<i class="fa-solid fa-coins"></i>
+Manage Plans
+</button>
+
+<button class="btn-success"
+onclick="loadAdminPage('withdrawals')">
+<i class="fa-solid fa-wallet"></i>
+Process Withdrawals
+</button>
+
+<button class="btn-success"
+onclick="loadAdminPage('verification')">
+<i class="fa-solid fa-id-card"></i>
+Manage verifications
+</button>
+
+</div>

@@ -1,0 +1,2682 @@
+<!-- =========================================
+     SUPPORT CHAT PAGE
+========================================= -->
+
+<div class="support-chat">
+
+
+    <!-- =====================================
+         TOP CHAT SWITCH
+    ====================================== -->
+
+    <div class="chat-switch">
+
+        <button
+            class="switch-btn active"
+            id="individualSwitch"
+            onclick="showIndividualChats()">
+
+            <i class="fa-solid fa-user"></i>
+
+            <span>Individual</span>
+
+            <span
+                class="switch-unread"
+                id="individualUnread">
+                0
+            </span>
+
+        </button>
+
+
+        <button
+            class="switch-btn"
+            id="groupSwitch"
+            onclick="showGroups()">
+
+            <i class="fa-solid fa-users"></i>
+
+            <span>Groups</span>
+
+            <span
+                class="switch-unread"
+                id="groupUnread">
+                0
+            </span>
+
+        </button>
+
+    </div>
+
+
+
+    <!-- =====================================
+         MAIN CHAT CONTAINER
+    ====================================== -->
+
+    <div class="chat-container">
+
+
+        <!-- =================================
+             LEFT SIDEBAR
+        ================================== -->
+
+        <aside class="chat-sidebar">
+
+
+            <!-- =============================
+                 CHAT SELECTION BAR
+                 (shown during press-and-hold
+                 multi-select mode)
+            ============================== -->
+
+            <div
+                id="chatSelectionBar"
+                class="chat-selection-bar hidden">
+
+                <button
+                    onclick="exitChatSelectionMode()"
+                    title="Cancel selection">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+
+                <span id="chatSelectionCount">
+                    0 selected
+                </span>
+
+
+                <div class="chat-selection-actions">
+
+                    <button
+                        id="chatSelectionPriorityBtn"
+                        onclick="confirmPrioritySelectedChats()"
+                        title="Add/Remove Priority">
+
+                        <i class="fa-solid fa-star"></i>
+
+                    </button>
+
+
+                    <button
+                      id="chatSelectionDeleteBtn"
+                        class="danger-action"
+                        onclick="confirmDeleteSelectedChats()"
+                        title="Delete selected">
+
+                        <i class="fa-solid fa-trash"></i>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================
+                 INDIVIDUAL SECTION
+            ============================== -->
+
+            <section
+                id="individualSection"
+                class="chat-section">
+
+
+                <!-- Sidebar Header -->
+
+                <div class="chat-sidebar-header">
+
+                    <div>
+
+                        <h3>
+                            Messages
+                        </h3>
+
+                        <p id="individualChatCount">
+                            0 conversations
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        class="new-chat-btn"
+                        onclick="openNewChatModal()"
+                        title="New Chat">
+
+                        <i class="fa-solid fa-plus"></i>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Search -->
+
+                <div class="chat-search">
+
+                    <i class="fa-solid fa-search"></i>
+
+                    <input
+                        type="text"
+                        id="chatSearch"
+                        placeholder="Search chats..."
+                        autocomplete="off">
+
+                    <button
+                        id="clearChatSearch"
+                        class="clear-search-btn"
+                        style="display:none;"
+                        onclick="clearChatSearch()">
+
+                        <i class="fa-solid fa-xmark"></i>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Filters -->
+
+                <div class="chat-filters">
+
+                    <button
+                        class="chat-filter active"
+                        onclick="filterChats('all', this)">
+
+                        All
+
+                    </button>
+
+
+                    <button
+                        class="chat-filter"
+                        onclick="filterChats('unread', this)">
+
+                        Unread
+
+                    </button>
+
+
+                    <button
+                        class="chat-filter"
+                        onclick="filterChats('open', this)">
+
+                        Open
+
+                    </button>
+
+
+                    <button
+                        class="chat-filter"
+                        onclick="filterChats('priority', this)">
+
+                        Priority
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Chat List -->
+
+                <div
+                    id="individualChats"
+                    class="chat-list">
+
+                    <!--
+                        JavaScript will generate
+                        individual chats here.
+
+                        Example data:
+
+                        {
+                            id: "CHAT-001",
+                            userId: "USR-1024",
+                            name: "John",
+                            lastMessage: "...",
+                            unread: 2
+                        }
+                    -->
+
+                </div>
+
+
+
+                <!-- Empty Chat List -->
+
+                <div
+                    id="noIndividualChats"
+                    class="chat-list-empty"
+                    style="display:none;">
+
+                    <i class="fa-solid fa-comments"></i>
+
+                    <h4>
+                        No conversations
+                    </h4>
+
+                    <p>
+                        Start a new conversation with a user.
+                    </p>
+
+                    <button
+                        onclick="openNewChatModal()">
+
+                        <i class="fa-solid fa-plus"></i>
+                        New Chat
+
+                    </button>
+
+                </div>
+
+
+            </section>
+
+
+
+            <!-- =============================
+                 GROUP SECTION
+            ============================== -->
+
+            <section
+                id="groupSection"
+                class="chat-section hidden">
+
+
+                <!-- Group Header -->
+
+                <div class="chat-sidebar-header">
+
+                    <div>
+
+                        <h3>
+                            Groups
+                        </h3>
+
+                        <p id="groupChatCount">
+                            0 groups
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        class="new-chat-btn"
+                        onclick="openCreateGroupModal()"
+                        title="Create Group">
+
+                        <i class="fa-solid fa-plus"></i>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Group Search -->
+
+                <div class="chat-search">
+
+                    <i class="fa-solid fa-search"></i>
+
+                    <input
+                        type="text"
+                        id="groupSearch"
+                        placeholder="Search groups..."
+                        autocomplete="off">
+
+                </div>
+
+
+
+                <!-- Group Filters -->
+
+                <div class="chat-filters">
+
+                    <button
+                        class="chat-filter active"
+                        onclick="filterGroups('all', this)">
+
+                        All
+
+                    </button>
+
+
+                    <button
+                        class="chat-filter"
+                        onclick="filterGroups('unread', this)">
+
+                        Unread
+
+                    </button>
+
+
+                    <button
+                        class="chat-filter"
+                        onclick="filterGroups('admin', this)">
+
+                        Admin
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Group List -->
+
+                <div
+                    id="groupChats"
+                    class="chat-list">
+
+                    <!--
+                        JavaScript will generate
+                        groups here.
+                    -->
+
+                </div>
+
+
+
+                <!-- Empty Groups -->
+
+                <div
+                    id="noGroups"
+                    class="chat-list-empty"
+                    style="display:none;">
+
+                    <i class="fa-solid fa-users"></i>
+
+                    <h4>
+                        No groups
+                    </h4>
+
+                    <p>
+                        Create a group to communicate with multiple users.
+                    </p>
+
+                    <button
+                        onclick="openCreateGroupModal()">
+
+                        <i class="fa-solid fa-plus"></i>
+                        Create Group
+
+                    </button>
+
+                </div>
+
+
+            </section>
+
+
+        </aside>
+
+
+
+        <!-- =================================
+             CHAT AREA
+        ================================== -->
+
+        <main
+            class="chat-main"
+            id="chatMain">
+
+
+            <!-- =================================
+                 EMPTY STATE
+            ================================== -->
+
+            <div
+                id="emptyChat"
+                class="empty-chat">
+
+                <div class="empty-chat-icon">
+
+                    <i class="fa-solid fa-comments"></i>
+
+                </div>
+
+
+                <h2>
+                    Select a conversation
+                </h2>
+
+
+                <p>
+                    Choose a user or group from the list
+                    to start chatting.
+                </p>
+
+
+                <button
+                    class="empty-new-chat-btn"
+                    onclick="openNewChatModal()">
+
+                    <i class="fa-solid fa-plus"></i>
+
+                    New Conversation
+
+                </button>
+
+            </div>
+
+
+
+            <!-- =================================
+                 ACTIVE CHAT WINDOW
+            ================================== -->
+
+            <div
+                id="chatWindow"
+                class="chat-window hidden">
+
+              <!-- =================================
+     PIN MESSAGE SELECTION BAR
+================================== -->
+
+<div
+    id="pinMessageSelectionBar"
+    class="pin-message-selection-bar hidden">
+
+
+    <button
+        onclick="cancelPinMessageSelection()"
+        title="Cancel">
+
+        <i class="fa-solid fa-xmark"></i>
+
+    </button>
+
+
+    <div class="pin-selection-info">
+
+        <strong id="selectedPinMessageCount">
+            0
+        </strong>
+
+        <span>
+            selected
+        </span>
+
+    </div>
+
+
+    <button
+        class="pin-selection-action"
+        onclick="pinSelectedMessages()"
+        title="Pin selected messages">
+
+        <i class="fa-solid fa-thumbtack"></i>
+
+        Pin
+
+    </button>
+
+</div>
+
+                <!-- =============================
+                     CHAT HEADER
+                ============================== -->
+
+                <header class="chat-header">
+
+
+                    <!-- Back button for mobile -->
+
+                    <button
+                        class="mobile-chat-back"
+                        onclick="closeChat()">
+
+                        <i class="fa-solid fa-arrow-left"></i>
+
+                    </button>
+
+
+    <!-- Avatar -->
+
+                    <div
+                        class="chat-header-avatar"
+                        onclick="openCurrentProfile()">
+
+                        <img
+                            id="chatAvatar"
+                            src=""
+                            alt="User">
+          <div
+        id="chatAvatarInitials"
+        class="chat-avatar-initials hidden">
+    </div>
+
+                        <span
+                            id="chatOnlineStatus"
+                            class="online-dot">
+                        </span>
+
+                    </div>
+                    
+
+
+
+                    <!-- Name / Status -->
+
+                    <div
+                        class="chat-header-info"
+                        onclick="openCurrentProfile()">
+
+                        <h3 id="chatName">
+                            User
+                        </h3>
+
+                        <p id="chatStatus">
+                            Offline
+                        </p>
+
+                    </div>
+
+                  
+
+
+
+                    <!-- Chat Header Actions -->
+
+                    <div class="chat-actions">
+
+
+                        <!-- Search -->
+
+                        <button
+                            onclick="searchMessages()"
+                            title="Search messages">
+
+                            <i class="fa-solid fa-search"></i>
+
+                        </button>
+
+
+                        <!-- More -->
+<!-- More -->
+
+<button
+    id="chatMoreButton"
+    onclick="toggleChatMenu()"
+    title="More">
+
+    <i class="fa-solid fa-ellipsis-vertical"></i>
+
+</button>
+
+
+<!-- Close Chat Menu -->
+
+<button
+    id="chatMenuCloseButton"
+    onclick="closeChatMenu()"
+    title="Close Menu"
+    style="display:none;">
+
+    <i class="fa-solid fa-xmark"></i>
+
+</button>
+                        
+
+                        
+
+
+                    </div>
+
+
+
+                    <!-- Chat Menu -->
+
+                    <div
+                        id="chatMenu"
+                        class="chat-menu hidden">
+
+
+                        <button
+                            onclick="openCurrentProfile()">
+
+                            <i class="fa-solid fa-user"></i>
+
+                            View Profile
+
+                        </button>
+
+
+                        <button
+                            onclick="searchMessages()">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            Search Messages
+
+                        </button>
+
+
+                        <button
+    id="chatMuteButton"
+    onclick="toggleChatMute()">
+
+    <i
+        id="chatMuteIcon"
+        class="fa-solid fa-bell-slash">
+    </i>
+
+    <span id="chatMuteText">
+        Mute Notifications
+    </span>
+
+</button>
+
+
+                        <button
+    id="messagePinButton"
+    onclick="openPinMessages()">
+
+    <i
+        id="messagePinIcon"
+        class="fa-solid fa-thumbtack">
+    </i>
+
+    <span id="messagePinText">
+        Pin Messages
+    </span>
+
+</button>
+
+
+                        <button
+                            onclick="markChatUnread()">
+
+                            <i class="fa-solid fa-envelope"></i>
+
+                            Mark as Unread
+
+                        </button>
+
+
+                        <div class="menu-divider"></div>
+
+
+                        <button
+                            onclick="clearChatMessages()">
+
+                            <i class="fa-solid fa-broom"></i>
+
+                            Clear Messages
+
+                        </button>
+
+
+                        <button
+                            class="danger"
+                            onclick="deleteCurrentChat()">
+
+                            <i class="fa-solid fa-trash"></i>
+
+                            <span id="deleteChatMenuLabel">Delete Chat</span>
+
+                        </button>
+
+
+                    </div>
+
+
+                </header>
+
+<!-- =================================
+     PINNED MESSAGE BAR
+================================== -->
+
+<div
+    id="pinnedMessageBar"
+    class="pinned-message-bar hidden">
+
+
+    <!-- Previous -->
+
+    <button
+        type="button"
+        id="previousPinnedMessage"
+        onclick="previousPinnedMessage()"
+        title="Previous pinned message">
+
+        <i class="fa-solid fa-chevron-left"></i>
+
+    </button>
+
+
+
+    <!-- Pin icon -->
+
+    <div class="pinned-message-icon">
+
+        <i class="fa-solid fa-thumbtack"></i>
+
+    </div>
+
+
+
+    <!-- Message information -->
+
+    <div
+        class="pinned-message-content"
+        onclick="scrollToCurrentPinnedMessage()">
+
+
+        <span class="pinned-message-label">
+
+            Pinned message
+
+        </span>
+
+
+        <p
+            id="pinnedMessageText"
+            class="pinned-message-text">
+
+        </p>
+
+
+    </div>
+
+
+
+    <!-- Counter -->
+
+    <span
+        id="pinnedMessageCounter"
+        class="pinned-message-counter">
+
+        1 of 1
+
+    </span>
+
+
+
+    <!-- Next -->
+
+    <button
+        type="button"
+        id="nextPinnedMessage"
+        onclick="nextPinnedMessage()"
+        title="Next pinned message">
+
+        <i class="fa-solid fa-chevron-right"></i>
+
+    </button>
+
+
+</div>
+
+                <!-- =================================
+                     GROUP HEADER INFORMATION
+                ================================== -->
+
+                <div
+                    id="groupChatInfoBar"
+                    class="group-chat-info-bar hidden">
+
+                    <i class="fa-solid fa-users"></i>
+
+                    <span id="groupMemberSummary">
+                        0 members
+                    </span>
+
+                    <button
+                        onclick="openGroupInfo()">
+
+                        Group Info
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- =================================
+                     MESSAGE SEARCH
+                ================================== -->
+
+                <div
+                    id="messageSearchBar"
+                    class="message-search-bar hidden">
+
+                    <button
+                        onclick="closeMessageSearch()">
+
+                        <i class="fa-solid fa-arrow-left"></i>
+
+                    </button>
+
+
+                    <input
+                        type="text"
+                        id="messageSearchInput"
+                        placeholder="Search messages...">
+
+
+                    <button
+                        onclick="closeMessageSearch()">
+
+                        <i class="fa-solid fa-xmark"></i>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- =================================
+                     MESSAGES
+                ================================== -->
+
+                <section
+                    id="messages"
+                    class="messages">
+
+                    <!--
+                        JavaScript will generate
+                        messages here.
+                    -->
+
+
+                    <!-- Example message structure:
+
+                    <div class="message received">
+
+                        <div class="message-content">
+
+                            <p>
+                                Hello admin, I need help.
+                            </p>
+
+                            <div class="message-meta">
+
+                                <span>
+                                    10:20
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="message sent">
+
+                        <div class="message-content">
+
+                            <p>
+                                Hello John, how can we help?
+                            </p>
+
+                            <div class="message-meta">
+
+                                <span>
+                                    10:21
+                                </span>
+
+                                <i class="fa-solid fa-check-double"></i>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    -->
+
+                </section>
+
+
+
+                <!-- =================================
+                     TYPING INDICATOR
+                ================================== -->
+
+                <div
+                    id="typing"
+                    class="typing hidden">
+
+                    <span></span>
+                    <span></span>
+                    <span></span>
+
+                    <p id="typingText">
+                        User is typing...
+                    </p>
+
+                </div>
+
+
+
+                <!-- =================================
+                     REPLY PREVIEW
+                ================================== -->
+
+                <div
+                    id="replyPreview"
+                    class="reply-preview hidden">
+
+                    <div>
+
+                        <span>
+                            Replying to
+                        </span>
+
+                        <strong id="replyUser">
+                            User
+                        </strong>
+
+                        <p id="replyMessage">
+                            Message
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        onclick="cancelReply()">
+
+                        <i class="fa-solid fa-xmark"></i>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- =================================
+                     EDIT MESSAGE PREVIEW
+                ================================== -->
+
+                <div
+                    id="editPreview"
+                    class="edit-preview hidden">
+
+                    <div>
+
+                        <span>
+                            Editing message
+                        </span>
+
+                        <p id="editMessage">
+                            Message
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        onclick="cancelEditMessage()">
+
+                        <i class="fa-solid fa-xmark"></i>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- =================================
+                     ATTACHMENT MENU
+                ================================== -->
+
+                <div
+                    id="attachmentMenu"
+                    class="attachment-menu hidden">
+
+
+                    <button
+                        onclick="attachPhoto()">
+
+                        <i class="fa-solid fa-image"></i>
+
+                        <span>
+                            Photos
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        onclick="attachDocument()">
+
+                        <i class="fa-solid fa-file"></i>
+
+                        <span>
+                            Document
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        onclick="attachCamera()">
+
+                        <i class="fa-solid fa-camera"></i>
+
+                        <span>
+                            Camera
+                        </span>
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- =================================
+                     CHAT INPUT
+                ================================== -->
+
+                <footer class="chat-input">
+
+
+                    <!-- Attachment -->
+
+                    <button
+                        class="chat-input-btn"
+                        onclick="toggleAttachmentMenu()"
+                        title="Attach">
+
+                        <i class="fa-solid fa-paperclip"></i>
+
+                    </button>
+
+
+
+
+
+                    <!-- Message -->
+
+                    <textarea
+                        id="messageInput"
+                        class="message-textarea"
+                        placeholder="Type a message..."
+                        rows="1"
+                        autocomplete="off"></textarea>
+
+
+
+                    <!-- Send -->
+
+                    <button
+                        id="sendMessageBtn"
+                        class="send-message-btn"
+                        onclick="sendMessage()"
+                        title="Send">
+
+                        <i class="fa-solid fa-paper-plane"></i>
+
+                    </button>
+
+
+
+                    <!-- Voice -->
+
+                    <button
+                        id="voiceMessageBtn"
+                        class="voice-btn"
+                        onclick="startVoiceMessage()"
+                        title="Voice message">
+
+                        <i class="fa-solid fa-microphone"></i>
+
+                    </button>
+
+
+                </footer>
+
+
+            </div>
+
+
+        </main>
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     NEW CHAT MODAL
+=================================================== -->
+
+<div
+    id="newChatModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal">
+
+
+        <div class="support-modal-header">
+
+            <div>
+
+                <h3>
+                    New Conversation
+                </h3>
+
+                <p>
+                    Select a user to start chatting.
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="closeNewChatModal()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <div class="support-modal-search">
+
+            <i class="fa-solid fa-search"></i>
+
+            <input
+                type="text"
+                id="userSearchInput"
+                placeholder="Search users...">
+
+        </div>
+
+
+
+        <div
+            id="availableUsers"
+            class="available-users">
+
+            <!--
+                JavaScript will generate
+                available users here.
+            -->
+
+        </div>
+
+
+
+        <div class="support-modal-footer">
+
+            <button
+                class="secondary-btn"
+                onclick="closeNewChatModal()">
+
+                Cancel
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     USER PROFILE MODAL
+=================================================== -->
+
+<div
+    id="userProfileModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal user-profile-modal">
+
+
+        <div class="support-modal-header">
+
+            <h3>
+                User Profile
+            </h3>
+
+
+            <button
+                onclick="closeUserProfile()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Profile Header -->
+
+        <div class="profile-header">
+
+            <div class="profile-avatar">
+
+           <div
+            id="profileAvatar"
+            class="profile-avatar-initials">
+           </div>
+
+                <span
+                    id="profileOnlineStatus">
+                </span>
+
+            </div>
+
+
+            <h2 id="profileName">
+                User
+            </h2>
+
+
+            <p id="profileUserId">
+                USR-0000
+            </p>
+
+
+            <span
+                id="profileAccountStatus"
+                class="profile-status">
+
+                Active
+
+            </span>
+
+        </div>
+
+
+
+        <!-- Profile Information -->
+
+        <div class="profile-summary">
+
+
+            <div class="profile-info-item">
+
+                <span>
+                    <i class="fa-solid fa-envelope"></i>
+                    Email
+                </span>
+
+                <strong id="profileEmail">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="profile-info-item">
+
+                <span>
+                    <i class="fa-solid fa-phone"></i>
+                    Phone
+                </span>
+
+                <strong id="profilePhone">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="profile-info-item">
+
+                <span>
+                    <i class="fa-solid fa-calendar"></i>
+                    Joined
+                </span>
+
+                <strong id="profileJoined">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="profile-info-item">
+
+                <span>
+                    <i class="fa-solid fa-shield-check"></i>
+                    Verification
+                </span>
+
+                <strong id="profileVerification">
+                    -
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- Account Summary -->
+
+        <div class="profile-section">
+
+            <h4>
+                Account Summary
+            </h4>
+
+
+            <div class="profile-stat-grid">
+
+
+                <div class="profile-stat">
+
+                    <span>
+                        Balance
+                    </span>
+
+                    <strong id="profileBalance">
+                        M0.00
+                    </strong>
+
+                </div>
+
+
+                <div class="profile-stat">
+
+                    <span>
+                        Deposited
+                    </span>
+
+                    <strong id="profileDeposited">
+                        M0.00
+                    </strong>
+
+                </div>
+
+
+                <div class="profile-stat">
+
+                    <span>
+                        Withdrawn
+                    </span>
+
+                    <strong id="profileWithdrawn">
+                        M0.00
+                    </strong>
+
+                </div>
+
+
+                <div class="profile-stat">
+
+                    <span>
+                        Active Plan
+                    </span>
+
+                    <strong id="profilePlan">
+                        None
+                    </strong>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Profile Actions -->
+
+        <div class="profile-actions">
+
+
+            <button
+                onclick="viewFullUserProfile()">
+
+                <i class="fa-solid fa-user"></i>
+
+                View Full Profile
+
+            </button>
+
+
+            <button class="danger"
+                onclick="deleteChatFromProfile()">
+
+                <i class="fa-solid fa-trash"></i>
+
+                Delete chat
+
+            </button>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     CREATE GROUP MODAL
+=================================================== -->
+
+<div
+    id="createGroupModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal create-group-modal">
+
+
+        <div class="support-modal-header">
+
+            <div>
+
+                <h3 id="createGroupModalTitle">
+                    Create Group
+                </h3>
+
+                <p id="createGroupModalSubtitle">
+                    Create a group and add users.
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="closeCreateGroupModal()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Group Avatar -->
+
+        <div
+            id="groupModalAvatarSection"
+            class="group-avatar-upload">
+
+            <div
+                id="newGroupAvatar"
+                class="group-avatar-preview">
+
+                <i class="fa-solid fa-users"></i>
+
+            </div>
+
+
+            <button
+                onclick="chooseGroupPhoto()">
+
+                <i class="fa-solid fa-camera"></i>
+
+                Change Photo
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Group Name -->
+
+        <div
+            id="groupModalNameSection"
+            class="form-group">
+
+            <label>
+                Group Name
+            </label>
+
+            <input
+                type="text"
+                id="groupNameInput"
+                placeholder="Enter group name">
+
+        </div>
+
+
+
+        <!-- Group Description -->
+
+        <div
+            id="groupModalDescriptionSection"
+            class="form-group">
+
+            <label>
+                Description
+            </label>
+
+            <textarea
+                id="groupDescriptionInput"
+                rows="3"
+                placeholder="Enter group description"></textarea>
+
+        </div>
+
+
+
+        <!-- Add Members -->
+
+        <div
+            id="groupModalMembersSection"
+            class="form-group">
+
+            <label>
+                Add Members
+            </label>
+
+
+            <div class="member-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="memberSearchInput"
+                    placeholder="Search users...">
+
+            </div>
+
+
+            <div
+                id="groupUserSelection"
+                class="group-user-selection">
+
+                <!--
+                    JavaScript will generate
+                    selectable users here.
+                -->
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Group Permissions -->
+
+        <div
+            id="groupModalPermissionsSection"
+            class="group-permissions">
+
+
+            <h4>
+                Group Permissions
+            </h4>
+
+
+
+            <!-- Send Messages -->
+
+            <div class="permission-row">
+
+                <div>
+
+                    <strong>
+                        Send Messages
+                    </strong>
+
+                    <p>
+                        Who can send messages?
+                    </p>
+
+                </div>
+
+
+                <select id="sendMessagesPermission">
+
+                    <option value="everyone">
+                        Everyone
+                    </option>
+
+                    <option value="admins">
+                        Admins only
+                    </option>
+
+                </select>
+
+            </div>
+
+
+
+            <!-- Edit Group -->
+
+            <div class="permission-row">
+
+                <div>
+
+                    <strong>
+                        Edit Group Information
+                    </strong>
+
+                    <p>
+                        Who can edit group information?
+                    </p>
+
+                </div>
+
+
+                <select id="editGroupPermission">
+
+                    <option value="admins">
+                        Admins only
+                    </option>
+
+                    <option value="everyone">
+                        Everyone
+                    </option>
+
+                </select>
+
+            </div>
+
+
+
+            <!-- Add Members -->
+
+            <div class="permission-row">
+
+                <div>
+
+                    <strong>
+                        Add Members
+                    </strong>
+
+                    <p>
+                        Who can add new members?
+                    </p>
+
+                </div>
+
+
+                <select id="addMembersPermission">
+
+                    <option value="admins">
+                        Admins only
+                    </option>
+
+                    <option value="everyone">
+                        Everyone
+                    </option>
+
+                </select>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- Modal Footer -->
+
+        <div class="support-modal-footer">
+
+            <button
+                class="secondary-btn"
+                onclick="closeCreateGroupModal()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                id="groupModalSubmitBtn"
+                class="primary-btn"
+                onclick="submitGroupModal()">
+
+                <i
+                    id="groupModalSubmitIcon"
+                    class="fa-solid fa-users">
+                </i>
+
+                <span id="groupModalSubmitLabel">
+                    Create Group
+                </span>
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     GROUP INFO MODAL
+=================================================== -->
+
+<div
+    id="groupInfoModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal group-info-modal">
+
+
+        <div class="support-modal-header">
+
+            <div>
+
+                <h3>
+                    Group Information
+                </h3>
+
+                <p id="groupInfoMemberCount">
+                    0 members
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="closeGroupInfo()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Group Profile -->
+
+        <div class="group-profile">
+
+            <div
+                id="groupInfoAvatar"
+                class="group-info-avatar">
+
+                <i class="fa-solid fa-users"></i>
+
+            </div>
+
+
+            <h2 id="groupInfoName">
+                Group Name
+            </h2>
+
+
+            <p id="groupInfoDescription">
+                Group description
+            </p>
+
+
+        </div>
+
+
+
+        <!-- Group Actions -->
+
+        <div class="group-info-actions">
+
+
+            <button
+                onclick="openAddMembers()">
+
+                <i class="fa-solid fa-user-plus"></i>
+
+                Add Members
+
+            </button>
+
+
+            <button
+                onclick="editGroupInformation()">
+
+                <i class="fa-solid fa-pen"></i>
+
+                Edit Group
+
+            </button>
+
+
+            <button
+                onclick="openGroupSettings()">
+
+                <i class="fa-solid fa-gear"></i>
+
+                Group Settings
+
+            </button>
+
+
+        </div>
+
+
+
+        <!-- Members -->
+
+        <div class="group-members-section">
+
+
+            <div class="group-members-header">
+
+                <h4>
+                    Members
+                </h4>
+
+
+                <span id="groupMembersCount">
+                    0
+                </span>
+
+            </div>
+
+
+            <div
+                id="groupMembersList"
+                class="group-members-list">
+
+                <!--
+                    JavaScript generates
+                    members here.
+                -->
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- Delete Group -->
+
+        <div class="danger-zone">
+
+            <button
+                onclick="deleteCurrentGroup()">
+
+                <i class="fa-solid fa-trash"></i>
+
+                Delete Group
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     GROUP SETTINGS MODAL
+=================================================== -->
+
+<div
+    id="groupSettingsModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal">
+
+
+        <div class="support-modal-header">
+
+            <div>
+
+                <h3>
+                    Group Settings
+                </h3>
+
+                <p>
+                    Manage group permissions.
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="closeGroupSettings()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <div class="settings-list">
+
+
+            <!-- Send Messages -->
+
+            <div class="setting-item">
+
+                <div class="setting-icon">
+
+                    <i class="fa-solid fa-comment"></i>
+
+                </div>
+
+
+                <div class="setting-content">
+
+                    <strong>
+                        Send Messages
+                    </strong>
+
+                    <p>
+                        Choose who can send messages.
+                    </p>
+
+                </div>
+
+
+                <select id="groupSendPermission">
+
+                    <option value="everyone">
+                        Everyone
+                    </option>
+
+                    <option value="admins">
+                        Admins only
+                    </option>
+
+                </select>
+
+            </div>
+
+
+
+            <!-- Edit Info -->
+
+            <div class="setting-item">
+
+                <div class="setting-icon">
+
+                    <i class="fa-solid fa-pen"></i>
+
+                </div>
+
+
+                <div class="setting-content">
+
+                    <strong>
+                        Edit Group Information
+                    </strong>
+
+                    <p>
+                        Control who can edit group details.
+                    </p>
+
+                </div>
+
+
+                <select id="groupEditPermission">
+
+                    <option value="admins">
+                        Admins only
+                    </option>
+
+                    <option value="everyone">
+                        Everyone
+                    </option>
+
+                </select>
+
+            </div>
+
+
+
+            <!-- Add Members -->
+
+            <div class="setting-item">
+
+                <div class="setting-icon">
+
+                    <i class="fa-solid fa-user-plus"></i>
+
+                </div>
+
+
+                <div class="setting-content">
+
+                    <strong>
+                        Add Members
+                    </strong>
+
+                    <p>
+                        Control who can add members.
+                    </p>
+
+                </div>
+
+
+                <select id="groupAddPermission">
+
+                    <option value="admins">
+                        Admins only
+                    </option>
+
+                    <option value="everyone">
+                        Everyone
+                    </option>
+
+                </select>
+
+            </div>
+
+
+        </div>
+
+
+
+        <div class="support-modal-footer">
+
+            <button
+                class="secondary-btn"
+                onclick="closeGroupSettings()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                class="primary-btn"
+                onclick="saveGroupSettings()">
+
+                <i class="fa-solid fa-check"></i>
+
+                Save Changes
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     MEMBER ACTION MODAL
+=================================================== -->
+
+<div
+    id="memberActionModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal small-modal">
+
+
+        <div class="support-modal-header">
+
+            <h3>
+                Member Options
+            </h3>
+
+
+            <button
+                onclick="closeMemberActions()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <div class="member-action-profile">
+
+           <div
+              id="memberActionAvatar"
+              class="member-action-avatar">
+          </div>
+
+            <h3 id="memberActionName">
+                User
+            </h3>
+
+            <p id="memberActionRole">
+                Member
+            </p>
+
+        </div>
+
+
+
+        <div class="member-actions">
+
+
+            <button
+                onclick="viewMemberProfile()">
+
+                <i class="fa-solid fa-user"></i>
+
+                View Profile
+
+            </button>
+
+
+            <button
+                id="memberAdminAction"
+                onclick="toggleMemberAdmin()">
+
+                <i class="fa-solid fa-shield"></i>
+
+                Make Admin
+
+            </button>
+
+
+            <button
+                class="danger-action"
+                onclick="removeMemberFromGroup()">
+
+                <i class="fa-solid fa-user-minus"></i>
+
+                Remove from Group
+
+            </button>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     CHAT ACTIONS MODAL
+     (opened by press-and-hold on a chat)
+=================================================== -->
+
+<div
+    id="chatActionsModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal small-modal">
+
+
+        <div class="support-modal-header">
+
+            <h3 id="chatActionsTitle">
+                Chat Options
+            </h3>
+
+
+            <button
+              id="chatActionsCancelBtn"
+                onclick="closeChatActionsModal()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <div class="member-actions">
+
+
+            <button
+                id="chatActionsPriorityBtn"
+                onclick="chooseBulkPriorityMode()">
+
+                <i class="fa-solid fa-star"></i>
+
+                Add to Priority
+
+            </button>
+
+
+            <button
+                class="danger-action"
+                onclick="chooseBulkDeleteMode()">
+
+                <i class="fa-solid fa-trash"></i>
+
+                Delete
+
+            </button>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     DELETE CONFIRMATION MODAL
+=================================================== -->
+
+<div
+    id="deleteConfirmModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal small-modal">
+
+
+        <div class="delete-confirm-icon">
+
+            <i class="fa-solid fa-trash"></i>
+
+        </div>
+
+
+        <h3 id="deleteConfirmTitle">
+            Delete Conversation?
+        </h3>
+
+
+        <p id="deleteConfirmText">
+
+            This action cannot be undone.
+
+        </p>
+
+
+        <div class="support-modal-footer">
+
+
+            <button
+                class="secondary-btn"
+                onclick="closeDeleteConfirmation()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                class="danger-btn"
+                id="confirmDeleteBtn"
+                onclick="confirmDeleteAction()">
+
+                Delete
+
+            </button>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     PRIORITY CONFIRMATION MODAL
+=================================================== -->
+
+<div
+    id="priorityConfirmModal"
+    class="support-modal-overlay hidden">
+
+
+    <div class="support-modal small-modal">
+
+
+        <div class="priority-confirm-icon">
+
+            <i class="fa-solid fa-star"></i>
+
+        </div>
+
+
+        <h3 id="priorityConfirmTitle">
+            Update Priority?
+        </h3>
+
+
+        <p id="priorityConfirmText">
+
+            This will update the priority of the selected conversations.
+
+        </p>
+
+
+        <div class="support-modal-footer">
+
+
+            <button
+                class="secondary-btn"
+                onclick="closePriorityConfirmation()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                class="primary-btn"
+                id="confirmPriorityBtn"
+                onclick="confirmPriorityAction()">
+
+                Confirm
+
+            </button>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     HIDDEN FILE INPUTS
+=================================================== -->
+
+<input
+    type="file"
+    id="photoInput"
+    accept="image/*"
+    hidden>
+
+
+<input
+    type="file"
+    id="documentInput"
+    accept="*/*"
+    hidden>
+
+
+<input
+    type="file"
+    id="cameraInput"
+    accept="image/*"
+    capture="environment"
+    hidden>
+
+
+<input
+    type="file"
+    id="groupPhotoInput"
+    accept="image/*"
+    hidden>
+
+
+
+
+
+<!-- ==================================================
+     PIN MESSAGES MODAL
+=================================================== -->
+
+<div
+    id="pinMessagesModal"
+    class="support-modal-overlay hidden">
+
+
+    <div
+        class="support-modal small-modal">
+
+
+        <!-- Header -->
+
+        <div class="support-modal-header">
+
+            <div>
+
+                <h3>
+                    Pin Messages
+                </h3>
+
+                <p>
+                    Choose how you want to pin a message.
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="closePinMessages()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Options -->
+
+        <div class="pin-message-options">
+
+
+            <!-- Write a pin message -->
+
+            <button
+                class="pin-message-option"
+                onclick="openWritePinMessage()">
+
+
+                <div class="pin-message-option-icon">
+
+                    <i class="fa-solid fa-pen"></i>
+
+                </div>
+
+
+                <div class="pin-message-option-content">
+
+                    <strong>
+                        Write a pin message
+                    </strong>
+
+                    <span>
+                        Create a new message and pin it.
+                    </span>
+
+                </div>
+
+
+                <i
+                    class="fa-solid fa-chevron-right">
+                </i>
+
+
+            </button>
+
+
+
+            <!-- Select existing message -->
+
+            <button
+                class="pin-message-option"
+                onclick="startSelectPinnedMessages()">
+
+
+                <div class="pin-message-option-icon">
+
+                    <i class="fa-solid fa-message"></i>
+
+                </div>
+
+
+                <div class="pin-message-option-content">
+
+                    <strong>
+                        Select existing messages
+                    </strong>
+
+                    <span>
+                        Choose messages from this chat to pin.
+                    </span>
+
+                </div>
+
+
+                <i
+                    class="fa-solid fa-chevron-right">
+                </i>
+
+
+            </button>
+
+
+        </div>
+
+
+
+        <!-- Footer -->
+
+        <div class="support-modal-footer">
+
+            <button
+                class="secondary-btn"
+                onclick="closePinMessages()">
+
+                Cancel
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+<!-- ==================================================
+     WRITE PIN MESSAGE MODAL
+=================================================== -->
+
+<div
+    id="writePinMessageModal"
+    class="support-modal-overlay hidden">
+
+
+    <div
+        class="support-modal small-modal">
+
+
+        <!-- Header -->
+
+        <div class="support-modal-header">
+
+            <div>
+
+                <h3>
+                    Write Pin Message
+                </h3>
+
+                <p>
+                    Create a message to pin in this chat.
+                </p>
+
+            </div>
+
+
+            <button
+                onclick="closeWritePinMessage()">
+
+                <i class="fa-solid fa-xmark"></i>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Message Input -->
+
+        <div class="form-group">
+
+            <label>
+                Message
+            </label>
+
+
+            <textarea
+                id="pinMessageInput"
+                rows="4"
+                placeholder="Write your pinned message..."
+                maxlength="1000"></textarea>
+
+
+            <div class="pin-message-character-count">
+
+                <span id="pinMessageCharacterCount">
+                    0
+                </span>
+
+                / 1000
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Footer -->
+
+        <div class="support-modal-footer">
+
+            <button
+                class="secondary-btn"
+                onclick="closeWritePinMessage()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                class="primary-btn"
+                onclick="createPinnedMessage()">
+
+                <i class="fa-solid fa-thumbtack"></i>
+
+                Pin Message
+
+            </button>
+
+        </div>
+
+
+    </div>
+
+</div>
+

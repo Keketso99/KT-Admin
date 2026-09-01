@@ -1,0 +1,205 @@
+<div class="activity-page">
+
+    <!-- =================================
+         ACTIVITY HEADER
+    ================================== -->
+
+    <div class="activity-header">
+
+        <h2>
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            Activity Logs
+        </h2>
+
+    </div>
+
+
+    <!-- =================================
+         STATISTICS
+    ================================== -->
+
+    <div class="activity-stats">
+
+        <div class="activity-card">
+            <h4>Today</h4>
+            <span id="todayActivities">0</span>
+        </div>
+
+        <div class="activity-card">
+            <h4>Yesterday</h4>
+            <span id="yesterdayActivities">0</span>
+        </div>
+
+    </div>
+
+
+<!-- =================================
+     ACTIVITY CATEGORIES
+================================== -->
+
+<div class="activity-tabs">
+
+    <button class="activity-tab active"
+        onclick="showActivityTab('all', this)">
+        <span>All</span>
+        <span class="activity-count" id="allCount">0</span>
+    </button>
+
+
+    <button class="activity-tab"
+        onclick="showActivityTab('login', this)">
+        <span>Login</span>
+        <span class="activity-count" id="loginCount">0</span>
+    </button>
+
+
+    <button class="activity-tab"
+        onclick="showActivityTab('changes', this)">
+        <span>Changes</span>
+        <span class="activity-count" id="changesCount">0</span>
+    </button>
+
+
+    <button class="activity-tab"
+        onclick="showActivityTab('transactions', this)">
+        <span>Transactions</span>
+        <span class="activity-count" id="transactionsCount">0</span>
+    </button>
+
+
+    <button class="activity-tab"
+        onclick="showActivityTab('users', this)">
+        <span>Users</span>
+        <span class="activity-count" id="usersCount">0</span>
+    </button>
+
+
+    <button class="activity-tab"
+        onclick="showActivityTab('security', this)">
+        <span>Security</span>
+        <span class="activity-count" id="securityCount">0</span>
+    </button>
+
+</div>
+
+
+    <!-- =================================
+         SEARCH / FILTER AREA
+    ================================== -->
+
+    <div class="activity-tools">
+
+        <div class="activity-search">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input
+                type="text"
+                id="activitySearch"
+                placeholder="Search activities...">
+
+        </div>
+
+        <button
+            class="activity-refresh-btn"
+            onclick="initActivityLogs()">
+
+            <i class="fa-solid fa-rotate"></i>
+            Refresh
+
+        </button>
+
+    </div>
+
+
+    <!-- =================================
+         ACTIVITY TABLE
+    ================================== -->
+
+    <div class="activity-table-container">
+
+        <table class="activity-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>User</th>
+
+                    <th>Date</th>
+
+                    <th>Activity</th>
+
+                    <th>Action</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="activityList">
+
+                <!-- Rows are injected from activityData in activity-log.js -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- =================================
+         ACTIVITY DETAILS MODAL
+         JS WILL POPULATE THIS
+    ================================== -->
+
+    <div
+        class="activity-modal"
+        id="activityModal">
+
+        <div class="activity-modal-content">
+
+            <div class="activity-modal-header">
+
+                <h3>
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Activity Details
+                </h3>
+
+                <button
+                    class="activity-modal-close"
+                    onclick="closeActivityModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <div
+                class="activity-details"
+                id="activityDetails">
+
+                <!-- Details will be inserted by JavaScript -->
+
+            </div>
+
+
+            <div class="activity-modal-footer">
+
+                <button
+                    class="activity-close-btn"
+                    onclick="closeActivityModal()">
+
+                    Close
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
