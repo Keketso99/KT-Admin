@@ -2977,6 +2977,11 @@ function initPlans(){
         document.getElementById("planHashPower").value = "";
         document.getElementById("planStatus").value = "active";
 
+          
+        document.getElementById("planSubscriberCount").style.display = "none";
+
+        
+
         document.querySelector(".plan-modal-header h3").innerText = "Add Mining Plan";
 
         saveButton.innerText = "Create Plan";
@@ -3015,6 +3020,30 @@ function initPlans(){
             (currentPlan.daily_payout_zar * currentPlan.duration_days).toFixed(2);
         document.getElementById("planHashPower").value = currentPlan.hash_power || "";
         document.getElementById("planStatus").value = currentPlan.is_active ? "active" : "disabled";
+
+        
+
+        const subscriberCountEl = document.getElementById("planSubscriberCount");
+        subscriberCountEl.style.display = "block";
+        subscriberCountEl.innerText = "Loading subscriber count…";
+
+        sb.from("mining_subscriptions")
+            .select("id", { count: "exact", head: true })
+            .eq("plan_id", currentPlan.id)
+            .eq("status", "active")
+            .then(({ count, error }) => {
+                if (error) {
+                    subscriberCountEl.innerText = "Couldn't load subscriber count.";
+                    return;
+                }
+                subscriberCountEl.innerText =
+                    count === 1
+                        ? "1 user is currently active on this plan"
+                        : `${count} users are currently active on this plan`;
+            });
+
+        
+      
 
         toggleButton.innerText = currentPlan.is_active ? "Deactivate" : "Activate";
 
@@ -3146,6 +3175,8 @@ function initPlans(){
                 }
 
                 currentPlan.is_active = newActive;
+
+        
 
                 toggleButton.innerText = newActive ? "Deactivate" : "Activate";
 
