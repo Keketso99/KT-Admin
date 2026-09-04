@@ -185,8 +185,8 @@ function initPlans(){
                 }
                 subscriberCountEl.innerText =
                     count === 1
-                        ? "1 user is currently active on this plan"
-                        : `${count} users are currently active on this plan`;
+                        ? "Currently active user: 1"
+                        : `Currently active users:  ${count}`;
             });
 
         
