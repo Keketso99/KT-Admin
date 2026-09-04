@@ -184,8 +184,8 @@ function initPlans(){
                     return;
                 }
                 subscriberCountEl.innerText =
-                    count === 1
-                        ? "Currently active user: 1"
+                    count === 0
+                        ? "No active users"
                         : `Currently active users:  ${count}`;
             });
 
