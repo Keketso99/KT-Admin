@@ -137,38 +137,41 @@ function initPlans(){
 
     // VIEW EXISTING PLAN
 
-    function attachViewHandler(button){
+        // VIEW EXISTING PLAN — delegated to the table itself so it keeps
+    // working after renderPlans() rebuilds the rows (add/edit/delete/reload).
 
-        button.onclick = function(){
+    const planTable = document.getElementById("planList");
 
-            currentRow = this.closest("tr");
+    planTable.addEventListener("click", function(e){
 
-            currentPlan = plansData.find(p => p.id === currentRow.dataset.planid);
+        const button = e.target.closest(".plan-view-btn");
 
-            if(!currentPlan) return;
+        if(!button) return;
 
-            document.getElementById("planName").value = currentPlan.name;
-            document.getElementById("planPrice").value = currentPlan.price_zar;
-            document.getElementById("planDuration").value = currentPlan.duration_days;
-            document.getElementById("planDailyReturn").value = currentPlan.daily_payout_zar;
-            document.getElementById("planTotalReturn").value =
-                (currentPlan.daily_payout_zar * currentPlan.duration_days).toFixed(2);
-            document.getElementById("planHashPower").value = currentPlan.hash_power || "";
-            document.getElementById("planStatus").value = currentPlan.is_active ? "active" : "disabled";
+        currentRow = button.closest("tr");
 
-            toggleButton.innerText = currentPlan.is_active ? "Deactivate" : "Activate";
+        currentPlan = plansData.find(p => p.id === currentRow.dataset.planid);
 
-            document.querySelector(".plan-modal-header h3").innerText = "Edit Mining Plan";
+        if(!currentPlan) return;
 
-            saveButton.innerText = "Save Changes";
+        document.getElementById("planName").value = currentPlan.name;
+        document.getElementById("planPrice").value = currentPlan.price_zar;
+        document.getElementById("planDuration").value = currentPlan.duration_days;
+        document.getElementById("planDailyReturn").value = currentPlan.daily_payout_zar;
+        document.getElementById("planTotalReturn").value =
+            (currentPlan.daily_payout_zar * currentPlan.duration_days).toFixed(2);
+        document.getElementById("planHashPower").value = currentPlan.hash_power || "";
+        document.getElementById("planStatus").value = currentPlan.is_active ? "active" : "disabled";
 
-            modal.style.display = "flex";
+        toggleButton.innerText = currentPlan.is_active ? "Deactivate" : "Activate";
 
-        };
+        document.querySelector(".plan-modal-header h3").innerText = "Edit Mining Plan";
 
-    }
+        saveButton.innerText = "Save Changes";
 
-    document.querySelectorAll(".plan-view-btn").forEach(attachViewHandler);
+        modal.style.display = "flex";
+
+    });
 
 
     // SAVE / CREATE PLAN
