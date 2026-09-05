@@ -4268,7 +4268,7 @@ function initVerification() {
     function loadKyc(){
 
         sb.from("kyc_submissions")
-            .select("id, id_front_url, id_back_url, selfie_url, status, created_at, profiles(username, surname, email, phone)")
+            .select("id, user_id, id_front_url, id_back_url, selfie_url, status, needs_resubmission, admin_note, created_at, profiles(username, surname, email, phone)")
             .order("created_at", { ascending: false })
 
             .then(({ data, error }) => {
@@ -4288,6 +4288,8 @@ function initVerification() {
 
                     kycData[row.id] = {
                         id: row.id,
+                        userId: row.user_id,
+                        createdAt: row.created_at,
                         name: fullName,
                         email: row.profiles ? (row.profiles.email || "") : "",
                         phone: row.profiles ? (row.profiles.phone || "") : "",
@@ -4297,7 +4299,9 @@ function initVerification() {
                         idFront: row.id_front_url,
                         idBack: row.id_back_url,
                         selfie: row.selfie_url,
-                        status: row.status
+                        status: row.status,
+                        needsResubmission: row.needs_resubmission,
+                        adminNote: row.admin_note
                     };
 
                 });
@@ -4324,8 +4328,12 @@ function initVerification() {
         const buttonLabel =
             entry.status === "pending" ? "Review" : "View";
 
+        const nameCell = entry.needsResubmission
+            ? entry.name + " <span style=\"opacity:.6;font-size:11px;\">(reset)</span>"
+            : entry.name;
+
         tr.innerHTML =
-            "<td>" + entry.name + "</td>" +
+            "<td>" + nameCell + "</td>" +
             "<td>" + entry.date + "</td>" +
             "<td><button class=\"review-btn\">" + buttonLabel + "</button></td>";
 
@@ -4348,18 +4356,33 @@ function initVerification() {
         approvedBody.innerHTML = "";
         rejectedBody.innerHTML = "";
 
-        Object.values(kycData).forEach(entry => {
+        const allEntries = Object.values(kycData);
 
-            if(entry.status === "pending"){
-                pendingBody.appendChild(renderRow(entry));
-            }
-            else if(entry.status === "approved"){
+        // Pending: show every pending row, no dedup needed.
+        allEntries
+            .filter(entry => entry.status === "pending")
+            .forEach(entry => pendingBody.appendChild(renderRow(entry)));
+
+        // Approved/Rejected: only each user's single most recent resolved
+        // record — an older superseded outcome (e.g. an earlier rejection
+        // before a later approval) is dropped from view.
+        const latestResolvedByUser = {};
+
+        allEntries
+            .filter(entry => entry.status === "approved" || entry.status === "rejected")
+            .forEach(entry => {
+                const existing = latestResolvedByUser[entry.userId];
+                if (!existing || new Date(entry.createdAt) > new Date(existing.createdAt)) {
+                    latestResolvedByUser[entry.userId] = entry;
+                }
+            });
+
+        Object.values(latestResolvedByUser).forEach(entry => {
+            if (entry.status === "approved") {
                 approvedBody.appendChild(renderRow(entry));
-            }
-            else if(entry.status === "rejected"){
+            } else {
                 rejectedBody.appendChild(renderRow(entry));
             }
-
         });
 
         loadReviewButtons();
