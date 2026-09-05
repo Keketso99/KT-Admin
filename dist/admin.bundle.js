@@ -4505,6 +4505,8 @@ function initVerification() {
                 reviewIdBack.src = entry.idBack;
                 reviewSelfie.src = entry.selfie;
 
+                document.getElementById("adminNoteInput").value = "";
+
                 if (entry.status === "pending") {
 
                     approveBtn.style.display = "inline-block";
@@ -4553,13 +4555,15 @@ function initVerification() {
     // Approve (real — approve_kyc RPC)
     // ===============================
 
+    
     approveBtn.onclick = function () {
 
         if (!selectedRow) return;
 
         const kycId = selectedRow.dataset.kycid;
+        const note = document.getElementById("adminNoteInput").value.trim() || null;
 
-        sb.rpc("approve_kyc", { p_kyc_id: kycId })
+        sb.rpc("approve_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
 
@@ -4585,8 +4589,9 @@ function initVerification() {
         if (!selectedRow) return;
 
         const kycId = selectedRow.dataset.kycid;
+        const note = document.getElementById("adminNoteInput").value.trim() || null;
 
-        sb.rpc("reject_kyc", { p_kyc_id: kycId })
+        sb.rpc("reject_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
 
@@ -4612,8 +4617,9 @@ function initVerification() {
         if (!selectedRow) return;
 
         const kycId = selectedRow.dataset.kycid;
+        const note = document.getElementById("adminNoteInput").value.trim() || null;
 
-        sb.rpc("admin_reset_kyc", { p_kyc_id: kycId })
+        sb.rpc("admin_reset_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
 
@@ -4639,8 +4645,9 @@ function initVerification() {
         if (!selectedRow) return;
 
         const kycId = selectedRow.dataset.kycid;
+        const note = document.getElementById("adminNoteInput").value.trim() || null;
 
-        sb.rpc("admin_request_kyc_documents", { p_kyc_id: kycId })
+        sb.rpc("admin_request_kyc_documents", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
 
