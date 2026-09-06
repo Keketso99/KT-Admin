@@ -4275,8 +4275,8 @@ function initVerification() {
 
     function loadKyc(){
 
-        sb.from("kyc_submissions")
-            .select("id, user_id, id_front_url, id_back_url, selfie_url, status, needs_resubmission, admin_note, created_at, profiles(username, surname, email, phone)")
+                sb.from("kyc_submissions")
+            .select("id, user_id, id_front_url, id_back_url, selfie_url, status, needs_resubmission, admin_note, created_at, country, profiles(username, surname, email, phone)")
             .order("created_at", { ascending: false })
 
             .then(({ data, error }) => {
@@ -4304,6 +4304,7 @@ function initVerification() {
                         date: new Date(row.created_at).toLocaleDateString("en-US", {
                             day: "2-digit", month: "short", year: "numeric"
                         }),
+                      country: row.country,
                         idFront: row.id_front_url,
                         idBack: row.id_back_url,
                         selfie: row.selfie_url,
@@ -4506,8 +4507,8 @@ function initVerification() {
                 reviewName.textContent = entry.name;
                 reviewDate.textContent = entry.date;
                 reviewEmail.textContent = entry.email || "—";
-                reviewPhone.textContent = entry.phone || "—";
-                reviewCountry.textContent = "";
+                                reviewPhone.textContent = entry.phone || "—";
+ reviewCountry.textContent = entry.country || "—";
 
                 reviewIdFront.src = entry.idFront;
                 reviewIdBack.src = entry.idBack;
