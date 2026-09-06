@@ -3252,7 +3252,7 @@ function initUsers(){
 
     const refreshBtn = document.querySelector(".refresh-btn");
 
-    const addUserBtn = document.querySelector(".add-user-btn");
+  
 
     // Statistics
 
@@ -3496,25 +3496,7 @@ function initUsers(){
         };
 
     }
-
-    // ===============================
-    // ADD USER — real signup only
-    // ===============================
-    // Creating a fully working login account requires Supabase's
-    // service-role key, which Lovable Cloud doesn't expose to the
-    // client. Real accounts have to come from the sign-up flow in
-    // the user app itself — this button just explains that instead
-    // of faking a row that isn't a real account.
-
-    if(addUserBtn){
-
-        addUserBtn.onclick=function(){
-
-            alert("New accounts can't be created from the admin panel — ask the person to sign up in the KT Cloud Mining app, then manage their account here afterward.");
-
-        };
-
-    }
+    
 
     // ===============================
     // USER MANAGEMENT MODAL
@@ -3716,7 +3698,7 @@ function initUsers(){
         button.onclick=function(){
 
             let modal = this.closest(
-                ".user-modal, .credit-modal, .debit-modal, .plan-modal, .edit-user-modal, .delete-modal, .block-modal, .add-user-modal, .reset-password-modal"
+                ".user-modal, .credit-modal, .debit-modal, .plan-modal, .edit-user-modal, .delete-modal, .block-modal, .reset-password-modal"
             );
 
             if(modal){
@@ -3761,7 +3743,6 @@ function initUsers(){
            e.target.classList.contains("edit-user-modal") ||
            e.target.classList.contains("delete-modal") ||
            e.target.classList.contains("block-modal") ||
-           e.target.classList.contains("add-user-modal") ||
            e.target.classList.contains("reset-password-modal")){
 
             e.target.style.display="none";
