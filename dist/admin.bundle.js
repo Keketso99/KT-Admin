@@ -4181,13 +4181,15 @@ function initUsers(){
         };
     }
 
+    
+
     // ===============================
-    // DELETE USER — repurposed as Block
+    // DELETE USER — real (admin_delete_user RPC)
     // ===============================
-    // A true delete requires Supabase's admin/service-role API,
-    // which isn't available from the browser under Lovable Cloud.
-    // This blocks the account instead and says so plainly, rather
-    // than pretending to delete something that's still there.
+    // Deletes the auth.users row via a SECURITY DEFINER function; profiles
+    // cascades automatically (ON DELETE CASCADE). Any other table that
+    // references this user without a cascade will surface as a clear
+    // foreign-key error here instead of silently doing nothing.
 
     const deleteBtn = document.querySelector(".delete-btn");
 
@@ -4211,22 +4213,21 @@ function initUsers(){
 
             if(!currentRow) return;
 
-            sb.from("profiles")
-                .update({ is_blocked: true })
-                .eq("id", currentRow.dataset.userid)
+            sb.rpc("admin_delete_user", { p_user_id: currentRow.dataset.userid })
 
                 .then(({ error }) => {
 
                     deleteModal.style.display="none";
 
                     if(error){
-                        alert("Failed to block account: " + error.message);
+                        alert("Failed to delete user: " + error.message);
                         return;
                     }
 
-                    loadUsers();
+                    currentRow.remove();
+                    currentRow = null;
 
-                    alert("Full account deletion isn't available yet — this account has been blocked instead.");
+                    alert("User deleted.");
 
                 });
 
@@ -4234,7 +4235,6 @@ function initUsers(){
 
     }
 }
-
 
 /* ===== js/verification.js ===== */
 // =================================
