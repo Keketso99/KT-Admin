@@ -3312,15 +3312,20 @@ function initUsers(){
             <td>
                 <button class="manage-btn">Manage</button>
             </td>
+            
 
-            <td class="user-hidden-data" style="display:none;">
+                       <td class="user-hidden-data" style="display:none;">
                 <span class="email">${user.email || ""}</span>
                 <span class="balance">M${Number(user.balance_zar).toFixed(2)}</span>
                 <span class="plan">${user.plan_name}</span>
                 <span class="phone">${user.phone || ""}</span>
-                <span class="country"></span>
+                <span class="gender">${user.gender || ""}</span>
+                <span class="country">${user.country || ""}</span>
+                <span class="reg-date">${user.created_at ? new Date(user.created_at).toLocaleDateString() : ""}</span>
+                <span class="info-locked">${user.info_locked ? "1" : "0"}</span>
+                <span class="change-requested">${user.change_requested ? "1" : "0"}</span>
             </td>
-        `;
+        `;;
 
         return row;
     }
@@ -3521,13 +3526,23 @@ function initUsers(){
 
     const modalUserID = document.getElementById("modalUserID");
 
-    const modalEmail = document.getElementById("modalEmail");
+        const modalEmail = document.getElementById("modalEmail");
+
+    const modalGender = document.getElementById("modalGender");
+
+    const modalPhone = document.getElementById("modalPhone");
+
+    const modalCountry = document.getElementById("modalCountry");
+
+    const modalRegDate = document.getElementById("modalRegDate");
 
     const modalBalance = document.getElementById("modalBalance");
 
     const modalPlan = document.getElementById("modalPlan");
 
     const modalStatus = document.getElementById("modalStatus");
+
+    const modalInfoStatus = document.getElementById("modalInfoStatus");
 
     // ===============================
     // OPEN USER MODAL
@@ -3543,7 +3558,15 @@ function initUsers(){
 
         modalUserID.textContent = "User ID : " + row.dataset.userid;
 
-        modalEmail.textContent = hiddenData.querySelector(".email").textContent;
+                modalEmail.textContent = hiddenData.querySelector(".email").textContent;
+
+        modalGender.textContent = hiddenData.querySelector(".gender").textContent || "—";
+
+        modalPhone.textContent = hiddenData.querySelector(".phone").textContent || "—";
+
+        modalCountry.textContent = hiddenData.querySelector(".country").textContent || "—";
+
+        modalRegDate.textContent = hiddenData.querySelector(".reg-date").textContent || "—";
 
         modalBalance.textContent = hiddenData.querySelector(".balance").textContent;
 
@@ -3551,7 +3574,15 @@ function initUsers(){
 
         modalStatus.textContent = row.querySelector(".status").textContent.trim();
 
+        const infoLocked = hiddenData.querySelector(".info-locked").textContent === "1";
+        const changeRequested = hiddenData.querySelector(".change-requested").textContent === "1";
+
+        modalInfoStatus.textContent = infoLocked
+            ? (changeRequested ? "Locked — change requested" : "Locked")
+            : "Editable (approved)";
+
         updateStatusButton();
+        updateApproveButton();
 
         userModal.style.display="flex";
 
@@ -3739,81 +3770,58 @@ function initUsers(){
 
     };
 
+    
+
+    
+        // ===============================
+    // APPROVE CHANGES (admin_approve_profile_changes)
     // ===============================
-    // EDIT USER — updates the real profile row
-    // ===============================
+    // Admins no longer type in the user's new details themselves — the user
+    // edits their own Personal Information page once this unlocks it. This
+    // button just approves that request via a SECURITY DEFINER RPC so the
+    // unlock/audit logic lives in one place (see enforce_profile_lock in SQL).
 
-    const editUserModal = document.getElementById("editUserModal");
+    const approveBtn = document.querySelector(".approve-btn");
 
-    const editSaveBtn = document.querySelector(".edit-user-content .save-btn");
+    function updateApproveButton(){
 
-    const editBtn = document.querySelector(".edit-btn");
+        if(!currentRow || !approveBtn) return;
 
-    if(editBtn){
+        const hiddenData = currentRow.querySelector(".user-hidden-data");
+        const infoLocked = hiddenData.querySelector(".info-locked").textContent === "1";
 
-        editBtn.onclick=function(){
-
-            if(!currentRow) return;
-
-            userModal.style.display="none";
-
-            const fullName = currentRow.querySelector("h4").textContent;
-            const hiddenData = currentRow.querySelector(".user-hidden-data");
-
-            document.getElementById("editName").value = fullName;
-            document.getElementById("editEmail").value = hiddenData.querySelector(".email").textContent;
-            document.getElementById("editPhone").value = hiddenData.querySelector(".phone")
-                ? hiddenData.querySelector(".phone").textContent : "";
-            document.getElementById("editCountry").value = "";
-
-            editUserModal.style.display="flex";
-
-        };
+        approveBtn.textContent = infoLocked ? "Approve Changes" : "Already Editable";
+        approveBtn.disabled = !infoLocked;
 
     }
 
-    if(editSaveBtn){
+    if(approveBtn){
 
-        editSaveBtn.onclick=function(){
+        approveBtn.onclick=function(){
 
             if(!currentRow) return;
 
-            let newName = document.getElementById("editName").value.trim();
-            let newPhone = document.getElementById("editPhone").value.trim();
+            sb.rpc("admin_approve_profile_changes", {
+                p_user_id: currentRow.dataset.userid
+            })
 
-            if(newName===""){
-                alert("Name cannot be empty");
-                return;
-            }
+            .then(({ error }) => {
 
-            const parts = newName.split(" ");
-            const username = parts[0];
-            const surname = parts.slice(1).join(" ");
+                if(error){
+                    alert("Failed to approve changes: " + error.message);
+                    return;
+                }
 
-            sb.from("profiles")
-                .update({ username: username, surname: surname, phone: newPhone })
-                .eq("id", currentRow.dataset.userid)
+                const hiddenData = currentRow.querySelector(".user-hidden-data");
+                hiddenData.querySelector(".info-locked").textContent = "0";
+                hiddenData.querySelector(".change-requested").textContent = "0";
 
-                .then(({ error }) => {
+                modalInfoStatus.textContent = "Editable (approved)";
+                updateApproveButton();
 
-                    if(error){
-                        alert("Failed to update user: " + error.message);
-                        return;
-                    }
+                alert("Changes approved — the user can now edit their personal information.");
 
-                    currentRow.querySelector("h4").textContent = newName;
-
-                    const hiddenData = currentRow.querySelector(".user-hidden-data");
-
-                    if(hiddenData.querySelector(".phone")){
-                        hiddenData.querySelector(".phone").textContent = newPhone;
-                    }
-
-                    editUserModal.style.display="none";
-
-                    alert("User updated successfully");
-
-                });
+            });
 
         };
 
