@@ -252,9 +252,15 @@
                 </strong>
             </div>
 
-            <div class="detail-item">
+        <div class="detail-item">
                 <span>Profile Info</span>
                 <strong id="modalInfoStatus">
+                </strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Payment Methods</span>
+                <strong id="modalPaymentMethodsStatus">
                 </strong>
             </div>
         </div>
@@ -521,7 +527,7 @@
 
         </p>
 
-        <div class="confirm-buttons">
+                <div class="confirm-buttons">
 
             <button class="cancel-btn">
 
@@ -532,6 +538,56 @@
             <button class="delete-btn">
 
                 Delete
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Approve Changes — pick which page to unlock -->
+
+<div class="delete-modal" id="approveModal">
+
+    <div class="delete-content">
+
+        <h2>
+
+            Approve Changes
+
+        </h2>
+
+        <p>
+
+            Choose which page this user requested changes for. Approving unlocks editing there until they save.
+
+        </p>
+
+        <div class="confirm-buttons">
+
+            <button class="cancel-btn approve-cancel-btn">
+
+                Cancel
+
+            </button>
+
+        </div>
+
+        <div class="confirm-buttons">
+
+            <button class="delete-btn approve-personal-btn">
+
+                Personal Information
+
+            </button>
+
+            <button class="delete-btn approve-payment-btn">
+
+                Payment Methods
 
             </button>
 

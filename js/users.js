@@ -88,8 +88,10 @@ function initUsers(){
                 <span class="gender">${user.gender || ""}</span>
                 <span class="country">${user.country || ""}</span>
                 <span class="reg-date">${user.created_at ? new Date(user.created_at).toLocaleDateString() : ""}</span>
-                <span class="info-locked">${user.info_locked ? "1" : "0"}</span>
+ <span class="info-locked">${user.info_locked ? "1" : "0"}</span>
                 <span class="change-requested">${user.change_requested ? "1" : "0"}</span>
+                <span class="payment-methods-locked">${user.payment_methods_locked ? "1" : "0"}</span>
+                <span class="payment-methods-change-requested">${user.payment_methods_change_requested ? "1" : "0"}</span>
             </td>
         `;;
 
@@ -290,7 +292,9 @@ function initUsers(){
 
     const modalStatus = document.getElementById("modalStatus");
 
-    const modalInfoStatus = document.getElementById("modalInfoStatus");
+        const modalInfoStatus = document.getElementById("modalInfoStatus");
+
+    const modalPaymentMethodsStatus = document.getElementById("modalPaymentMethodsStatus");
 
     // ===============================
     // OPEN USER MODAL
@@ -325,8 +329,15 @@ function initUsers(){
         const infoLocked = hiddenData.querySelector(".info-locked").textContent === "1";
         const changeRequested = hiddenData.querySelector(".change-requested").textContent === "1";
 
-        modalInfoStatus.textContent = infoLocked
+                modalInfoStatus.textContent = infoLocked
             ? (changeRequested ? "Locked — change requested" : "Locked")
+            : "Editable (approved)";
+
+        const paymentMethodsLocked = hiddenData.querySelector(".payment-methods-locked").textContent === "1";
+        const paymentMethodsChangeRequested = hiddenData.querySelector(".payment-methods-change-requested").textContent === "1";
+
+        modalPaymentMethodsStatus.textContent = paymentMethodsLocked
+            ? (paymentMethodsChangeRequested ? "Locked — change requested" : "Locked")
             : "Editable (approved)";
 
         updateStatusButton();
@@ -519,16 +530,22 @@ function initUsers(){
 
     
 
-    
+       
         // ===============================
-    // APPROVE CHANGES (admin_approve_profile_changes)
+    // APPROVE CHANGES — opens a modal to pick which page to unlock
+    // (admin_approve_profile_changes / admin_approve_payment_methods_changes)
     // ===============================
     // Admins no longer type in the user's new details themselves — the user
-    // edits their own Personal Information page once this unlocks it. This
-    // button just approves that request via a SECURITY DEFINER RPC so the
-    // unlock/audit logic lives in one place (see enforce_profile_lock in SQL).
+    // edits their own Personal Information or Payment Methods page once this
+    // unlocks it. These buttons just approve that request via SECURITY
+    // DEFINER RPCs so the unlock/audit logic lives in one place (see
+    // enforce_profile_lock / enforce_payment_method_lock in SQL).
 
     const approveBtn = document.querySelector(".approve-btn");
+    const approveModal = document.getElementById("approveModal");
+    const approveCancelBtn = document.querySelector(".approve-cancel-btn");
+    const approvePersonalBtn = document.querySelector(".approve-personal-btn");
+    const approvePaymentBtn = document.querySelector(".approve-payment-btn");
 
     function updateApproveButton(){
 
@@ -536,15 +553,43 @@ function initUsers(){
 
         const hiddenData = currentRow.querySelector(".user-hidden-data");
         const infoLocked = hiddenData.querySelector(".info-locked").textContent === "1";
+        const paymentMethodsLocked = hiddenData.querySelector(".payment-methods-locked").textContent === "1";
 
-        approveBtn.textContent = infoLocked ? "Approve Changes" : "Already Editable";
-        approveBtn.disabled = !infoLocked;
+        const anyLocked = infoLocked || paymentMethodsLocked;
+
+        approveBtn.textContent = anyLocked ? "Approve Changes" : "Already Editable";
+        approveBtn.disabled = !anyLocked;
+
+        if(approvePersonalBtn){
+            approvePersonalBtn.disabled = !infoLocked;
+        }
+        if(approvePaymentBtn){
+            approvePaymentBtn.disabled = !paymentMethodsLocked;
+        }
 
     }
 
     if(approveBtn){
 
         approveBtn.onclick=function(){
+            if(!currentRow) return;
+            updateApproveButton();
+            approveModal.style.display="flex";
+        };
+
+    }
+
+    if(approveCancelBtn){
+
+        approveCancelBtn.onclick=function(){
+            approveModal.style.display="none";
+        };
+
+    }
+
+    if(approvePersonalBtn){
+
+        approvePersonalBtn.onclick=function(){
 
             if(!currentRow) return;
 
@@ -553,6 +598,8 @@ function initUsers(){
             })
 
             .then(({ error }) => {
+
+                approveModal.style.display="none";
 
                 if(error){
                     alert("Failed to approve changes: " + error.message);
@@ -567,6 +614,40 @@ function initUsers(){
                 updateApproveButton();
 
                 alert("Changes approved — the user can now edit their personal information.");
+
+            });
+
+        };
+
+    }
+
+    if(approvePaymentBtn){
+
+        approvePaymentBtn.onclick=function(){
+
+            if(!currentRow) return;
+
+            sb.rpc("admin_approve_payment_methods_changes", {
+                p_user_id: currentRow.dataset.userid
+            })
+
+            .then(({ error }) => {
+
+                approveModal.style.display="none";
+
+                if(error){
+                    alert("Failed to approve changes: " + error.message);
+                    return;
+                }
+
+                const hiddenData = currentRow.querySelector(".user-hidden-data");
+                hiddenData.querySelector(".payment-methods-locked").textContent = "0";
+                hiddenData.querySelector(".payment-methods-change-requested").textContent = "0";
+
+                modalPaymentMethodsStatus.textContent = "Editable (approved)";
+                updateApproveButton();
+
+                alert("Changes approved — the user can now edit their payment methods.");
 
             });
 
