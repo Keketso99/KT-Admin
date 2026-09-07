@@ -3085,7 +3085,11 @@ button{
 
 
 
-.credit-btn,
+.credit-btn{
+  background:#edf4ff;
+    color:#1b8ef2;
+}
+
 .save-btn{
 
     background:#1b8ef2;
@@ -3102,6 +3106,10 @@ button{
 
 }
 
+#adminactionsactionbtapprovebtn{
+  background:#edf4ff;
+    color:#1b8ef2;
+}
 
 
 /* ===========================
@@ -3230,6 +3238,7 @@ button{
     display:flex;
     gap:10px;
     justify-content:center;
+    margin-bottom: 20px;
 
 }
 
