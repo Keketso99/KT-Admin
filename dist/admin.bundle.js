@@ -3781,27 +3781,34 @@ function initUsers(){
     const approvePersonalBtn = document.querySelector(".approve-personal-btn");
     const approvePaymentBtn = document.querySelector(".approve-payment-btn");
 
-    function updateApproveButton(){
+
+  
+
+  function updateApproveButton(){
 
         if(!currentRow || !approveBtn) return;
 
         const hiddenData = currentRow.querySelector(".user-hidden-data");
-        const infoLocked = hiddenData.querySelector(".info-locked").textContent === "1";
-        const paymentMethodsLocked = hiddenData.querySelector(".payment-methods-locked").textContent === "1";
+        const changeRequested = hiddenData.querySelector(".change-requested").textContent === "1";
+        const paymentMethodsChangeRequested = hiddenData.querySelector(".payment-methods-change-requested").textContent === "1";
 
-        const anyLocked = infoLocked || paymentMethodsLocked;
+        const anyRequested = changeRequested || paymentMethodsChangeRequested;
 
-        approveBtn.textContent = anyLocked ? "Approve Changes" : "Already Editable";
-        approveBtn.disabled = !anyLocked;
+        approveBtn.textContent = anyRequested ? "Approve Changes" : "No Pending Requests";
+        approveBtn.disabled = !anyRequested;
 
         if(approvePersonalBtn){
-            approvePersonalBtn.disabled = !infoLocked;
+            approvePersonalBtn.disabled = !changeRequested;
         }
         if(approvePaymentBtn){
-            approvePaymentBtn.disabled = !paymentMethodsLocked;
+            approvePaymentBtn.disabled = !paymentMethodsChangeRequested;
         }
 
     }
+
+
+
+  
 
     if(approveBtn){
 
