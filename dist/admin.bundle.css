@@ -3265,6 +3265,16 @@ button{
 
 
 
+.delete-content .approve-personal-btn,
+.delete-content .approve-payment-btn{
+
+    background:#1b8ef2;
+    color:white;
+
+}
+
+
+
 .reset-password-content .reset-btn{
 
     background:#1b8ef2;
