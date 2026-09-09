@@ -322,9 +322,9 @@
 
             </button>
 
-            <button class="action-btn transaction-btn">
+            <button class="action-btn pin-reset-btn">
 
-                Transaction History
+                Reset Withdrawal PIN
 
             </button>
 
@@ -639,8 +639,7 @@
 </div>
 
 
-
-<!-- Reset Password Confirmation -->
+<!-- Reset Password -->
 
 <div class="reset-password-modal" id="resetPasswordModal">
 
@@ -652,23 +651,51 @@
 
         </h2>
 
-        <p>
+        <p id="resetPasswordStatus">
 
-            Send a password reset link to this user's email address?
+            Checking for a pending request…
 
         </p>
 
-        <div class="confirm-buttons">
+        <div class="confirm-buttons" id="resetPasswordActions">
 
             <button class="cancel-btn">
 
-                Cancel
+                Close
 
             </button>
 
-            <button class="reset-btn">
+        </div>
 
-                Send Reset Link
+    </div>
+
+</div>
+
+
+
+<!-- Reset Withdrawal PIN -->
+
+<div class="reset-password-modal" id="resetPinModal">
+
+    <div class="reset-password-content">
+
+        <h2>
+
+            Reset Withdrawal PIN
+
+        </h2>
+
+        <p id="resetPinStatus">
+
+            Checking for a pending request…
+
+        </p>
+
+        <div class="confirm-buttons" id="resetPinActions">
+
+            <button class="cancel-btn">
+
+                Close
 
             </button>
 

@@ -875,6 +875,15 @@
 
 }
 
+
+
+.reset-password-content .reject-btn{
+
+    background:#e53935;
+    color:white;
+
+}
+
 /* ===========================
    ADD USER MODAL
 =========================== */

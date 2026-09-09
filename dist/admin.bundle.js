@@ -4154,60 +4154,218 @@ function initUsers(){
         };
     }
 
+
+      // ===============================
+    // RESET PASSWORD (real — request/reset/reject flow)
     // ===============================
-    // RESET PASSWORD (real — sends an actual reset email)
-    // ===============================
+    // Admin no longer sends a reset email to profiles.email (that address
+    // isn't the real auth login identity anyway — login uses phone). Instead
+    // this shows whether the user has requested a reset, lets the admin
+    // generate a brand-new random password (written straight into
+    // auth.users via admin_reset_password), or reject the request.
 
     const passwordBtn = document.querySelector(".password-btn");
 
     const resetPasswordModal = document.getElementById("resetPasswordModal");
 
-    const confirmResetBtn = document.querySelector(".reset-password-content .reset-btn");
+    const resetPasswordStatus = document.getElementById("resetPasswordStatus");
+
+    const resetPasswordActions = document.getElementById("resetPasswordActions");
+
+    function renderResetPasswordModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        resetPasswordStatus.textContent = "Checking for a pending request…";
+        resetPasswordActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindResetPasswordClose();
+
+        Promise.all([
+            sb.from("account_reset_requests").select("id").eq("user_id", userId).eq("kind","password").eq("status","pending").maybeSingle(),
+            sb.from("profiles").select("temp_password_display").eq("id", userId).maybeSingle()
+        ]).then(([reqRes, profRes]) => {
+
+            if(reqRes.error){ resetPasswordStatus.textContent = "Failed to check request: " + reqRes.error.message; return; }
+            if(profRes.error){ resetPasswordStatus.textContent = "Failed to check request: " + profRes.error.message; return; }
+
+            const pending = reqRes.data;
+            const tempPassword = profRes.data ? profRes.data.temp_password_display : null;
+
+            let statusHtml = "";
+
+            if(tempPassword){
+                statusHtml += "Generated password (not yet changed by user): <strong>" + tempPassword + "</strong><br><br>";
+            }
+
+            if(pending){
+                statusHtml += "This user has requested a password reset.";
+            } else if(!tempPassword){
+                statusHtml += "No pending password reset request for this user.";
+            }
+
+            resetPasswordStatus.innerHTML = statusHtml;
+
+            let buttonsHtml = '<button class="cancel-btn">Close</button>';
+            if(pending){
+                buttonsHtml += '<button class="reset-btn password-reset-confirm-btn">Reset</button>';
+                buttonsHtml += '<button class="reset-btn reject-btn password-reset-reject-btn">Reject</button>';
+            }
+            resetPasswordActions.innerHTML = buttonsHtml;
+            bindResetPasswordClose();
+
+            const confirmBtn = resetPasswordActions.querySelector(".password-reset-confirm-btn");
+            if(confirmBtn){
+                confirmBtn.onclick = function(){
+                    sb.rpc("admin_reset_password", { p_user_id: userId })
+                        .then(({ data, error }) => {
+                            if(error){
+                                alert("Failed to reset password: " + error.message);
+                                return;
+                            }
+                            alert("Password reset. New password: " + data);
+                            renderResetPasswordModal();
+                        });
+                };
+            }
+
+            const rejectBtn = resetPasswordActions.querySelector(".password-reset-reject-btn");
+            if(rejectBtn){
+                rejectBtn.onclick = function(){
+                    sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "password" })
+                        .then(({ error }) => {
+                            if(error){
+                                alert("Failed to reject request: " + error.message);
+                                return;
+                            }
+                            renderResetPasswordModal();
+                        });
+                };
+            }
+
+        });
+
+    }
+
+    function bindResetPasswordClose(){
+        const closeBtn = resetPasswordActions.querySelector(".cancel-btn");
+        if(closeBtn){
+            closeBtn.onclick = function(){ resetPasswordModal.style.display = "none"; };
+        }
+    }
 
     if(passwordBtn){
 
         passwordBtn.onclick=function(){
             if(!currentRow) return;
             userModal.style.display="none";
+            renderResetPasswordModal();
             resetPasswordModal.style.display="flex";
         };
 
     }
 
-    if(confirmResetBtn){
+    // ===============================
+    // RESET WITHDRAWAL PIN (real — request/reset/reject flow)
+    // ===============================
+    // Reset just clears withdrawal_pin_hash, same as if the user never set
+    // one — they go through "Add withdrawal PIN" again from scratch.
 
-        confirmResetBtn.onclick=function(){
+    const pinResetBtn = document.querySelector(".pin-reset-btn");
 
+    const resetPinModal = document.getElementById("resetPinModal");
+
+    const resetPinStatus = document.getElementById("resetPinStatus");
+
+    const resetPinActions = document.getElementById("resetPinActions");
+
+    function bindResetPinClose(){
+        const closeBtn = resetPinActions.querySelector(".cancel-btn");
+        if(closeBtn){
+            closeBtn.onclick = function(){ resetPinModal.style.display = "none"; };
+        }
+    }
+
+    function renderResetPinModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        resetPinStatus.textContent = "Checking for a pending request…";
+        resetPinActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindResetPinClose();
+
+        sb.from("account_reset_requests").select("id").eq("user_id", userId).eq("kind","pin").eq("status","pending").maybeSingle()
+
+            .then(({ data, error }) => {
+
+                if(error){
+                    resetPinStatus.textContent = "Failed to check request: " + error.message;
+                    return;
+                }
+
+                const pending = data;
+
+                resetPinStatus.textContent = pending
+                    ? "This user has requested a withdrawal PIN reset."
+                    : "No pending withdrawal PIN reset request for this user.";
+
+                let buttonsHtml = '<button class="cancel-btn">Close</button>';
+                if(pending){
+                    buttonsHtml += '<button class="reset-btn pin-reset-confirm-btn">Reset</button>';
+                    buttonsHtml += '<button class="reset-btn reject-btn pin-reset-reject-btn">Reject</button>';
+                }
+                resetPinActions.innerHTML = buttonsHtml;
+                bindResetPinClose();
+
+                const confirmBtn = resetPinActions.querySelector(".pin-reset-confirm-btn");
+                if(confirmBtn){
+                    confirmBtn.onclick = function(){
+                        sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
+                            .then(({ error }) => {
+                                if(error){
+                                    alert("Failed to reset PIN: " + error.message);
+                                    return;
+                                }
+                                alert("Withdrawal PIN reset — the user can add a new one.");
+                                renderResetPinModal();
+                            });
+                    };
+                }
+
+                const rejectBtn = resetPinActions.querySelector(".pin-reset-reject-btn");
+                if(rejectBtn){
+                    rejectBtn.onclick = function(){
+                        sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "pin" })
+                            .then(({ error }) => {
+                                if(error){
+                                    alert("Failed to reject request: " + error.message);
+                                    return;
+                                }
+                                renderResetPinModal();
+                            });
+                    };
+                }
+
+            });
+
+    }
+
+    if(pinResetBtn){
+
+        pinResetBtn.onclick=function(){
             if(!currentRow) return;
-
-            const email = currentRow.querySelector(".user-hidden-data .email").textContent;
-
-            if(!email){
-                alert("This user has no email on file");
-                return;
-            }
-
-            sb.auth.resetPasswordForEmail(email)
-
-                .then(({ error }) => {
-
-                    resetPasswordModal.style.display="none";
-
-                    if(error){
-                        alert("Failed to send reset email: " + error.message);
-                        return;
-                    }
-
-                    alert("Password reset link sent to user's email");
-
-                });
-
+            userModal.style.display="none";
+            renderResetPinModal();
+            resetPinModal.style.display="flex";
         };
 
     }
 
     // ===============================
-    // DEPOSIT / WITHDRAWAL / TRANSACTION HISTORY
+    // DEPOSIT / WITHDRAWAL HISTORY
     // ===============================
 
     const depositBtn = document.querySelector(".deposit-btn");
@@ -4228,14 +4386,7 @@ function initUsers(){
         };
     }
 
-    const transactionBtn = document.querySelector(".transaction-btn");
-
-    if(transactionBtn){
-        transactionBtn.onclick=function(){
-            if(!currentRow) return;
-            loadAdminPage("transactions");
-        };
-    }
+    
 
     // ===============================
     // REFERRAL LIST
