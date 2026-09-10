@@ -506,6 +506,49 @@ body {
 
 }
 
+
+
+/* ===========================
+   DASHBOARD TABLE
+=========================== */
+
+.dashboard-table{
+    background:white;
+    border-radius:12px;
+    padding: 5px;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+    margin-bottom:20px;
+
+}
+
+.dashboard-table h3{
+    color:#111827;
+    font-size:15px;
+    font-weight:500;
+    padding:10px 1px;
+    font-size:18px;
+    font-weight: 700;
+}
+
+
+.dashboard-table table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+.dashboard-table th{
+    background:#f3f4f6;
+    text-align:left;
+}
+
+.dashboard-table th,td{
+    padding:14px;
+    border-bottom:1px solid #ddd;
+}
+
+
+
 /* ==========================
    QUICK ACTIONS
 ========================== */
