@@ -23410,6 +23410,66 @@ function loadDashboardStats(){
 
 
 // =====================================
+// PENDINGS TABLE
+// =====================================
+
+function renderPendingCounts(counts){
+
+    document.getElementById("pendingKyc").textContent =
+        formatNumber(counts.kycPending);
+
+    document.getElementById("pendingDeposits").textContent =
+        formatNumber(counts.depositsPending);
+
+    document.getElementById("pendingWithdrawals").textContent =
+        formatNumber(counts.withdrawalsPending);
+
+    document.getElementById("pendingPasswordResets").textContent =
+        formatNumber(counts.passwordResetsPending);
+
+    document.getElementById("pendingPinResets").textContent =
+        formatNumber(counts.pinResetsPending);
+
+    document.getElementById("pendingChangeRequests").textContent =
+        formatNumber(counts.changeRequestsPending);
+
+}
+
+
+function loadPendingCounts(){
+
+    sb.rpc("get_pending_counts")
+
+        .then(({ data, error }) => {
+
+            if(error){
+                throw error;
+            }
+
+            const row = data[0];
+
+            renderPendingCounts({
+                kycPending: row.kyc_pending,
+                depositsPending: row.deposits_pending,
+                withdrawalsPending: row.withdrawals_pending,
+                passwordResetsPending: row.password_resets_pending,
+                pinResetsPending: row.pin_resets_pending,
+                changeRequestsPending: row.change_requests_pending
+            });
+
+        })
+
+        .catch(error => {
+
+            console.warn("Pending counts request failed:", error);
+
+        });
+
+}
+
+
+
+// =====================================
 // INIT DASHBOARD
 // =====================================
 
@@ -23418,5 +23478,6 @@ function initDashboard(){
     console.log("Dashboard initialized");
 
     loadDashboardStats();
+    loadPendingCounts();
 
 }
