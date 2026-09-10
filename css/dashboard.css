@@ -39,6 +39,7 @@
     display:grid;
     grid-template-columns:repeat(2, 1fr);
     gap: 15px;
+    margin-bottom: 15px;
 }
 
 .dstats2{
@@ -97,10 +98,10 @@
 
 .dashboard-table{
     background:white;
-    border-radius:12px;
+    border-radius:15px;
     padding: 5px;
     box-shadow:0 4px 15px rgba(0,0,0,.08);
-    margin-bottom:20px;
+    margin-bottom:15px;
 
 }
 
