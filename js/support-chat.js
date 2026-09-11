@@ -226,7 +226,7 @@ const supportChatUsers = [
         id: "USR-1024",
         name: "John",
         email: "john@example.com",
-        phone: "+266 5800 1024",
+        phone: "+26658001024",
         avatar: "",
         online: true,
         status: "Active",
@@ -242,7 +242,7 @@ const supportChatUsers = [
         id: "USR-1025",
         name: "Mary",
         email: "mary@example.com",
-        phone: "+266 5800 1025",
+        phone: "+26658001025",
         avatar: "",
         online: false,
         status: "Active",
@@ -258,7 +258,7 @@ const supportChatUsers = [
         id: "USR-1026",
         name: "Thabo",
         email: "thabo@example.com",
-        phone: "+266 5800 1026",
+        phone: "+26658001026",
         avatar: "",
         online: true,
         status: "Active",
@@ -274,7 +274,7 @@ const supportChatUsers = [
         id: "USR-1027",
         name: "Lerato",
         email: "lerato@example.com",
-        phone: "+266 5800 1027",
+        phone: "+27758001027",
         avatar: "",
         online: false,
         status: "Blocked",
@@ -290,7 +290,7 @@ const supportChatUsers = [
         id: "USR-1028",
         name: "Mpho",
         email: "mpho@example.com",
-        phone: "+266 5800 1028",
+        phone: "+26658001028",
         avatar: "",
         online: true,
         status: "Active",
@@ -305,7 +305,7 @@ const supportChatUsers = [
         id: "USR-1029",
         name: "Nna",
         email: "Nna@example.com",
-        phone: "+266 2900 1029",
+        phone: "+26729001029",
         avatar: "",
         online: true,
         status: "Active",
@@ -974,7 +974,8 @@ function renderIndividualChats() {
 
                         chat.name
                             .toLowerCase()
-                            .includes(search)
+                            .includes(search) 
+                      
 
                     );
 
@@ -3884,7 +3885,7 @@ function renderAvailableUsers(
 
                         ||
 
-                        user.id
+                        user.phone
                             .toLowerCase()
                             .includes(search)
 
@@ -3949,14 +3950,14 @@ function renderAvailableUsers(
                 user.name;
 
 
-            const id =
+            const phone =
                 document.createElement(
                     "span"
                 );
 
 
-            id.textContent =
-                user.id;
+            phone.textContent =
+                user.phone;
 
 
             info.appendChild(
@@ -3965,7 +3966,7 @@ function renderAvailableUsers(
 
 
             info.appendChild(
-                id
+                phone
             );
 
 
@@ -14332,6 +14333,7 @@ function populateUserProfileModal(
         supportChatElement(
             "userProfileModal"
         );
+  
 
 
     if (
@@ -14449,7 +14451,7 @@ function populateUserProfileModal(
 
     modal.dataset.profileUserId =
         user.id;
-
+   
 
     modal.classList.remove(
         "hidden"
@@ -14468,7 +14470,11 @@ function closeUserProfile() {
         supportChatElement(
             "userProfileModal"
         );
-
+// Reset scroll on the scrollable section
+    const secondModal = modal.querySelector(".secondModal");
+    if (secondModal) {
+        secondModal.scrollTop = 0;
+    }
 
     if (modal) {
 
@@ -15931,6 +15937,8 @@ function confirmPrioritySelectedChats() {
 
     priorityActionValue =
         newPriority;
+
+    
 
 
     const count =
