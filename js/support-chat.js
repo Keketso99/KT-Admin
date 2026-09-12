@@ -35,12 +35,6 @@ let messageSearchResults = [];
 
 let currentMessageSearchIndex = -1;
 
-// ======================================================
-// GROUP MEMBER SELECTION
-// ======================================================
-
-let selectedGroupMembers = [];
-
 // ------------------------------------------------------
 // Current active conversation
 // ------------------------------------------------------
@@ -89,16 +83,11 @@ let editingMessage = null;
 
 let currentChatFilter = "all";
 
-let currentGroupFilter = "all";
-
-
 // ------------------------------------------------------
 // Search state
 // ------------------------------------------------------
 
 let currentChatSearch = "";
-
-let currentGroupSearch = "";
 
 let currentMessageSearch = "";
 
@@ -182,31 +171,6 @@ let pendingPriorityMode = null;
 // attachChatPressHandlers as closure-local variables —
 // not here — so that one chat's press gesture can never
 // interfere with another chat's click handling.
-
-
-// ------------------------------------------------------
-// Selected group member
-// ------------------------------------------------------
-
-let selectedGroupMember = null;
-
-// Create / Edit / Add-members modal mode
-let groupModalMode = "create";
-let editingGroupId = null;
-
-
-// ------------------------------------------------------
-// Selected group
-// ------------------------------------------------------
-
-let selectedGroup = null;
-
-
-// ------------------------------------------------------
-// Group photo
-// ------------------------------------------------------
-
-let selectedGroupPhoto = null;
 
 
 // ------------------------------------------------------
@@ -502,145 +466,6 @@ let individualChats = [
 
 
 // ======================================================
-// 4. GROUP DATA
-// ======================================================
-
-let supportChatGroups = [
-
-    {
-        id: "GROUP-001",
-        name: "VIP Members",
-        description: "Communication for VIP members.",
-        avatar: "",
-        unread: 3,
-        admin: true,
-        muted: false,
-        pinned: false,
-
-        permissions: {
-            sendMessages: "everyone",
-            editGroup: "admins",
-            addMembers: "admins"
-        },
-
-        members: [
-
-            {
-                id: "USR-1028",
-                name: "Mpho",
-                avatar: "",
-                role: "Admin",
-                online: true
-            },
-
-            {
-                id: "USR-1024",
-                name: "John",
-                avatar: "",
-                role: "Member",
-                online: true
-            },
-
-            {
-                id: "USR-1025",
-                name: "Mary",
-                avatar: "",
-                role: "Member",
-                online: false
-            }
-
-        ],
-
-        messages: [
-
-            {
-                id: "GMSG-001",
-                senderId: "USR-1028",
-                senderName: "Mpho",
-                text: "Welcome everyone.",
-                time: "09:10",
-                date: "Today",
-                sent: false,
-                read: true,
-                edited: false,
-                replyTo: null
-            },
-
-            {
-                id: "GMSG-002",
-                senderId: "ADMIN",
-                senderName: "Admin",
-                text: "Welcome to the VIP group.",
-                time: "09:12",
-                date: "Today",
-                sent: true,
-                read: true,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    },
-
-
-    {
-        id: "GROUP-002",
-        name: "Mining Users",
-        description: "General mining discussion.",
-        avatar: "",
-        unread: 0,
-        admin: true,
-        muted: false,
-        pinned: false,
-
-        permissions: {
-            sendMessages: "everyone",
-            editGroup: "admins",
-            addMembers: "admins"
-        },
-
-        members: [
-
-            {
-                id: "USR-1024",
-                name: "John",
-                avatar: "",
-                role: "Admin",
-                online: true
-            },
-
-            {
-                id: "USR-1026",
-                name: "Thabo",
-                avatar: "",
-                role: "Member",
-                online: true
-            }
-
-        ],
-
-        messages: [
-
-            {
-                id: "GMSG-003",
-                senderId: "USR-1026",
-                senderName: "Thabo",
-                text: "Is there a new mining plan available?",
-                time: "Yesterday",
-                date: "Yesterday",
-                sent: false,
-                read: true,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    }
-
-];
-
-
-// ======================================================
 // 5. DOM HELPERS
 // ======================================================
 
@@ -656,171 +481,30 @@ function supportChatElement(id) {
 // ======================================================
 
 function showIndividualChats() {
-  /*
- * Close any currently open chat
- * when switching to Individual.
- */
 
-if (
-    currentChat
-) {
-
-    closeChat();
-
-}
-
-    const individualSection =
-        supportChatElement(
-            "individualSection"
-        );
-
-    const groupSection =
-        supportChatElement(
-            "groupSection"
-        );
-
-    const individualSwitch =
-        supportChatElement(
-            "individualSwitch"
-        );
-
-    const groupSwitch =
-        supportChatElement(
-            "groupSwitch"
-        );
-
-
-    if (individualSection) {
-
-        individualSection.classList.remove(
-            "hidden"
-        );
-
+    if (currentChat) {
+        closeChat();
     }
 
+    const individualSection = supportChatElement("individualSection");
+    const individualSwitch = supportChatElement("individualSwitch");
 
-    if (groupSection) {
+    if (individualSection) individualSection.classList.remove("hidden");
+    if (individualSwitch) individualSwitch.classList.add("active");
 
-        groupSection.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (individualSwitch) {
-
-        individualSwitch.classList.add(
-            "active"
-        );
-
-    }
-
-
-    if (groupSwitch) {
-
-        groupSwitch.classList.remove(
-            "active"
-        );
-
-    }
-
-
-    currentChatType =
-        "individual";
-
-
+    currentChatType = "individual";
     renderIndividualChats();
-
     updateUnreadCounts();
 
 }
+
 
 
 // ======================================================
 // 7. SHOW GROUPS
 // ======================================================
 
-function showGroups() {
-  /*
- * Close any currently open chat
- * when switching to Individual.
- */
 
-if (
-    currentChat
-) {
-
-    closeChat();
-
-}
-
-    const individualSection =
-        supportChatElement(
-            "individualSection"
-        );
-
-    const groupSection =
-        supportChatElement(
-            "groupSection"
-        );
-
-    const individualSwitch =
-        supportChatElement(
-            "individualSwitch"
-        );
-
-    const groupSwitch =
-        supportChatElement(
-            "groupSwitch"
-        );
-
-
-    if (individualSection) {
-
-        individualSection.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (groupSection) {
-
-        groupSection.classList.remove(
-            "hidden"
-        );
-
-    }
-
-
-    if (individualSwitch) {
-
-        individualSwitch.classList.remove(
-            "active"
-        );
-
-    }
-
-
-    if (groupSwitch) {
-
-        groupSwitch.classList.add(
-            "active"
-        );
-
-    }
-
-
-    currentChatType =
-        "group";
-
-
-    renderGroups();
-
-    updateUnreadCounts();
-
-}
 
 
 // ======================================================
@@ -844,17 +528,7 @@ function findIndividualChat(chatId) {
 // 9. FIND GROUP
 // ======================================================
 
-function findSupportGroup(groupId) {
 
-    return supportChatGroups.find(
-        function(group) {
-
-            return group.id === groupId;
-
-        }
-    );
-
-}
 
 
 // ======================================================
@@ -1532,70 +1206,7 @@ function openIndividualChat(
 // 16. OPEN GROUP CHAT
 // ======================================================
 
-function openGroupChat(
-    groupId
-) {
 
-     cancelPinMessageSelection(); 
-
-    const group =
-        findSupportGroup(
-            groupId
-        );
-
-
-    if (!group) {
-
-        return;
-
-    }
-
-
-    currentChat =
-        group;
-
-    currentGroup =
-        group;
-
-    currentChatType =
-        "group";
-
-    currentUser =
-        null;
-
-
-    group.unread =
-        0;
-
-
-    group.messages.forEach(
-        function(message) {
-
-            if (
-                !message.sent
-            ) {
-
-                message.read =
-                    true;
-
-            }
-
-        }
-    );
-
-
-    openChatWindow();
-
-
-    renderCurrentChat();
-
-
-    renderGroups();
-
-
-    updateUnreadCounts();
-
-}
 
 
 // ======================================================
@@ -1820,154 +1431,32 @@ function closeChat() {
 
 function renderCurrentChat() {
 
-    if (
-        !currentChat
-    ) {
+    if (!currentChat) return;
 
-        return;
+    const nameElement = supportChatElement("chatName");
+    const statusElement = supportChatElement("chatStatus");
+    const avatarElement = supportChatElement("chatAvatar");
+    const onlineElement = supportChatElement("chatOnlineStatus");
 
+    if (nameElement) nameElement.textContent = currentChat.name || "";
+    if (statusElement) statusElement.textContent = currentChat.online ? "Online" : "Offline";
+
+    if (avatarElement) {
+        avatarElement.removeAttribute("src");
+        avatarElement.style.display = "none";
     }
 
-
-    const nameElement =
-        supportChatElement(
-            "chatName"
-        );
-
-    const statusElement =
-        supportChatElement(
-            "chatStatus"
-        );
-
-    const avatarElement =
-        supportChatElement(
-            "chatAvatar"
-        );
-
-    const onlineElement =
-        supportChatElement(
-            "chatOnlineStatus"
-        );
-
-
-    const groupInfoBar =
-        supportChatElement(
-            "groupChatInfoBar"
-        );
-
-    const groupMemberSummary =
-        supportChatElement(
-            "groupMemberSummary"
-        );
-
-    if (
-        currentChatType ===
-        "group"
-    ) {
-
-        renderCurrentGroupHeader();
-
-
-        if (
-            groupInfoBar &&
-            currentChat
-        ) {
-
-            groupInfoBar.classList.remove(
-                "hidden"
-            );
-
-        }
-
-
-        if (
-            groupMemberSummary &&
-            currentChat
-        ) {
-
-            groupMemberSummary.textContent =
-                currentChat.members.length +
-                " members";
-
-        }
-
-    }
-    else {
-
-        if (groupInfoBar) {
-
-            groupInfoBar.classList.add(
-                "hidden"
-            );
-
-        }
-
-
-        if (nameElement) {
-
-            nameElement.textContent =
-                currentChat.name;
-
-        }
-
-
-        if (statusElement) {
-
-            statusElement.textContent =
-                currentChat.online
-                    ? "Online"
-                    : "Offline";
-
-        }
-
-
-                if (avatarElement) {
-
-            avatarElement.removeAttribute(
-                "src"
-            );
-
-            avatarElement.style.display =
-                "none";
-
-        }
-
-
-        const avatarInitialsElement =
-            supportChatElement(
-                "chatAvatarInitials"
-            );
-
-
-        if (avatarInitialsElement) {
-
-            avatarInitialsElement.textContent =
-                getInitials(
-                    currentChat.name
-                );
-
-            avatarInitialsElement.classList.remove(
-                "hidden"
-            );
-
-        }
-
-
-        if (onlineElement) {
-
-            onlineElement.style.display =
-                currentChat.online
-                    ? "block"
-                    : "none";
-
-        }
-
+    const avatarInitialsElement = supportChatElement("chatAvatarInitials");
+    if (avatarInitialsElement) {
+        avatarInitialsElement.textContent = getInitials(currentChat.name || "");
+        avatarInitialsElement.classList.remove("hidden");
     }
 
-
+    if (onlineElement) onlineElement.style.display = currentChat.online ? "block" : "none";
     renderMessages();
 
 }
+
 
 // =========================================================
 // CHAT MENU
@@ -2283,107 +1772,7 @@ function closeChatMenu() {
 // 20. RENDER GROUP HEADER
 // ======================================================
 
-function renderCurrentGroupHeader() {
 
-    const group =
-        currentGroup ||
-        currentChat;
-
-
-    if (!group) {
-
-        return;
-
-    }
-
-
-    const nameElement =
-        supportChatElement(
-            "chatName"
-        );
-
-    const statusElement =
-        supportChatElement(
-            "chatStatus"
-        );
-
-    const avatarElement =
-        supportChatElement(
-            "chatAvatar"
-        );
-
-    const onlineElement =
-        supportChatElement(
-            "chatOnlineStatus"
-        );
-
-
-    if (nameElement) {
-
-        nameElement.textContent =
-            group.name;
-
-    }
-
-
-    if (statusElement) {
-
-        statusElement.textContent =
-            group.members.length +
-            " members";
-
-    }
-
-
-    if (avatarElement) {
-
-        if (
-            group.avatar
-        ) {
-
-            avatarElement.src =
-                group.avatar;
-
-            avatarElement.style.display =
-                "block";
-
-        }
-        else {
-
-            avatarElement.removeAttribute(
-                "src"
-            );
-
-            avatarElement.style.display =
-                "none";
-
-        }
-
-    }
-
-      const avatarInitialsElement =
-        supportChatElement(
-            "chatAvatarInitials"
-        );
-
-
-    if (avatarInitialsElement) {
-
-        avatarInitialsElement.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (onlineElement) {
-
-        onlineElement.style.display =
-            "none";
-
-    }
-
-}
 
 
 // ======================================================
@@ -3025,43 +2414,7 @@ function filterChats(
 // 25. FILTER GROUPS
 // ======================================================
 
-function filterGroups(
-    filter,
-    button
-) {
 
-    currentGroupFilter =
-        filter ||
-        "all";
-
-
-    document
-        .querySelectorAll(
-            "#groupSection .chat-filter"
-        )
-        .forEach(
-            function(item) {
-
-                item.classList.remove(
-                    "active"
-                );
-
-            }
-        );
-
-
-    if (button) {
-
-        button.classList.add(
-            "active"
-        );
-
-    }
-
-
-    renderGroups();
-
-}
 
 
 // ======================================================
@@ -3145,485 +2498,28 @@ function clearChatSearch() {
 // 28. RENDER GROUPS
 // ======================================================
 
-function renderGroups() {
 
-    const container =
-        supportChatElement(
-            "groupChats"
-        );
-
-    const emptyState =
-        supportChatElement(
-            "noGroups"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML =
-        "";
-
-
-    let groups =
-        [...supportChatGroups];
-
-
-    if (
-        currentGroupFilter ===
-        "unread"
-    ) {
-
-        groups =
-            groups.filter(
-                function(group) {
-
-                    return group.unread > 0;
-
-                }
-            );
-
-    }
-
-
-    if (
-        currentGroupFilter ===
-        "admin"
-    ) {
-
-        groups =
-            groups.filter(
-                function(group) {
-
-                    return group.admin;
-
-                }
-            );
-
-    }
-
-
-    const groupSearch =
-        supportChatElement(
-            "groupSearch"
-        );
-
-
-    const searchValue =
-        groupSearch
-            ? groupSearch.value
-            : "";
-
-
-    if (
-        searchValue.trim()
-    ) {
-
-        const search =
-            searchValue
-                .toLowerCase()
-                .trim();
-
-
-        groups =
-            groups.filter(
-                function(group) {
-
-                    return (
-
-                        group.name
-                            .toLowerCase()
-                            .includes(search)
-
-
-                    );
-
-                }
-            );
-
-    }
-
-
-    if (
-        groups.length === 0
-    ) {
-
-        if (emptyState) {
-
-            emptyState.style.display =
-                "flex";
-
-        }
-
-
-        updateGroupChatCount(
-            0
-        );
-
-
-        return;
-
-    }
-
-
-    if (emptyState) {
-
-        emptyState.style.display =
-            "none";
-
-    }
-
-
-    groups.forEach(
-        function(group) {
-
-            container.appendChild(
-                createGroupChatItem(
-                    group
-                )
-            );
-
-        }
-    );
-
-
-    updateGroupChatCount(
-        groups.length
-    );
-
-}
 
 
 // ======================================================
 // 29. CREATE GROUP CHAT ITEM
 // ======================================================
 
-function createGroupChatItem(
-    group
-) {
 
-    const item =
-        document.createElement(
-            "div"
-        );
-
-
-    item.className =
-        "chat-list-item";
-
-
-    if (
-        currentGroup &&
-        currentGroup.id ===
-        group.id
-    ) {
-
-        item.classList.add(
-            "active"
-        );
-
-    }
-
-
-    if (
-        group.unread > 0
-    ) {
-
-        item.classList.add(
-            "unread"
-        );
-
-    }
-
-
-    if (
-        chatSelectionType === "group" &&
-        selectedChatIds.includes(
-            group.id
-        )
-    ) {
-
-        item.classList.add(
-            "chat-selected"
-        );
-
-    }
-
-
-    item.dataset.chatId =
-        group.id;
-
-
-    const avatar =
-        document.createElement(
-            "div"
-        );
-
-
-    avatar.className =
-        "chat-list-avatar group-avatar";
-
-
-    if (
-        group.avatar
-    ) {
-
-        const image =
-            document.createElement(
-                "img"
-            );
-
-
-        image.src =
-            group.avatar;
-
-
-        image.alt =
-            group.name;
-
-
-        avatar.appendChild(
-            image
-        );
-
-    }
-    else {
-
-        const icon =
-            document.createElement(
-                "i"
-            );
-
-
-        icon.className =
-            "fa-solid fa-users";
-
-
-        avatar.appendChild(
-            icon
-        );
-
-    }
-
-
-    const content =
-        document.createElement(
-            "div"
-        );
-
-
-    content.className =
-        "chat-list-content";
-
-
-    const top =
-        document.createElement(
-            "div"
-        );
-
-
-    top.className =
-        "chat-list-top";
-
-
-    const name =
-        document.createElement(
-            "h4"
-        );
-
-
-    name.textContent =
-        group.name;
-
-
-    const members =
-        document.createElement(
-            "span"
-        );
-
-
-    members.textContent =
-        group.members.length +
-        " members";
-
-
-    top.appendChild(
-        name
-    );
-
-
-    top.appendChild(
-        members
-    );
-
-
-    const bottom =
-        document.createElement(
-            "div"
-        );
-
-
-    bottom.className =
-        "chat-list-bottom";
-
-
-    const lastMessage =
-        group.messages.length
-            ? group.messages[
-                group.messages.length - 1
-              ]
-            : null;
-
-
-    const message =
-        document.createElement(
-            "p"
-        );
-
-
-    message.textContent =
-        lastMessage
-            ? lastMessage.text
-            : "No messages";
-
-
-    bottom.appendChild(
-        message
-    );
-
-
-    if (
-        group.unread > 0
-    ) {
-
-        const unread =
-            document.createElement(
-                "span"
-            );
-
-
-        unread.className =
-            "chat-unread-badge";
-
-
-        unread.textContent =
-            group.unread;
-
-
-        bottom.appendChild(
-            unread
-        );
-
-    }
-
-
-    if (
-        group.priority
-    ) {
-
-        const priority =
-            document.createElement(
-                "i"
-            );
-
-
-        priority.className =
-            "fa-solid fa-star chat-priority";
-
-
-        bottom.appendChild(
-            priority
-        );
-
-    }
-
-
-    content.appendChild(
-        top
-    );
-
-
-    content.appendChild(
-        bottom
-    );
-
-
-    item.appendChild(
-        avatar
-    );
-
-
-    item.appendChild(
-        content
-    );
-
-
-    attachChatPressHandlers(
-        item,
-        group.id,
-        "group",
-        function() {
-
-            openGroupChat(
-                group.id
-            );
-
-        }
-    );
-
-
-    return item;
-
-}
 
 
 // ======================================================
 // 30. UPDATE GROUP COUNT
 // ======================================================
 
-function updateGroupChatCount(
-    count
-) {
 
-    const element =
-        supportChatElement(
-            "groupChatCount"
-        );
-
-
-    if (!element) {
-
-        return;
-
-    }
-
-
-    element.textContent =
-        count +
-        (
-            count === 1
-                ? " group"
-                : " groups"
-        );
-
-}
 
 
 // ======================================================
 // 31. SEARCH GROUPS
 // ======================================================
 
-function searchGroups(
-    value
-) {
 
-    renderGroups();
-
-}
 
 
 // ======================================================
@@ -3632,70 +2528,15 @@ function searchGroups(
 
 function updateUnreadCounts() {
 
-    const individualUnread =
-        individualChats.reduce(
-            function(total, chat) {
+    const individualUnread = individualChats.reduce(function(total, chat) {
+        return total + (Number(chat.unread) || 0);
+    }, 0);
 
-                return total +
-                    (
-                        Number(
-                            chat.unread
-                        ) || 0
-                    );
-
-            },
-            0
-        );
-
-
-    const groupUnread =
-        supportChatGroups.reduce(
-            function(total, group) {
-
-                return total +
-                    (
-                        Number(
-                            group.unread
-                        ) || 0
-                    );
-
-            },
-            0
-        );
-
-
-    const individualElement =
-        supportChatElement(
-            "individualUnread"
-        );
-
-
-    const groupElement =
-        supportChatElement(
-            "groupUnread"
-        );
-
-
-    if (
-        individualElement
-    ) {
-
-        individualElement.textContent =
-            individualUnread;
-
-    }
-
-
-    if (
-        groupElement
-    ) {
-
-        groupElement.textContent =
-            groupUnread;
-
-    }
+    const individualElement = supportChatElement("individualUnread");
+    if (individualElement) individualElement.textContent = individualUnread;
 
 }
+
 
 
 // ======================================================
@@ -3703,14 +2544,10 @@ function updateUnreadCounts() {
 // ======================================================
 
 function initializeChatData() {
-
     updateUnreadCounts();
-
     renderIndividualChats();
-
-    renderGroups();
-
 }
+
 
 
 // ======================================================
@@ -3728,11 +2565,7 @@ function initializeIndividualChats() {
 // 35. INITIALIZE GROUPS
 // ======================================================
 
-function initializeGroups() {
 
-    renderGroups();
-
-}
 
 
 // ======================================================
@@ -4140,16 +2973,8 @@ window.showIndividualChats =
     showIndividualChats;
 
 
-window.showGroups =
-    showGroups;
-
-
 window.openIndividualChat =
     openIndividualChat;
-
-
-window.openGroupChat =
-    openGroupChat;
 
 
 window.closeChat =
@@ -4160,20 +2985,12 @@ window.filterChats =
     filterChats;
 
 
-window.filterGroups =
-    filterGroups;
-
-
 window.searchChats =
     searchChats;
 
 
 window.clearChatSearch =
     clearChatSearch;
-
-
-window.searchGroups =
-    searchGroups;
 
 
 window.openNewChatModal =
@@ -4193,73 +3010,15 @@ window.startNewConversation =
 // ======================================================
 
 function setupSupportChatStage1() {
-
-    const chatSearch =
-        supportChatElement(
-            "chatSearch"
-        );
-
-
-    const groupSearch =
-        supportChatElement(
-            "groupSearch"
-        );
-
-
-    /*
-     * Individual chat search
-     */
-
-    if (
-        chatSearch &&
-        !chatSearch.dataset.stage1Ready
-    ) {
-
-        chatSearch.addEventListener(
-            "input",
-            function(event) {
-
-                searchChats(
-                    event.target.value
-                );
-
-            }
-        );
-
-
-        chatSearch.dataset.stage1Ready =
-            "true";
-
+    const chatSearch = supportChatElement("chatSearch");
+    if (chatSearch && !chatSearch.dataset.stage1Ready) {
+        chatSearch.addEventListener("input", function(event) {
+            searchChats(event.target.value);
+        });
+        chatSearch.dataset.stage1Ready = "true";
     }
-
-
-    /*
-     * Group search
-     */
-
-    if (
-        groupSearch &&
-        !groupSearch.dataset.stage1Ready
-    ) {
-
-        groupSearch.addEventListener(
-            "input",
-            function(event) {
-
-                searchGroups(
-                    event.target.value
-                );
-
-            }
-        );
-
-
-        groupSearch.dataset.stage1Ready =
-            "true";
-
-    }
-
 }
+
 
 
 // ======================================================
@@ -4268,123 +3027,32 @@ function setupSupportChatStage1() {
 
 function initSupportChatPage() {
 
-    /*
-     * Check whether the Support Chat HTML
-     * currently exists.
-     */
+    const supportChat = document.querySelector(".support-chat");
+    if (!supportChat) return;
+    if (supportChat.dataset.initialized === "true") return;
 
-    const supportChat =
-        document.querySelector(
-            ".support-chat"
-        );
-
-
-    if (!supportChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Do not initialize the same page
-     * more than once.
-     */
-
-    if (
-        supportChat.dataset.initialized ===
-        "true"
-    ) {
-
-        return;
-
-    }
-
-
-    supportChat.dataset.initialized =
-        "true";
-
-
-    /*
-     * Reset Stage 1 state.
-     */
-
-    currentChat =
-        null;
-
-
-    currentGroup =
-        null;
-
-
-    currentUser =
-        null;
-
-
-    currentChatType =
-        "individual";
-
-
-    currentChatFilter =
-        "all";
-
-
-    currentGroupFilter =
-        "all";
-
-
-    currentChatSearch =
-        "";
-
-
-    currentGroupSearch =
-        "";
-
-
-    currentMessageSearch =
-        "";
-
-
-    /*
-     * Initialize chat data.
-     */
+    supportChat.dataset.initialized = "true";
+    currentChat = null;
+    currentGroup = null;
+    currentUser = null;
+    currentChatType = "individual";
+    currentChatFilter = "all";
+    currentChatSearch = "";
+    currentMessageSearch = "";
 
     updateUnreadCounts();
-
-
-    /*
-     * Render both lists.
-     */
-
     renderIndividualChats();
-
-
-    renderGroups();
-
-
-    /*
-     * Setup search events.
-     */
-
     setupSupportChatStage1();
-    setupCreateGroupEvents();
     initializeMessageSearch();
     initStage6MessageActions();
     setupPinMessageInput();
     setupAttachmentEvents();
     setupChatSelectionOutsideClick();
     setupPinSelectionOutsideClick();
-    
-
-
-    /*
-     * Make Individual the default view.
-     */
-
     showIndividualChats();
 
-
 }
+
 
 
 // ======================================================
@@ -4410,659 +3078,63 @@ window.initSupportChatPage =
 // OPEN CREATE GROUP MODAL
 // ======================================================
 
-function openCreateGroupModal() {
 
-    groupModalMode =
-        "create";
-
-    editingGroupId =
-        null;
-
-    selectedGroupPhoto =
-        null;
-
-
-    showAllGroupModalSections();
-
-
-    setGroupModalTitle(
-        "Create Group",
-        "Create a group and add users."
-    );
-
-
-    setGroupModalSubmitLabel(
-        "Create Group",
-        "fa-solid fa-users"
-    );
-
-
-    const modal =
-        supportChatElement(
-            "createGroupModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    selectedGroupMembers = [];
-
-
-    const groupName =
-        supportChatElement(
-            "groupNameInput"
-        );
-
-
-    const description =
-        supportChatElement(
-            "groupDescriptionInput"
-        );
-
-
-    const searchInput =
-        supportChatElement(
-            "memberSearchInput"
-        );
-
-
-    const avatarPreview =
-        supportChatElement(
-            "newGroupAvatar"
-        );
-
-
-    if (groupName) {
-
-        groupName.value =
-            "";
-
-    }
-
-
-    if (description) {
-
-        description.value =
-            "";
-
-    }
-
-
-    if (searchInput) {
-
-        searchInput.value =
-            "";
-
-    }
-
-
-    if (avatarPreview) {
-
-        avatarPreview.innerHTML =
-            '<i class="fa-solid fa-users"></i>';
-
-    }
-
-
-    resetGroupPermissionSelects(
-        {
-
-            sendMessages:
-                "everyone",
-
-            editGroup:
-                "admins",
-
-            addMembers:
-                "admins"
-
-        }
-    );
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-
-    renderGroupUserSelection();
-
-
-    if (searchInput) {
-
-        setTimeout(
-            function() {
-
-                searchInput.focus();
-
-            },
-            50
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // SHOW ALL GROUP MODAL SECTIONS
 // ======================================================
 
-function showAllGroupModalSections() {
 
-    const sectionIds =
-        [
-
-            "groupModalAvatarSection",
-            "groupModalNameSection",
-            "groupModalDescriptionSection",
-            "groupModalMembersSection",
-            "groupModalPermissionsSection"
-
-        ];
-
-
-    sectionIds.forEach(
-        function(id) {
-
-            const section =
-                supportChatElement(
-                    id
-                );
-
-
-            if (section) {
-
-                section.classList.remove(
-                    "hidden"
-                );
-
-            }
-
-        }
-    );
-
-}
 
 
 // ======================================================
 // SET GROUP MODAL TITLE
 // ======================================================
 
-function setGroupModalTitle(
-    title,
-    subtitle
-) {
 
-    const titleElement =
-        supportChatElement(
-            "createGroupModalTitle"
-        );
-
-
-    const subtitleElement =
-        supportChatElement(
-            "createGroupModalSubtitle"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            title;
-
-    }
-
-
-    if (subtitleElement) {
-
-        subtitleElement.textContent =
-            subtitle;
-
-    }
-
-}
 
 
 // ======================================================
 // SET GROUP MODAL SUBMIT LABEL
 // ======================================================
 
-function setGroupModalSubmitLabel(
-    label,
-    iconClass
-) {
 
-    const labelElement =
-        supportChatElement(
-            "groupModalSubmitLabel"
-        );
-
-
-    const iconElement =
-        supportChatElement(
-            "groupModalSubmitIcon"
-        );
-
-
-    if (labelElement) {
-
-        labelElement.textContent =
-            label;
-
-    }
-
-
-    if (iconElement) {
-
-        iconElement.className =
-            iconClass;
-
-    }
-
-}
 
 
 // ======================================================
 // RESET GROUP PERMISSION SELECTS
 // ======================================================
 
-function resetGroupPermissionSelects(
-    permissions
-) {
 
-    const sendPermission =
-        supportChatElement(
-            "sendMessagesPermission"
-        );
-
-
-    const editPermission =
-        supportChatElement(
-            "editGroupPermission"
-        );
-
-
-    const addPermission =
-        supportChatElement(
-            "addMembersPermission"
-        );
-
-
-    if (
-        sendPermission &&
-        permissions.sendMessages
-    ) {
-
-        sendPermission.value =
-            permissions.sendMessages;
-
-    }
-
-
-    if (
-        editPermission &&
-        permissions.editGroup
-    ) {
-
-        editPermission.value =
-            permissions.editGroup;
-
-    }
-
-
-    if (
-        addPermission &&
-        permissions.addMembers
-    ) {
-
-        addPermission.value =
-            permissions.addMembers;
-
-    }
-
-}
 
 
 // ======================================================
 // OPEN EDIT GROUP MODAL (used by editGroupInformation)
 // ======================================================
 
-function openEditGroupModal() {
 
-    if (!currentGroup) {
-
-        return;
-
-    }
-
-
-    closeGroupInfo();
-
-
-    groupModalMode =
-        "edit";
-
-    editingGroupId =
-        currentGroup.id;
-
-    selectedGroupPhoto =
-        currentGroup.avatar ||
-        null;
-
-
-    showAllGroupModalSections();
-
-
-    /*
-     * Editing an existing group does not
-     * change its membership here — that is
-     * handled from Add Members instead.
-     */
-
-    const membersSection =
-        supportChatElement(
-            "groupModalMembersSection"
-        );
-
-
-    if (membersSection) {
-
-        membersSection.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    setGroupModalTitle(
-        "Edit Group",
-        "Update this group's details."
-    );
-
-
-    setGroupModalSubmitLabel(
-        "Save Changes",
-        "fa-solid fa-check"
-    );
-
-
-    const modal =
-        supportChatElement(
-            "createGroupModal"
-        );
-
-
-    const groupName =
-        supportChatElement(
-            "groupNameInput"
-        );
-
-
-    const description =
-        supportChatElement(
-            "groupDescriptionInput"
-        );
-
-
-    const avatarPreview =
-        supportChatElement(
-            "newGroupAvatar"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    if (groupName) {
-
-        groupName.value =
-            currentGroup.name ||
-            "";
-
-    }
-
-
-    if (description) {
-
-        description.value =
-            currentGroup.description ||
-            "";
-
-    }
-
-
-    if (avatarPreview) {
-
-        if (currentGroup.avatar) {
-
-            avatarPreview.innerHTML =
-                '<img src="' +
-                currentGroup.avatar +
-                '" alt="' +
-                currentGroup.name +
-                '">';
-
-        }
-        else {
-
-            avatarPreview.innerHTML =
-                '<i class="fa-solid fa-users"></i>';
-
-        }
-
-    }
-
-
-    resetGroupPermissionSelects(
-        currentGroup.permissions ||
-        {}
-    );
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-}
 
 
 // ======================================================
 // OPEN ADD MEMBERS MODAL (used by openAddMembers)
 // ======================================================
 
-function openAddMembers() {
 
-    if (!currentGroup) {
-
-        return;
-
-    }
-
-
-    closeGroupInfo();
-
-
-    groupModalMode =
-        "addMembers";
-
-    editingGroupId =
-        currentGroup.id;
-
-    selectedGroupMembers =
-        [];
-
-
-    showAllGroupModalSections();
-
-
-    const hideIds =
-        [
-
-            "groupModalAvatarSection",
-            "groupModalNameSection",
-            "groupModalDescriptionSection",
-            "groupModalPermissionsSection"
-
-        ];
-
-
-    hideIds.forEach(
-        function(id) {
-
-            const section =
-                supportChatElement(
-                    id
-                );
-
-
-            if (section) {
-
-                section.classList.add(
-                    "hidden"
-                );
-
-            }
-
-        }
-    );
-
-
-    setGroupModalTitle(
-        "Add Members",
-        "Select users to add to this group."
-    );
-
-
-    setGroupModalSubmitLabel(
-        "Add Members",
-        "fa-solid fa-user-plus"
-    );
-
-
-    const modal =
-        supportChatElement(
-            "createGroupModal"
-        );
-
-
-    const searchInput =
-        supportChatElement(
-            "memberSearchInput"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    if (searchInput) {
-
-        searchInput.value =
-            "";
-
-    }
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-
-    renderGroupUserSelection();
-
-
-    if (searchInput) {
-
-        setTimeout(
-            function() {
-
-                searchInput.focus();
-
-            },
-            50
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // 45. CLOSE CREATE GROUP MODAL
 // ======================================================
 
-function closeCreateGroupModal() {
 
-    const modal =
-        supportChatElement(
-            "createGroupModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    selectedGroupMembers = [];
-
-    selectedGroupPhoto = null;
-
-    groupModalMode =
-        "create";
-
-    editingGroupId =
-        null;
-
-}
 
 
 // ======================================================
 // SUBMIT GROUP MODAL (dispatch by mode)
 // ======================================================
 
-function submitGroupModal() {
 
-    if (
-        groupModalMode ===
-        "edit"
-    ) {
-
-        saveGroupEdit();
-
-    }
-    else if (
-        groupModalMode ===
-        "addMembers"
-    ) {
-
-        addSelectedMembersToGroup();
-
-    }
-    else {
-
-        createGroup();
-
-    }
-
-}
 
 
 
@@ -5070,889 +3142,49 @@ function submitGroupModal() {
 // 48. CREATE GROUP
 // ======================================================
 
-function createGroup() {
 
-    const nameInput =
-        supportChatElement(
-            "groupNameInput"
-        );
-
-
-    const descriptionInput =
-        supportChatElement(
-            "groupDescriptionInput"
-        );
-
-
-    const sendPermission =
-        supportChatElement(
-            "sendMessagesPermission"
-        );
-
-
-    const editPermission =
-        supportChatElement(
-            "editGroupPermission"
-        );
-
-
-    const addPermission =
-        supportChatElement(
-            "addMembersPermission"
-        );
-
-
-    const groupName =
-        nameInput
-            ? nameInput.value.trim()
-            : "";
-
-
-    const description =
-        descriptionInput
-            ? descriptionInput.value.trim()
-            : "";
-
-
-    /*
-     * Validate group name.
-     */
-
-    if (!groupName) {
-
-        alert(
-            "Please enter a group name."
-        );
-
-
-        if (nameInput) {
-
-            nameInput.focus();
-
-        }
-
-
-        return;
-
-    }
-
-
-    /*
-     * Get selected members.
-     */
-
-    const members =
-    selectedGroupMembers.map(
-        function(userId) {
-
-            const user =
-                findSupportUser(userId);
-
-            return {
-
-                id:
-                    user.id,
-
-                name:
-                    user.name,
-
-                avatar:
-                    user.avatar,
-
-                role:
-                    "Member",
-
-                online:
-                    user.online
-
-            };
-
-        }
-    );
-
-
-    /*
-     * Create group object.
-     */
-
-    const newGroup = {
-
-        id:
-            "GROUP-" +
-            Date.now(),
-
-        name:
-            groupName,
-
-        description:
-            description,
-
-        avatar:
-            selectedGroupPhoto
-                ? selectedGroupPhoto
-                : "",
-
-        unread:
-            0,
-
-        admin:
-            true,
-
-        muted:
-            false,
-
-        pinned:
-            false,
-
-
-        permissions: {
-
-            sendMessages:
-                sendPermission
-                    ? sendPermission.value
-                    : "everyone",
-
-            editGroup:
-                editPermission
-                    ? editPermission.value
-                    : "admins",
-
-            addMembers:
-                addPermission
-                    ? addPermission.value
-                    : "admins"
-
-        },
-
-
-        members:
-            members,
-
-
-        messages:
-            []
-
-    };
-
-
-    /*
-     * Add new group to the beginning
-     * of the group list.
-     */
-
-    supportChatGroups.unshift(
-        newGroup
-    );
-
-
-    /*
-     * Close modal.
-     */
-
-    closeCreateGroupModal();
-
-
-    /*
-     * Switch to Groups.
-     */
-
-    showGroups();
-
-
-    /*
-     * Re-render groups.
-     */
-
-    renderGroups();
-
-
-    /*
-     * Update unread counters.
-     */
-
-    updateUnreadCounts();
-
-
-    /*
-     * Open the newly created group.
-     */
-
-    openGroupChat(
-        newGroup.id
-    );
-
-}
 
 
 // ======================================================
 // SAVE GROUP EDIT
 // ======================================================
 
-function saveGroupEdit() {
 
-    const group =
-        findSupportGroup(
-            editingGroupId
-        );
-
-
-    if (!group) {
-
-        closeCreateGroupModal();
-
-        return;
-
-    }
-
-
-    const nameInput =
-        supportChatElement(
-            "groupNameInput"
-        );
-
-
-    const descriptionInput =
-        supportChatElement(
-            "groupDescriptionInput"
-        );
-
-
-    const sendPermission =
-        supportChatElement(
-            "sendMessagesPermission"
-        );
-
-
-    const editPermission =
-        supportChatElement(
-            "editGroupPermission"
-        );
-
-
-    const addPermission =
-        supportChatElement(
-            "addMembersPermission"
-        );
-
-
-    const groupName =
-        nameInput
-            ? nameInput.value.trim()
-            : "";
-
-
-    if (!groupName) {
-
-        alert(
-            "Please enter a group name."
-        );
-
-
-        if (nameInput) {
-
-            nameInput.focus();
-
-        }
-
-
-        return;
-
-    }
-
-
-    group.name =
-        groupName;
-
-    group.description =
-        descriptionInput
-            ? descriptionInput.value.trim()
-            : group.description;
-
-    group.avatar =
-        selectedGroupPhoto
-            ? selectedGroupPhoto
-            : group.avatar;
-
-
-    group.permissions =
-        {
-
-            sendMessages:
-                sendPermission
-                    ? sendPermission.value
-                    : group.permissions.sendMessages,
-
-            editGroup:
-                editPermission
-                    ? editPermission.value
-                    : group.permissions.editGroup,
-
-            addMembers:
-                addPermission
-                    ? addPermission.value
-                    : group.permissions.addMembers
-
-        };
-
-
-    closeCreateGroupModal();
-
-
-    renderGroups();
-
-
-    if (
-        currentChatType === "group" &&
-        currentChat &&
-        currentChat.id === group.id
-    ) {
-
-        renderCurrentChat();
-
-    }
-
-}
 
 
 // ======================================================
 // ADD SELECTED MEMBERS TO GROUP
 // ======================================================
 
-function addSelectedMembersToGroup() {
 
-    const group =
-        findSupportGroup(
-            editingGroupId
-        );
-
-
-    if (!group) {
-
-        closeCreateGroupModal();
-
-        return;
-
-    }
-
-
-    if (
-        selectedGroupMembers.length === 0
-    ) {
-
-        alert(
-            "Please select at least one user to add."
-        );
-
-        return;
-
-    }
-
-
-    if (
-        !Array.isArray(
-            group.members
-        )
-    ) {
-
-        group.members =
-            [];
-
-    }
-
-
-    selectedGroupMembers.forEach(
-        function(userId) {
-
-            const alreadyMember =
-                group.members.some(
-                    function(member) {
-
-                        return (
-                            member.id ===
-                            userId
-                        );
-
-                    }
-                );
-
-
-            if (alreadyMember) {
-
-                return;
-
-            }
-
-
-            const user =
-                findSupportUser(
-                    userId
-                );
-
-
-            if (!user) {
-
-                return;
-
-            }
-
-
-            group.members.push(
-                {
-
-                    id:
-                        user.id,
-
-                    name:
-                        user.name,
-
-                    avatar:
-                        user.avatar,
-
-                    role:
-                        "Member",
-
-                    online:
-                        user.online
-
-                }
-            );
-
-        }
-    );
-
-
-    closeCreateGroupModal();
-
-
-    if (
-        currentChatType === "group" &&
-        currentChat &&
-        currentChat.id === group.id
-    ) {
-
-        renderCurrentChat();
-
-        openGroupInfo();
-
-    }
-
-}
 
 
 // ======================================================
 // 49. GROUP MEMBER SEARCH
 // ======================================================
 
-function searchGroupMembers(
-    value
-) {
 
-    renderGroupUserSelection(
-        value
-    );
-
-}
 
 
 // ======================================================
 // 50. GROUP CREATION EVENTS
 // ======================================================
 
-function setupCreateGroupEvents() {
 
-    const memberSearch =
-        supportChatElement(
-            "memberSearchInput"
-        );
-
-
-    if (
-        memberSearch &&
-        !memberSearch.dataset.createGroupReady
-    ) {
-
-        memberSearch.addEventListener(
-            "input",
-            function(event) {
-
-                searchGroupMembers(
-                    event.target.value
-                );
-
-            }
-        );
-
-
-        memberSearch.dataset.createGroupReady =
-            "true";
-
-    }
-
-}
 
 
 // ======================================================
 // RENDER GROUP USER SELECTION
 // ======================================================
 
-function renderGroupUserSelection(
-    searchValue = ""
-) {
 
-    const container =
-        supportChatElement(
-            "groupUserSelection"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML = "";
-
-
-    const search =
-        String(searchValue)
-            .toLowerCase()
-            .trim();
-
-
-    let users =
-        [...supportChatUsers];
-
-
-    // ----------------------------------------------
-    // EXCLUDE EXISTING GROUP MEMBERS
-    // (only relevant in "Add Members" mode)
-    // ----------------------------------------------
-
-    if (
-        groupModalMode ===
-        "addMembers" &&
-        editingGroupId
-    ) {
-
-        const group =
-            findSupportGroup(
-                editingGroupId
-            );
-
-
-        if (
-            group &&
-            Array.isArray(
-                group.members
-            )
-        ) {
-
-            const existingIds =
-                group.members.map(
-                    function(member) {
-
-                        return member.id;
-
-                    }
-                );
-
-
-            users =
-                users.filter(
-                    function(user) {
-
-                        return (
-                            !existingIds.includes(
-                                user.id
-                            )
-                        );
-
-                    }
-                );
-
-        }
-
-    }
-
-
-    // ----------------------------------------------
-    // SEARCH USERS
-    // ----------------------------------------------
-
-    if (search) {
-
-        users =
-            users.filter(
-                function(user) {
-
-                    return (
-
-                        user.name
-                            .toLowerCase()
-                            .includes(search)
-
-                        ||
-
-                        user.email
-                            .toLowerCase()
-                            .includes(search)
-
-                        ||
-
-                        user.id
-                            .toLowerCase()
-                            .includes(search)
-
-                    );
-
-                }
-            );
-
-    }
-
-
-    // ----------------------------------------------
-    // CREATE USER ITEMS
-    // ----------------------------------------------
-
-    users.forEach(
-        function(user) {
-
-            const item =
-                document.createElement(
-                    "button"
-                );
-
-
-            item.type =
-                "button";
-
-
-            item.className =
-                "group-user-item";
-
-
-            if (
-                selectedGroupMembers.includes(
-                    user.id
-                )
-            ) {
-
-                item.classList.add(
-                    "selected"
-                );
-
-            }
-
-
-            // --------------------------------------
-            // AVATAR
-            // --------------------------------------
-
-            const avatar =
-                document.createElement(
-                    "div"
-                );
-
-
-            avatar.className =
-                "group-user-avatar";
-
-
-            avatar.textContent =
-                getInitials(
-                    user.name
-                );
-
-
-            // --------------------------------------
-            // USER INFORMATION
-            // --------------------------------------
-
-            const info =
-                document.createElement(
-                    "div"
-                );
-
-
-            info.className =
-                "group-user-info";
-
-
-            const name =
-                document.createElement(
-                    "strong"
-                );
-
-
-            name.textContent =
-                user.name;
-
-
-            const userId =
-                document.createElement(
-                    "span"
-                );
-
-
-            userId.textContent =
-                user.id;
-
-
-            info.appendChild(
-                name
-            );
-
-
-            info.appendChild(
-                userId
-            );
-
-
-            // --------------------------------------
-            // CHECKBOX
-            // --------------------------------------
-
-            const check =
-                document.createElement(
-                    "span"
-                );
-
-
-            check.className =
-                "group-user-check";
-
-
-            if (
-                selectedGroupMembers.includes(
-                    user.id
-                )
-            ) {
-
-                check.innerHTML =
-                    '<i class="fa-solid fa-check"></i>';
-
-            }
-
-
-            item.appendChild(
-                avatar
-            );
-
-
-            item.appendChild(
-                info
-            );
-
-
-            item.appendChild(
-                check
-            );
-
-
-            // --------------------------------------
-            // CLICK
-            // --------------------------------------
-
-            item.addEventListener(
-                "click",
-                function() {
-
-                    toggleGroupMember(
-                        user.id
-                    );
-
-                }
-            );
-
-
-            container.appendChild(
-                item
-            );
-
-        }
-    );
-
-
-    // ----------------------------------------------
-    // NO USERS
-    // ----------------------------------------------
-
-    if (
-        users.length === 0
-    ) {
-
-        const empty =
-            document.createElement(
-                "div"
-            );
-
-
-        empty.className =
-            "group-users-empty";
-
-
-        empty.textContent =
-            "No users found.";
-
-
-        container.appendChild(
-            empty
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // TOGGLE GROUP MEMBER
 // ======================================================
 
-function toggleGroupMember(
-    userId
-) {
 
-    const index =
-        selectedGroupMembers.indexOf(
-            userId
-        );
-
-
-    if (
-        index === -1
-    ) {
-
-        selectedGroupMembers.push(
-            userId
-        );
-
-    }
-    else {
-
-        selectedGroupMembers.splice(
-            index,
-            1
-        );
-
-    }
-
-
-    const searchInput =
-        supportChatElement(
-            "memberSearchInput"
-        );
-
-
-    renderGroupUserSelection(
-        searchInput
-            ? searchInput.value
-            : ""
-    );
-
-}
 
 
 
@@ -6312,66 +3544,7 @@ function updateIndividualChatPreview(
 // 60. UPDATE GROUP CHAT PREVIEW
 // ======================================================
 
-function updateGroupChatPreview(
-    group,
-    message
-) {
 
-    if (
-        !group ||
-        !message
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Make sure the group has a messages array.
-     */
-
-    if (
-        !Array.isArray(
-            group.messages
-        )
-    ) {
-
-        group.messages =
-            [];
-
-    }
-
-
-    /*
-     * Store the latest message.
-     */
-
-    group.lastMessage =
-        message.text ||
-        "";
-
-
-    /*
-     * Store the latest message time.
-     */
-
-    group.lastMessageTime =
-        message.time ||
-        "";
-
-
-    /*
-     * Outgoing admin messages should
-     * not increase the unread count.
-     */
-
-    group.unread =
-        Number(
-            group.unread
-        ) || 0;
-
-}
 
 
 // ======================================================
@@ -6438,203 +3611,39 @@ function moveIndividualChatToTop(
 
 function sendMessage() {
 
-
- /*
- * If currently editing a message,
- * save the edit instead of sending
- * a new message.
- */
-
-if (
-    isEditingMessage()
-) {
-
-    saveEditedMessage();
-
-    return;
-
-}
-    /*
-     * There must be an active conversation.
-     */
-
-    if (
-        !currentChat
-    ) {
-
+    if (isEditingMessage()) {
+        saveEditedMessage();
         return;
-
     }
 
+    if (!currentChat) return;
 
-    /*
-     * Get text from the message input.
-     */
+    const text = getMessageText();
+    if (!text) return;
 
-    const text =
-        getMessageText();
+    const message = prepareMessageForSend(text);
+    if (!addMessageToCurrentChat(message)) return;
 
+    updateIndividualChatPreview(currentChat, message);
+    moveIndividualChatToTop(currentChat);
 
-    /*
-     * Do not send empty messages.
-     */
-
-    if (
-        !text
-    ) {
-
-        return;
-
+    if (currentUser) {
+        simulateTypingReply(currentChat.id, currentUser.name);
     }
 
-
-    /*
-     * Create the message.
-     *
-     * prepareMessageForSend()
-     * automatically checks whether
-     * we are replying to another message.
-     */
-
-    const message =
-        prepareMessageForSend(
-            text
-        );
-
-
-    /*
-     * Add message to current conversation.
-     */
-
-    const added =
-        addMessageToCurrentChat(
-            message
-        );
-
-
-    if (!added) {
-
-        return;
-
-    }
-
-
-    /*
-     * Individual chat.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        updateIndividualChatPreview(
-            currentChat,
-            message
-        );
-
-
-        moveIndividualChatToTop(
-            currentChat
-        );
-
-    }
-
-       if (
-        currentChatType === "individual" &&
-        currentUser
-    ) {
-
-        simulateTypingReply(
-            currentChat.id,
-            currentUser.name
-        );
-
-    }
-
-
-    /*
-     * Group chat.
-     */
-
-    if (
-        currentChatType ===
-        "group"
-    ) {
-
-        updateGroupChatPreview(
-            currentChat,
-            message
-        );
-
-    }
-
-
-    /*
-     * Clear reply state after
-     * successfully sending the message.
-     */
-
-    if (
-        replyingToMessage
-    ) {
-
-        replyingToMessage =
-            null;
-
-
+    if (replyingToMessage) {
+        replyingToMessage = null;
         closeReplyPreview();
-
     }
-
-
-    /*
-     * Clear the input.
-     */
 
     clearMessageInput();
-
-
-    /*
-     * Render the updated conversation.
-     */
-
     renderMessages();
-
-
-    /*
-     * Update the conversation list.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderGroups();
-
-    }
-
-
-    /*
-     * Update unread counters.
-     */
-
+    renderIndividualChats();
     updateUnreadCounts();
-
-
-    /*
-     * Keep the message area at the bottom.
-     */
-
     scrollMessagesToBottom();
 
 }
+
 
 
 // ======================================================
@@ -7328,7 +4337,7 @@ function sendReplyMessage(
         "group"
     ) {
 
-        updateGroupChatPreview(
+        updateIndividualChatPreview(
             currentChat,
             message
         );
@@ -7376,7 +4385,7 @@ function sendReplyMessage(
     }
     else {
 
-        renderGroups();
+        renderIndividualChats();
 
     }
 
@@ -8246,7 +5255,7 @@ else if (
     "group"
 ) {
 
-    renderGroups();
+    renderIndividualChats();
 
 }
 
@@ -10154,7 +7163,7 @@ function toggleChatMute() {
     }
     else {
 
-        renderGroups();
+        renderIndividualChats();
 
     }
 
@@ -10800,7 +7809,7 @@ function createPinnedMessage() {
     }
     else {
 
-        renderGroups();
+        renderIndividualChats();
 
     }
 
@@ -12183,7 +9192,7 @@ function markChatUnread() {
         "group"
     ) {
 
-        renderGroups();
+        renderIndividualChats();
 
     }
 
@@ -12493,7 +9502,7 @@ function confirmClearChatMessages() {
     }
     else {
 
-        renderGroups();
+        renderIndividualChats();
 
     }
 
@@ -12677,23 +9686,8 @@ window.initializeMessageEngine =
 
 
 // ======================================================
-// GLOBAL ACCESS — CREATE GROUP
+
 // ======================================================
-
-window.openCreateGroupModal =
-    openCreateGroupModal;
-
-
-window.closeCreateGroupModal =
-    closeCreateGroupModal;
-
-
-window.createGroup =
-    createGroup;
-
-
-window.searchGroupMembers =
-    searchGroupMembers;
 
 // ======================================================
 // SUPPORT CHAT GLOBAL FUNCTIONS
@@ -12702,14 +9696,8 @@ window.searchGroupMembers =
 window.showIndividualChats =
     showIndividualChats;
 
-window.showGroups =
-    showGroups;
-
 window.openIndividualChat =
     openIndividualChat;
-
-window.openGroupChat =
-    openGroupChat;
 
 window.closeChat =
     closeChat;
@@ -12720,17 +9708,8 @@ window.openNewChatModal =
 window.closeNewChatModal =
     closeNewChatModal;
 
-window.openCreateGroupModal =
-    openCreateGroupModal;
-
-window.closeCreateGroupModal =
-    closeCreateGroupModal;
-
 window.filterChats =
     filterChats;
-
-window.filterGroups =
-    filterGroups;
     
 
 // =========================================================
@@ -12906,21 +9885,7 @@ function attachCamera() {
 // CHOOSE GROUP PHOTO
 // ======================================================
 
-function chooseGroupPhoto() {
 
-    const input =
-        supportChatElement(
-            "groupPhotoInput"
-        );
-
-
-    if (input) {
-
-        input.click();
-
-    }
-
-}
 
 
 // ======================================================
@@ -12929,101 +9894,27 @@ function chooseGroupPhoto() {
 // is represented as a labeled text message)
 // ======================================================
 
-function sendAttachmentMessage(
-    label,
-    type,
-    fileData
-) {
+function sendAttachmentMessage(label, type, fileData) {
 
-    if (!currentChat) {
+    if (!currentChat) return;
 
-        return;
+    const message = prepareMessageForSend(label, type, fileData);
+    if (!addMessageToCurrentChat(message)) return;
 
-    }
-
-
-        const message =
-        prepareMessageForSend(
-            label,
-            type,
-            fileData
-        );
-
-
-    const added =
-        addMessageToCurrentChat(
-            message
-        );
-
-
-    if (!added) {
-
-        return;
-
-    }
-
-       if (
-        replyingToMessage
-    ) {
-
-        replyingToMessage =
-            null;
-
+    if (replyingToMessage) {
+        replyingToMessage = null;
         closeReplyPreview();
-
     }
 
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        updateIndividualChatPreview(
-            currentChat,
-            message
-        );
-
-
-        moveIndividualChatToTop(
-            currentChat
-        );
-
-    }
-    else {
-
-        updateGroupChatPreview(
-            currentChat,
-            message
-        );
-
-    }
-
-
+    updateIndividualChatPreview(currentChat, message);
+    moveIndividualChatToTop(currentChat);
     renderMessages();
-
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderGroups();
-
-    }
-
-
+    renderIndividualChats();
     updateUnreadCounts();
-
-
     scrollMessagesToBottom();
 
 }
+
 
 
 // ======================================================
@@ -13091,66 +9982,7 @@ function handleAttachmentFileChange(
 // HANDLE GROUP PHOTO INPUT CHANGE
 // ======================================================
 
-function handleGroupPhotoChange(
-    event
-) {
 
-    const files =
-        event.target.files;
-
-
-    if (
-        !files ||
-        files.length === 0
-    ) {
-
-        return;
-
-    }
-
-
-    const file =
-        files[0];
-
-
-    const reader =
-        new FileReader();
-
-
-    reader.onload =
-        function(loadEvent) {
-
-            selectedGroupPhoto =
-                loadEvent.target.result;
-
-
-            const preview =
-                supportChatElement(
-                    "newGroupAvatar"
-                );
-
-
-            if (preview) {
-
-                preview.innerHTML =
-                    '<img src="' +
-                    selectedGroupPhoto +
-                    '" alt="Group">';
-
-            }
-
-        };
-
-
-    reader.readAsDataURL(
-        file
-    );
-
-
-    event.target.value =
-        "";
-
-}
 
 
 // ======================================================
@@ -13558,414 +10390,42 @@ function startVoiceMessage() {
 // OPEN GROUP INFO
 // ======================================================
 
-function openGroupInfo() {
 
-    if (!currentGroup) {
-
-        return;
-
-    }
-
-
-    closeChatMenu();
-
-
-    const modal =
-        supportChatElement(
-            "groupInfoModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    const nameElement =
-        supportChatElement(
-            "groupInfoName"
-        );
-
-
-    const descriptionElement =
-        supportChatElement(
-            "groupInfoDescription"
-        );
-
-
-    const memberCountElement =
-        supportChatElement(
-            "groupInfoMemberCount"
-        );
-
-
-    const avatarElement =
-        supportChatElement(
-            "groupInfoAvatar"
-        );
-
-
-    if (nameElement) {
-
-        nameElement.textContent =
-            currentGroup.name;
-
-    }
-
-
-    if (descriptionElement) {
-
-        descriptionElement.textContent =
-            currentGroup.description ||
-            "No description.";
-
-    }
-
-
-    if (memberCountElement) {
-
-        memberCountElement.textContent =
-            currentGroup.members.length +
-            " members";
-
-    }
-
-
-    if (avatarElement) {
-
-        if (currentGroup.avatar) {
-
-            avatarElement.innerHTML =
-                '<img src="' +
-                currentGroup.avatar +
-                '" alt="' +
-                currentGroup.name +
-                '">';
-
-        }
-        else {
-
-            avatarElement.innerHTML =
-                '<i class="fa-solid fa-users"></i>';
-
-        }
-
-    }
-
-
-    renderGroupInfoMembers();
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-}
 
 
 // ======================================================
 // CLOSE GROUP INFO
 // ======================================================
 
-function closeGroupInfo() {
 
-    const modal =
-        supportChatElement(
-            "groupInfoModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // RENDER GROUP INFO MEMBERS
 // ======================================================
 
-function renderGroupInfoMembers() {
 
-    const container =
-        supportChatElement(
-            "groupMembersList"
-        );
-
-
-    const countElement =
-        supportChatElement(
-            "groupMembersCount"
-        );
-
-
-    if (
-        !container ||
-        !currentGroup
-    ) {
-
-        return;
-
-    }
-
-
-    container.innerHTML =
-        "";
-
-
-    if (countElement) {
-
-        countElement.textContent =
-            currentGroup.members.length;
-
-    }
-
-
-    currentGroup.members.forEach(
-        function(member) {
-
-            const row =
-                document.createElement(
-                    "div"
-                );
-
-
-            row.className =
-                "group-member";
-
-
-            
-
-                    
-            const avatarHtml =
-                '<div class="group-user-avatar">' +
-                getInitials(
-                    member.name
-                ) +
-                '</div>';
-
-
-       const adminBadge =
-                member.role ===
-                "Admin"
-                    ? '<span class="group-admin-badge">Admin</span>'
-                    : "";
-
-
-            row.innerHTML =
-                avatarHtml +
-                '<div class="group-member-info">' +
-                    '<strong>' +
-                    member.name +
-                    '</strong>' +
-                    '<span>' +
-                    member.id +
-                    '</span>' +
-                '</div>' +
-                adminBadge;
-
-
-            row.addEventListener(
-                "click",
-                function() {
-
-                    openMemberActions(
-                        member
-                    );
-
-                }
-            );
-
-
-            container.appendChild(
-                row
-            );
-
-        }
-    );
-
-}
 
 
 // ======================================================
 // OPEN GROUP SETTINGS
 // ======================================================
 
-function openGroupSettings() {
 
-    if (!currentGroup) {
-
-        return;
-
-    }
-
-
-    closeGroupInfo();
-
-
-    const modal =
-        supportChatElement(
-            "groupSettingsModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    const sendPermission =
-        supportChatElement(
-            "groupSendPermission"
-        );
-
-
-    const editPermission =
-        supportChatElement(
-            "groupEditPermission"
-        );
-
-
-    const addPermission =
-        supportChatElement(
-            "groupAddPermission"
-        );
-
-
-    const permissions =
-        currentGroup.permissions ||
-        {};
-
-
-    if (
-        sendPermission &&
-        permissions.sendMessages
-    ) {
-
-        sendPermission.value =
-            permissions.sendMessages;
-
-    }
-
-
-    if (
-        editPermission &&
-        permissions.editGroup
-    ) {
-
-        editPermission.value =
-            permissions.editGroup;
-
-    }
-
-
-    if (
-        addPermission &&
-        permissions.addMembers
-    ) {
-
-        addPermission.value =
-            permissions.addMembers;
-
-    }
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-}
 
 
 // ======================================================
 // CLOSE GROUP SETTINGS
 // ======================================================
 
-function closeGroupSettings() {
 
-    const modal =
-        supportChatElement(
-            "groupSettingsModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // SAVE GROUP SETTINGS
 // ======================================================
 
-function saveGroupSettings() {
 
-    if (!currentGroup) {
-
-        closeGroupSettings();
-
-        return;
-
-    }
-
-
-    const sendPermission =
-        supportChatElement(
-            "groupSendPermission"
-        );
-
-
-    const editPermission =
-        supportChatElement(
-            "groupEditPermission"
-        );
-
-
-    const addPermission =
-        supportChatElement(
-            "groupAddPermission"
-        );
-
-
-    currentGroup.permissions =
-        {
-
-            sendMessages:
-                sendPermission
-                    ? sendPermission.value
-                    : currentGroup.permissions.sendMessages,
-
-            editGroup:
-                editPermission
-                    ? editPermission.value
-                    : currentGroup.permissions.editGroup,
-
-            addMembers:
-                addPermission
-                    ? addPermission.value
-                    : currentGroup.permissions.addMembers
-
-        };
-
-
-    closeGroupSettings();
-
-}
 
 
 // ======================================================
@@ -13973,11 +10433,7 @@ function saveGroupSettings() {
 // (opens the create-group modal in "edit" mode)
 // ======================================================
 
-function editGroupInformation() {
 
-    openEditGroupModal();
-
-}
 
 
 // ==========================================================================
@@ -13989,291 +10445,35 @@ function editGroupInformation() {
 // OPEN MEMBER ACTIONS
 // ======================================================
 
-function openMemberActions(
-    member
-) {
 
-    selectedGroupMember =
-        member;
-
-
-    const modal =
-        supportChatElement(
-            "memberActionModal"
-        );
-
-
-    const avatarElement =
-        supportChatElement(
-            "memberActionAvatar"
-        );
-
-
-    const nameElement =
-        supportChatElement(
-            "memberActionName"
-        );
-
-
-    const roleElement =
-        supportChatElement(
-            "memberActionRole"
-        );
-
-
-    const adminButton =
-        supportChatElement(
-            "memberAdminAction"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-        if (avatarElement) {
-
-        avatarElement.textContent =
-            getInitials(
-                member.name
-            );
-
-    }
-
-
-    if (nameElement) {
-
-        nameElement.textContent =
-            member.name;
-
-    }
-
-
-    if (roleElement) {
-
-        roleElement.textContent =
-            member.role;
-
-    }
-
-
-    if (adminButton) {
-
-        adminButton.innerHTML =
-
-            member.role ===
-            "Admin"
-                ? '<i class="fa-solid fa-shield"></i> Remove Admin'
-                : '<i class="fa-solid fa-shield"></i> Make Admin';
-
-    }
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-}
 
 
 // ======================================================
 // CLOSE MEMBER ACTIONS
 // ======================================================
 
-function closeMemberActions() {
 
-    const modal =
-        supportChatElement(
-            "memberActionModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // VIEW MEMBER PROFILE
 // ======================================================
 
-function viewMemberProfile() {
 
-    if (!selectedGroupMember) {
-
-        return;
-
-    }
-
-
-    const user =
-        findSupportUser(
-            selectedGroupMember.id
-        );
-
-
-    closeMemberActions();
-    closeGroupInfo();
-
-
-    if (user) {
-
-        populateUserProfileModal(
-            user
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // TOGGLE MEMBER ADMIN
 // ======================================================
 
-function toggleMemberAdmin() {
 
-    if (
-        !selectedGroupMember ||
-        !currentGroup
-    ) {
-
-        return;
-
-    }
-
-
-    const member =
-        currentGroup.members.find(
-            function(item) {
-
-                return (
-                    item.id ===
-                    selectedGroupMember.id
-                );
-
-            }
-        );
-
-
-    if (!member) {
-
-        return;
-
-    }
-
-
-    member.role =
-        member.role ===
-        "Admin"
-            ? "Member"
-            : "Admin";
-
-
-    selectedGroupMember =
-        member;
-
-
-    closeMemberActions();
-
-
-    renderGroupInfoMembers();
-
-}
 
 
 // ======================================================
 // REMOVE MEMBER FROM GROUP
 // ======================================================
 
-function removeMemberFromGroup() {
 
-    if (
-        !selectedGroupMember ||
-        !currentGroup
-    ) {
-
-        return;
-
-    }
-
-
-    closeMemberActions();
-
-
-    deleteActionType =
-        "member";
-
-    deleteActionId =
-        selectedGroupMember.id;
-
-
-    const titleElement =
-        supportChatElement(
-            "deleteConfirmTitle"
-        );
-
-    const textElement =
-        supportChatElement(
-            "deleteConfirmText"
-        );
-
-    const confirmBtn =
-        supportChatElement(
-            "confirmDeleteBtn"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            "Remove Member?";
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            "Remove " +
-            selectedGroupMember.name +
-            " from this group?";
-
-    }
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            "Remove";
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
-
-}
 
 
 // ==========================================================================
@@ -14290,35 +10490,11 @@ function removeMemberFromGroup() {
 function openCurrentProfile() {
 
     closeMessagePreviewsOnUiOpen();
-  
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    if (
-        currentChatType ===
-        "group"
-    ) {
-
-        openGroupInfo();
-
-        return;
-
-    }
-
-
-    if (currentUser) {
-
-        populateUserProfileModal(
-            currentUser
-        );
-
-    }
+    if (!currentChat || !currentUser) return;
+    populateUserProfileModal(currentUser);
 
 }
+
 
 
 // ======================================================
@@ -14539,7 +10715,7 @@ function deleteChatFromProfile() {
 
 // ==========================================================================
 // SUPPORT CHAT SYSTEM
-// STAGE 11 — DELETE CHAT / DELETE GROUP
+// STAGE 11 — DELETE CHAT
 // ==========================================================================
 
 // ======================================================
@@ -14548,172 +10724,34 @@ function deleteChatFromProfile() {
 
 function deleteCurrentChat() {
 
-    if (currentGroup) {
-      deleteCurrentGroup();
-      return;
-    }
-
-    else if (
-        !currentChat ||
-        currentChatType !== "individual"
-    ) {
-
-        return;
-
-    }
-
+    if (!currentChat || currentChatType !== "individual") return;
 
     closeChatMenu();
+    deleteActionType = "chat";
+    deleteActionId = currentChat.id;
 
+    const titleElement = supportChatElement("deleteConfirmTitle");
+    const textElement = supportChatElement("deleteConfirmText");
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const modal = supportChatElement("deleteConfirmModal");
 
-    deleteActionType =
-        "chat";
-
-    deleteActionId =
-        currentChat.id;
-
-
-    const titleElement =
-        supportChatElement(
-            "deleteConfirmTitle"
-        );
-
-
-    const textElement =
-        supportChatElement(
-            "deleteConfirmText"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            "Delete Conversation?";
-
-    }
-
-
+    if (titleElement) titleElement.textContent = "Delete Conversation?";
     if (textElement) {
-
         textElement.textContent =
-            "This will permanently delete your conversation with " +
-            currentChat.name +
-            ". This action cannot be undone.";
-
+            "This will permanently delete your conversation with " + currentChat.name + ". This action cannot be undone.";
     }
-
-      const confirmBtn =
-        supportChatElement(
-            "confirmDeleteBtn"
-        );
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            "Delete";
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
+    if (confirmBtn) confirmBtn.textContent = "Delete";
+    if (modal) modal.classList.remove("hidden");
 
 }
+
 
 
 // ======================================================
 // DELETE CURRENT GROUP
 // ======================================================
 
-function deleteCurrentGroup() {
 
-    if (!currentGroup) {
-
-        return;
-
-    }
-
-
-    closeGroupInfo();
-
-
-    deleteActionType =
-        "group";
-
-    deleteActionId =
-        currentGroup.id;
-
-
-    const titleElement =
-        supportChatElement(
-            "deleteConfirmTitle"
-        );
-
-
-    const textElement =
-        supportChatElement(
-            "deleteConfirmText"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            "Delete Group?";
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            "This will permanently delete \"" +
-            currentGroup.name +
-            "\" for everyone. This action cannot be undone.";
-
-    }
-
-      const confirmBtn =
-        supportChatElement(
-            "confirmDeleteBtn"
-        );
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            "Delete";
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
-
-}
 
 
 // ======================================================
@@ -14758,311 +10796,53 @@ function closeDeleteConfirmation() {
 
 function confirmDeleteAction() {
 
-    if (
-        deleteActionType ===
-        "chat"
-    ) {
+    if (deleteActionType === "chat") {
 
-        const index =
-            individualChats.findIndex(
-                function(chat) {
+        const index = individualChats.findIndex(function(chat) {
+            return chat.id === deleteActionId;
+        });
 
-                    return (
-                        chat.id ===
-                        deleteActionId
-                    );
-
-                }
-            );
-
-
-        if (index !== -1) {
-
-            individualChats.splice(
-                index,
-                1
-            );
-
-        }
-
-
-        if (
-            currentChat &&
-            currentChat.id ===
-            deleteActionId
-        ) {
-
-            closeChat();
-
-        }
-
-
+        if (index !== -1) individualChats.splice(index, 1);
+        if (currentChat && currentChat.id === deleteActionId) closeChat();
         renderIndividualChats();
 
     }
-    else if (
-        deleteActionType ===
-        "group"
-    ) {
+    else if (deleteActionType === "bulkChats") {
 
-        const index =
-            supportChatGroups.findIndex(
-                function(group) {
-
-                    return (
-                        group.id ===
-                        deleteActionId
-                    );
-
-                }
-            );
-
-
-        if (index !== -1) {
-
-            supportChatGroups.splice(
-                index,
-                1
-            );
-
+        const idsToDelete = deleteActionIds;
+        for (let i = individualChats.length - 1; i >= 0; i--) {
+            if (idsToDelete.includes(individualChats[i].id)) individualChats.splice(i, 1);
         }
-
-
-        if (
-            currentChat &&
-            currentChat.id ===
-            deleteActionId
-        ) {
-
-            closeChat();
-
-        }
-
-
-        renderGroups();
-
-    }
-    else if (
-        deleteActionType ===
-        "bulkChats"
-    ) {
-
-        const targetArray =
-            deleteActionChatType === "group"
-                ? supportChatGroups
-                : individualChats;
-
-
-        const idsToDelete =
-            deleteActionIds;
-
-
-        for (
-            let i = targetArray.length - 1;
-            i >= 0;
-            i--
-        ) {
-
-            if (
-                idsToDelete.includes(
-                    targetArray[i].id
-                )
-            ) {
-
-                targetArray.splice(
-                    i,
-                    1
-                );
-
-            }
-
-        }
-
-
-        if (
-            currentChat &&
-            idsToDelete.includes(
-                currentChat.id
-            )
-        ) {
-
-            closeChat();
-
-        }
-
-
-        if (
-            deleteActionChatType === "group"
-        ) {
-
-            renderGroups();
-
-        }
-        else {
-
-            renderIndividualChats();
-
-        }
-
-
+        if (currentChat && idsToDelete.includes(currentChat.id)) closeChat();
+        renderIndividualChats();
         exitChatSelectionMode();
 
     }
+    else if (deleteActionType === "message") {
 
-      else if (
-        deleteActionType ===
-        "message"
-    ) {
+        if (currentChat && Array.isArray(currentChat.messages)) {
+            const messageIndex = currentChat.messages.findIndex(function(item) {
+                return item.id === deleteActionId;
+            });
 
-        if (
-            currentChat &&
-            Array.isArray(
-                currentChat.messages
-            )
-        ) {
-
-            const messageIndex =
-                currentChat.messages.findIndex(
-                    function(item) {
-
-                        return (
-                            item.id ===
-                            deleteActionId
-                        );
-
-                    }
-                );
-
-
-            if (
-                messageIndex !==
-                -1
-            ) {
-
-                currentChat.messages.splice(
-                    messageIndex,
-                    1
-                );
-
-
-                if (
-                    replyingToMessage &&
-                    replyingToMessage.id ===
-                    deleteActionId
-                ) {
-
-                    cancelReply();
-
-                }
-
-
-                if (
-                    editingMessage &&
-                    editingMessage.id ===
-                    deleteActionId
-                ) {
-
-                    cancelEditMessage();
-
-                }
-
-
-                updateChatLastMessage(
-                    currentChat
-                );
-
-
+            if (messageIndex !== -1) {
+                currentChat.messages.splice(messageIndex, 1);
+                if (replyingToMessage && replyingToMessage.id === deleteActionId) cancelReply();
+                if (editingMessage && editingMessage.id === deleteActionId) cancelEditMessage();
+                updateChatLastMessage(currentChat);
                 renderMessages();
-
-
-                if (
-                    currentChatType ===
-                    "individual"
-                ) {
-
-                    renderIndividualChats();
-
-                }
-                else {
-
-                    renderGroups();
-
-                }
-
-
+                renderIndividualChats();
                 scrollMessagesToBottom();
-
             }
-
         }
 
     }
-    else if (
-        deleteActionType ===
-        "member"
-    ) {
-
-        if (currentGroup) {
-
-            currentGroup.members =
-                currentGroup.members.filter(
-                    function(member) {
-
-                        return (
-                            member.id !==
-                            deleteActionId
-                        );
-
-                    }
-                );
-
-
-            if (
-                selectedGroupMember &&
-                selectedGroupMember.id ===
-                deleteActionId
-            ) {
-
-                selectedGroupMember =
-                    null;
-
-            }
-
-
-            renderGroupInfoMembers();
-
-
-            const memberCountElement =
-                supportChatElement(
-                    "groupInfoMemberCount"
-                );
-
-
-            if (memberCountElement) {
-
-                memberCountElement.textContent =
-                    currentGroup.members.length +
-                    " members";
-
-            }
-
-
-            renderCurrentChat();
-
-
-            renderGroups();
-
-        }
-
-    }
-
 
     updateUnreadCounts();
-
-
     closeDeleteConfirmation();
 
 }
+
 
 
 // ======================================================
@@ -15073,22 +10853,12 @@ window.toggleAttachmentMenu = toggleAttachmentMenu;
 window.attachPhoto = attachPhoto;
 window.attachDocument = attachDocument;
 window.attachCamera = attachCamera;
-window.chooseGroupPhoto = chooseGroupPhoto;
 
 window.startVoiceMessage = startVoiceMessage;
-
-window.openGroupInfo = openGroupInfo;
-window.closeGroupInfo = closeGroupInfo;
-window.openGroupSettings = openGroupSettings;
-window.closeGroupSettings = closeGroupSettings;
-window.saveGroupSettings = saveGroupSettings;
-window.editGroupInformation = editGroupInformation;
 window.openAddMembers = openAddMembers;
-window.submitGroupModal = submitGroupModal;
 
 window.viewMemberProfile = viewMemberProfile;
 window.toggleMemberAdmin = toggleMemberAdmin;
-window.removeMemberFromGroup = removeMemberFromGroup;
 window.closeMemberActions = closeMemberActions;
 
 window.openCurrentProfile = openCurrentProfile;
@@ -15098,7 +10868,6 @@ window.viewFullUserProfile = viewFullUserProfile;
 
 
 window.deleteCurrentChat = deleteCurrentChat;
-window.deleteCurrentGroup = deleteCurrentGroup;
 window.confirmDeleteAction = confirmDeleteAction;
 window.closeDeleteConfirmation = closeDeleteConfirmation;
 
@@ -15616,7 +11385,7 @@ function refreshChatSelectionUI() {
 
     if (chatSelectionType === "group") {
 
-        renderGroups();
+        renderIndividualChats();
 
     }
     else {
@@ -15667,7 +11436,7 @@ function exitChatSelectionMode() {
 
     renderIndividualChats();
 
-    renderGroups();
+    renderIndividualChats();
 
 }
 
@@ -15676,92 +11445,30 @@ function exitChatSelectionMode() {
 // OPEN CHAT ACTIONS MODAL
 // ======================================================
 
-function openChatActionsModal(
-    anchorChatId,
-    chatType
-) {
+function openChatActionsModal(anchorChatId) {
 
-    const modal =
-        supportChatElement(
-            "chatActionsModal"
-        );
+    const modal = supportChatElement("chatActionsModal");
+    if (!modal) return;
 
+    const anchorChat = findIndividualChat(anchorChatId);
+    const titleElement = supportChatElement("chatActionsTitle");
+    const priorityButton = supportChatElement("chatActionsPriorityBtn");
 
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    const anchorChat =
-        chatType === "group"
-            ? findSupportGroup(
-                anchorChatId
-              )
-            : findIndividualChat(
-                anchorChatId
-              );
-
-
-    const titleElement =
-        supportChatElement(
-            "chatActionsTitle"
-        );
-
-    const priorityButton =
-        supportChatElement(
-            "chatActionsPriorityBtn"
-        );
-
-
-    if (
-        titleElement &&
-        anchorChat
-    ) {
-
-        titleElement.textContent =
-            anchorChat.name;
-
-    }
-
+    if (titleElement && anchorChat) titleElement.textContent = anchorChat.name;
 
     if (priorityButton) {
-
-        if (
-            chatType === "group"
-        ) {
-
-            priorityButton.classList.add(
-                "hidden"
-            );
-
-        } else {
-
-            priorityButton.classList.remove(
-                "hidden"
-            );
-
-            if (anchorChat) {
-
-                priorityButton.innerHTML =
-
-                    anchorChat.priority
-                        ? '<i class="fa-solid fa-star"></i> Remove from Priority'
-                        : '<i class="fa-solid fa-star"></i> Add to Priority';
-
-            }
-
+        priorityButton.classList.remove("hidden");
+        if (anchorChat) {
+            priorityButton.innerHTML = anchorChat.priority
+                ? '<i class="fa-solid fa-star"></i> Remove from Priority'
+                : '<i class="fa-solid fa-star"></i> Add to Priority';
         }
-
     }
 
-
-    modal.classList.remove(
-        "hidden"
-    );
+    modal.classList.remove("hidden");
 
 }
+
 
 
 // ======================================================
@@ -15854,46 +11561,18 @@ function chooseBulkDeleteMode() {
 function chooseBulkPriorityMode() {
 
     if (selectedChatIds.length === 0) {
-
         closeChatActionsModal();
-
         return;
-
     }
 
-
-    // groups have no priority concept —
-    // only individual chats can be prioritized
-    if (chatSelectionType === "group") {
-
-        closeChatActionsModal();
-
-        return;
-
-    }
-
-
-    const anchorChat =
-        findIndividualChat(
-            selectedChatIds[0]
-        );
-
-
-    pendingBulkAction =
-        "priority";
-
-    pendingPriorityMode =
-        anchorChat && anchorChat.priority
-            ? "remove"
-            : "add";
-
-
+    const anchorChat = findIndividualChat(selectedChatIds[0]);
+    pendingBulkAction = "priority";
+    pendingPriorityMode = anchorChat && anchorChat.priority ? "remove" : "add";
     hideChatActionsModal();
-
-
     refreshChatSelectionUI();
 
 }
+
 
 
 // ======================================================
@@ -15937,8 +11616,6 @@ function confirmPrioritySelectedChats() {
 
     priorityActionValue =
         newPriority;
-
-    
 
 
     const count =
@@ -16102,105 +11779,29 @@ function confirmPriorityAction() {
 function confirmDeleteSelectedChats() {
 
     if (selectedChatIds.length === 0) {
-
         closeChatActionsModal();
-
         return;
-
     }
-
 
     hideChatActionsModal();
+    deleteActionType = "bulkChats";
+    deleteActionIds = [...selectedChatIds];
+    deleteActionChatType = "individual";
 
+    const count = selectedChatIds.length;
+    const noun = count === 1 ? "conversation" : "conversations";
+    const titleElement = supportChatElement("deleteConfirmTitle");
+    const textElement = supportChatElement("deleteConfirmText");
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const modal = supportChatElement("deleteConfirmModal");
 
-    deleteActionType =
-        "bulkChats";
-
-    deleteActionIds =
-        [...selectedChatIds];
-
-    deleteActionChatType =
-        chatSelectionType;
-
-
-    const count =
-        selectedChatIds.length;
-
-    const noun =
-        chatSelectionType === "group"
-            ? (
-                count === 1
-                    ? "group"
-                    : "groups"
-              )
-            : (
-                count === 1
-                    ? "conversation"
-                    : "conversations"
-              );
-
-
-    const titleElement =
-        supportChatElement(
-            "deleteConfirmTitle"
-        );
-
-    const textElement =
-        supportChatElement(
-            "deleteConfirmText"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            "Delete " +
-            count +
-            " " +
-            noun +
-            "?";
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            "This will permanently delete the selected " +
-            noun +
-            ". This action cannot be undone.";
-
-    }
-
-      const confirmBtn =
-        supportChatElement(
-            "confirmDeleteBtn"
-        );
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            "Delete";
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
+    if (titleElement) titleElement.textContent = "Delete " + count + " " + noun + "?";
+    if (textElement) textElement.textContent = "This will permanently delete the selected " + noun + ". This action cannot be undone.";
+    if (confirmBtn) confirmBtn.textContent = "Delete";
+    if (modal) modal.classList.remove("hidden");
 
 }
+
 
 // ======================================================
 // CANCEL SELECTION ON OUTSIDE CLICK
