@@ -7,6 +7,39 @@
 // ======================================================
 // 1. GLOBAL STATE
 // ======================================================
+// ======================================================
+// LONG-PRESS CHAT SETTINGS
+// ======================================================
+
+const CHAT_LONG_PRESS_DURATION = 500;
+// milliseconds to hold before it counts as a long-press
+
+const CHAT_LONG_PRESS_MOVE_TOLERANCE = 10;
+// pixels of movement allowed before long-press is cancelled
+// ======================================================
+// INDIVIDUAL CHAT DELETE ACTION STATE
+// ======================================================
+
+
+
+
+// ======================================================
+// INDIVIDUAL CHAT PRIORITY ACTION STATE
+// ======================================================
+
+
+
+// ======================================================
+// INDIVIDUAL CHAT MULTI-SELECT STATE
+// =====================================================
+
+
+
+// ======================================================
+// INDIVIDUAL CHAT LONG-PRESS SETTINGS
+// ======================================================
+
+
 
 // =========================================================
 // PIN MESSAGE SELECTION STATE
@@ -10855,7 +10888,6 @@ window.attachDocument = attachDocument;
 window.attachCamera = attachCamera;
 
 window.startVoiceMessage = startVoiceMessage;
-window.openAddMembers = openAddMembers;
 
 window.viewMemberProfile = viewMemberProfile;
 window.toggleMemberAdmin = toggleMemberAdmin;
@@ -10881,14 +10913,7 @@ window.closeDeleteConfirmation = closeDeleteConfirmation;
 // at once)
 // ==========================================================================
 
-const CHAT_LONG_PRESS_DURATION =
-    500;
-// milliseconds to hold before it counts as a long-press
 
-const CHAT_LONG_PRESS_MOVE_TOLERANCE =
-    10;
-// pixels of finger/mouse movement allowed before a
-// long-press is cancelled (treated as a scroll/drag)
 
 
 // ======================================================
@@ -11879,6 +11904,35 @@ window.confirmPriorityAction = confirmPriorityAction;
 window.deleteChatFromProfile = deleteChatFromProfile;
 
 
+// ======================================================
+// GLOBAL ACCESS — INDIVIDUAL CHAT SELECTION ACTIONS
+// ======================================================
+
+window.exitChatSelectionMode =
+    exitChatSelectionMode;
+
+window.closeChatActionsModal =
+    closeChatActionsModal;
+
+window.chooseBulkDeleteMode =
+    chooseBulkDeleteMode;
+
+window.chooseBulkPriorityMode =
+    chooseBulkPriorityMode;
+
+window.confirmDeleteSelectedChats =
+    confirmDeleteSelectedChats;
+
+window.confirmPrioritySelectedChats =
+    confirmPrioritySelectedChats;
+
+window.closePriorityConfirmation =
+    closePriorityConfirmation;
+
+window.confirmPriorityAction =
+    confirmPriorityAction;
+
+
 // ==========================================================================
 // SUPPORT CHAT SYSTEM
 // STAGE 13 — SELF-INITIALIZATION
@@ -11956,3 +12010,1088 @@ window.deleteChatFromProfile = deleteChatFromProfile;
     }
 
 })();
+
+// ======================================================
+// ATTACH CHAT PRESS HANDLERS
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function attachChatPressHandlers(
+    item,
+    chatId,
+    chatType,
+    onTap
+) {
+
+    let pressTimer =
+        null;
+
+    let pressFired =
+        false;
+
+    let pressStartX =
+        0;
+
+    let pressStartY =
+        0;
+
+
+    function clearPressTimer() {
+
+        if (pressTimer) {
+
+            clearTimeout(
+                pressTimer
+            );
+
+            pressTimer =
+                null;
+
+        }
+
+    }
+
+
+    function startPress(
+        clientX,
+        clientY
+    ) {
+
+        clearPressTimer();
+
+        pressFired =
+            false;
+
+        pressStartX =
+            clientX;
+
+        pressStartY =
+            clientY;
+
+
+        pressTimer =
+            setTimeout(
+                function() {
+
+                    pressFired =
+                        true;
+
+                    pressTimer =
+                        null;
+
+
+                    handleChatLongPress(
+                        chatId,
+                        "individual"
+                    );
+
+                },
+                CHAT_LONG_PRESS_DURATION
+            );
+
+    }
+
+
+    function endPress() {
+
+        clearPressTimer();
+
+    }
+
+
+    item.addEventListener(
+        "mousedown",
+        function(event) {
+
+            startPress(
+                event.clientX,
+                event.clientY
+            );
+
+        }
+    );
+
+
+    item.addEventListener(
+        "mouseup",
+        endPress
+    );
+
+
+    item.addEventListener(
+        "mouseleave",
+        endPress
+    );
+
+
+    item.addEventListener(
+        "touchstart",
+        function(event) {
+
+            const touch =
+                event.touches[0];
+
+
+            startPress(
+                touch.clientX,
+                touch.clientY
+            );
+
+        },
+        {
+            passive: true
+        }
+    );
+
+
+    item.addEventListener(
+        "touchend",
+        endPress
+    );
+
+
+    item.addEventListener(
+        "touchcancel",
+        endPress
+    );
+
+
+    item.addEventListener(
+        "touchmove",
+        function(event) {
+
+            const touch =
+                event.touches[0];
+
+
+            const movedX =
+                Math.abs(
+                    touch.clientX -
+                    pressStartX
+                );
+
+
+            const movedY =
+                Math.abs(
+                    touch.clientY -
+                    pressStartY
+                );
+
+
+            if (
+                movedX >
+                    CHAT_LONG_PRESS_MOVE_TOLERANCE ||
+
+                movedY >
+                    CHAT_LONG_PRESS_MOVE_TOLERANCE
+            ) {
+
+                endPress();
+
+            }
+
+        },
+        {
+            passive: true
+        }
+    );
+
+
+    item.addEventListener(
+        "click",
+        function(event) {
+
+            event.preventDefault();
+
+
+            if (pressFired) {
+
+                pressFired =
+                    false;
+
+                return;
+
+            }
+
+
+            if (chatSelectionMode) {
+
+                toggleChatSelection(
+                    chatId,
+                    "individual"
+                );
+
+                return;
+
+            }
+
+
+            onTap();
+
+        }
+    );
+
+}
+
+
+// ======================================================
+// HANDLE CHAT LONG PRESS
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function handleChatLongPress(
+    chatId,
+    chatType
+) {
+
+    chatType =
+        "individual";
+
+
+    if (
+        chatSelectionMode &&
+        chatSelectionType !== "individual"
+    ) {
+
+        exitChatSelectionMode();
+
+    }
+
+
+    chatSelectionMode =
+        true;
+
+    chatSelectionType =
+        "individual";
+
+
+    if (
+        !selectedChatIds.includes(
+            chatId
+        )
+    ) {
+
+        selectedChatIds.push(
+            chatId
+        );
+
+    }
+
+
+    refreshChatSelectionUI();
+
+
+    /*
+     * Only show the delete/priority chooser
+     * on the FIRST long-press.
+     *
+     * Additional long-pressed chats are
+     * simply added to the selection.
+     */
+
+    if (
+        pendingBulkAction === null
+    ) {
+
+        openChatActionsModal(
+            chatId,
+            "individual"
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// TOGGLE CHAT SELECTION
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function toggleChatSelection(
+    chatId,
+    chatType
+) {
+
+    if (
+        chatType !==
+        "individual"
+    ) {
+
+        return;
+
+    }
+
+
+    const index =
+        selectedChatIds.indexOf(
+            chatId
+        );
+
+
+    if (index === -1) {
+
+        selectedChatIds.push(
+            chatId
+        );
+
+    }
+    else {
+
+        selectedChatIds.splice(
+            index,
+            1
+        );
+
+    }
+
+
+    if (
+        selectedChatIds.length === 0
+    ) {
+
+        exitChatSelectionMode();
+
+        return;
+
+    }
+
+
+    refreshChatSelectionUI();
+
+}
+
+
+// ======================================================
+// REFRESH CHAT SELECTION UI
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function refreshChatSelectionUI() {
+
+    const bar =
+        supportChatElement(
+            "chatSelectionBar"
+        );
+
+
+    const countLabel =
+        supportChatElement(
+            "chatSelectionCount"
+        );
+
+
+    if (bar) {
+
+        if (
+            chatSelectionMode &&
+            selectedChatIds.length > 0
+        ) {
+
+            bar.classList.remove(
+                "hidden"
+            );
+
+        }
+        else {
+
+            bar.classList.add(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+    if (countLabel) {
+
+        countLabel.textContent =
+            selectedChatIds.length +
+            (
+                selectedChatIds.length === 1
+                    ? " selected"
+                    : " selected"
+            );
+
+    }
+
+
+    const headerPriorityBtn =
+        supportChatElement(
+            "chatSelectionPriorityBtn"
+        );
+
+
+    const headerDeleteBtn =
+        supportChatElement(
+            "chatSelectionDeleteBtn"
+        );
+
+
+    if (headerPriorityBtn) {
+
+        const hidePriorityBtn =
+            pendingBulkAction ===
+            "delete";
+
+
+        if (hidePriorityBtn) {
+
+            headerPriorityBtn.classList.add(
+                "hidden"
+            );
+
+        }
+        else {
+
+            headerPriorityBtn.classList.remove(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+    if (headerDeleteBtn) {
+
+        const hideDeleteBtn =
+            pendingBulkAction ===
+            "priority";
+
+
+        if (hideDeleteBtn) {
+
+            headerDeleteBtn.classList.add(
+                "hidden"
+            );
+
+        }
+        else {
+
+            headerDeleteBtn.classList.remove(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+    renderIndividualChats();
+
+}
+
+
+// ======================================================
+// EXIT CHAT SELECTION MODE
+// ======================================================
+
+function exitChatSelectionMode() {
+
+    chatSelectionMode =
+        false;
+
+    chatSelectionType =
+        null;
+
+    selectedChatIds =
+        [];
+
+    pendingBulkAction =
+        null;
+
+    pendingPriorityMode =
+        null;
+
+
+    const bar =
+        supportChatElement(
+            "chatSelectionBar"
+        );
+
+
+    if (bar) {
+
+        bar.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    renderIndividualChats();
+
+}
+
+
+// ======================================================
+// OPEN CHAT ACTIONS MODAL
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function openChatActionsModal(
+    anchorChatId
+) {
+
+    const modal =
+        supportChatElement(
+            "chatActionsModal"
+        );
+
+
+    if (!modal) {
+
+        return;
+
+    }
+
+
+    const anchorChat =
+        findIndividualChat(
+            anchorChatId
+        );
+
+
+    const titleElement =
+        supportChatElement(
+            "chatActionsTitle"
+        );
+
+
+    const priorityButton =
+        supportChatElement(
+            "chatActionsPriorityBtn"
+        );
+
+
+    if (
+        titleElement &&
+        anchorChat
+    ) {
+
+        titleElement.textContent =
+            anchorChat.name;
+
+    }
+
+
+    if (priorityButton) {
+
+        priorityButton.classList.remove(
+            "hidden"
+        );
+
+
+        if (anchorChat) {
+
+            priorityButton.innerHTML =
+                anchorChat.priority
+
+                    ? '<i class="fa-solid fa-star"></i> Remove from Priority'
+
+                    : '<i class="fa-solid fa-star"></i> Add to Priority';
+
+        }
+
+    }
+
+
+    modal.classList.remove(
+        "hidden"
+    );
+
+}
+
+
+// ======================================================
+// CLOSE CHAT ACTIONS MODAL
+// ======================================================
+
+function closeChatActionsModal() {
+
+    const modal =
+        supportChatElement(
+            "chatActionsModal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    exitChatSelectionMode();
+
+}
+
+
+// ======================================================
+// HIDE CHAT ACTIONS MODAL
+// WITHOUT CLEARING SELECTION
+// ======================================================
+
+function hideChatActionsModal() {
+
+    const modal =
+        supportChatElement(
+            "chatActionsModal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.add(
+            "hidden"
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// CHOOSE BULK DELETE MODE
+// ======================================================
+
+function chooseBulkDeleteMode() {
+
+    if (
+        selectedChatIds.length === 0
+    ) {
+
+        closeChatActionsModal();
+
+        return;
+
+    }
+
+
+    pendingBulkAction =
+        "delete";
+
+    pendingPriorityMode =
+        null;
+
+
+    hideChatActionsModal();
+
+
+    refreshChatSelectionUI();
+
+}
+
+
+// ======================================================
+// CHOOSE BULK PRIORITY MODE
+// ======================================================
+
+function chooseBulkPriorityMode() {
+
+    if (
+        selectedChatIds.length === 0
+    ) {
+
+        closeChatActionsModal();
+
+        return;
+
+    }
+
+
+    const anchorChat =
+        findIndividualChat(
+            selectedChatIds[0]
+        );
+
+
+    pendingBulkAction =
+        "priority";
+
+
+    pendingPriorityMode =
+        anchorChat &&
+        anchorChat.priority
+
+            ? "remove"
+
+            : "add";
+
+
+    hideChatActionsModal();
+
+
+    refreshChatSelectionUI();
+
+}
+
+
+// ======================================================
+// CONFIRM PRIORITY SELECTED CHATS
+// ======================================================
+
+function confirmPrioritySelectedChats() {
+
+    if (
+        selectedChatIds.length === 0
+    ) {
+
+        return;
+
+    }
+
+
+    const anchorChat =
+        findIndividualChat(
+            selectedChatIds[0]
+        );
+
+
+    const newPriority =
+        anchorChat
+            ? !anchorChat.priority
+            : true;
+
+
+    priorityActionIds =
+        [
+            ...selectedChatIds
+        ];
+
+
+    priorityActionValue =
+        newPriority;
+
+
+    const count =
+        selectedChatIds.length;
+
+
+    const noun =
+        count === 1
+            ? "conversation"
+            : "conversations";
+
+
+    const actionWord =
+        newPriority
+            ? "Add"
+            : "Remove";
+
+
+    const actionPrep =
+        newPriority
+            ? "to"
+            : "from";
+
+
+    const titleElement =
+        supportChatElement(
+            "priorityConfirmTitle"
+        );
+
+
+    const textElement =
+        supportChatElement(
+            "priorityConfirmText"
+        );
+
+
+    const confirmBtn =
+        supportChatElement(
+            "confirmPriorityBtn"
+        );
+
+
+    if (titleElement) {
+
+        titleElement.textContent =
+            actionWord +
+            " " +
+            count +
+            " " +
+            noun +
+            " " +
+            actionPrep +
+            " Priority?";
+
+    }
+
+
+    if (textElement) {
+
+        textElement.textContent =
+            newPriority
+
+                ? "The selected " +
+                  noun +
+                  " will be marked as priority."
+
+                : "The selected " +
+                  noun +
+                  " will be removed from priority.";
+
+    }
+
+
+    if (confirmBtn) {
+
+        confirmBtn.textContent =
+            actionWord;
+
+    }
+
+
+    const modal =
+        supportChatElement(
+            "priorityConfirmModal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove(
+            "hidden"
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// CLOSE PRIORITY CONFIRMATION
+// ======================================================
+
+function closePriorityConfirmation() {
+
+    const modal =
+        supportChatElement(
+            "priorityConfirmModal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+    priorityActionIds =
+        [];
+
+
+    priorityActionValue =
+        null;
+
+}
+
+
+// ======================================================
+// CONFIRM PRIORITY ACTION
+// ======================================================
+
+function confirmPriorityAction() {
+
+    individualChats.forEach(
+        function(chat) {
+
+            if (
+                priorityActionIds.includes(
+                    chat.id
+                )
+            ) {
+
+                chat.priority =
+                    priorityActionValue;
+
+            }
+
+        }
+    );
+
+
+    exitChatSelectionMode();
+
+
+    closePriorityConfirmation();
+
+
+    renderIndividualChats();
+
+}
+
+
+// ======================================================
+// CONFIRM DELETE SELECTED CHATS
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function confirmDeleteSelectedChats() {
+
+    if (
+        selectedChatIds.length === 0
+    ) {
+
+        closeChatActionsModal();
+
+        return;
+
+    }
+
+
+    hideChatActionsModal();
+
+
+    deleteActionType =
+        "bulkChats";
+
+
+    deleteActionIds =
+        [
+            ...selectedChatIds
+        ];
+
+
+    deleteActionChatType =
+        "individual";
+
+
+    const count =
+        selectedChatIds.length;
+
+
+    const noun =
+        count === 1
+            ? "conversation"
+            : "conversations";
+
+
+    const titleElement =
+        supportChatElement(
+            "deleteConfirmTitle"
+        );
+
+
+    const textElement =
+        supportChatElement(
+            "deleteConfirmText"
+        );
+
+
+    if (titleElement) {
+
+        titleElement.textContent =
+            "Delete " +
+            count +
+            " " +
+            noun +
+            "?";
+
+    }
+
+
+    if (textElement) {
+
+        textElement.textContent =
+            "This will permanently delete the selected " +
+            noun +
+            ". This action cannot be undone.";
+
+    }
+
+
+    const confirmBtn =
+        supportChatElement(
+            "confirmDeleteBtn"
+        );
+
+
+    if (confirmBtn) {
+
+        confirmBtn.textContent =
+            "Delete";
+
+    }
+
+
+    const modal =
+        supportChatElement(
+            "deleteConfirmModal"
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove(
+            "hidden"
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// SETUP CHAT SELECTION OUTSIDE CLICK
+// INDIVIDUAL CHAT ONLY
+// ======================================================
+
+function setupChatSelectionOutsideClick() {
+
+    document.addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                !chatSelectionMode
+            ) {
+
+                return;
+
+            }
+
+
+            const isInsideSelectionUI =
+                event.target.closest(
+                    "#chatSelectionBar, " +
+                    "#chatActionsModal, " +
+                    "#deleteConfirmModal, " +
+                    "#priorityConfirmModal, " +
+                    ".chat-list-item"
+                );
+
+
+            if (
+                isInsideSelectionUI
+            ) {
+
+                return;
+
+            }
+
+
+            exitChatSelectionMode();
+
+
+            closeChatActionsModal();
+
+
+            closeDeleteConfirmation();
+
+
+            closePriorityConfirmation();
+
+        },
+        true
+    );
+
+}
