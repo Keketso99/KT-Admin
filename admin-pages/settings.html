@@ -316,7 +316,7 @@
         </div>
 
 
-        <!-- SEARCH / FILTER -->
+        <!-- SEARCH -->
 
         <div class="settings-toolbar">
 
@@ -331,64 +331,6 @@
                     oninput="filterSettingsVideos()">
 
             </div>
-
-
-            <select
-                id="videoCategoryFilter"
-                onchange="filterSettingsVideos()">
-
-                <option value="all">
-                    All Categories
-                </option>
-
-                <option value="getting-started">
-                    Getting Started
-                </option>
-
-                <option value="mining">
-                    Mining
-                </option>
-
-                <option value="wallet">
-                    Wallet
-                </option>
-
-                <option value="deposits">
-                    Deposits
-                </option>
-
-                <option value="withdrawals">
-                    Withdrawals
-                </option>
-
-                <option value="security">
-                    Security
-                </option>
-
-                <option value="other">
-                    Other
-                </option>
-
-            </select>
-
-
-            <select
-                id="videoStatusFilter"
-                onchange="filterSettingsVideos()">
-
-                <option value="all">
-                    All Status
-                </option>
-
-                <option value="active">
-                    Active
-                </option>
-
-                <option value="inactive">
-                    Inactive
-                </option>
-
-            </select>
 
         </div>
 
@@ -496,15 +438,15 @@
                 onchange="filterSettingsGuides()">
 
                 <option value="all">
-                    All Status
+                    All Types
                 </option>
 
-                <option value="active">
-                    Active
+                <option value="photo">
+                    Photo
                 </option>
 
-                <option value="inactive">
-                    Inactive
+                <option value="video">
+                    Video
                 </option>
 
             </select>
@@ -575,25 +517,6 @@
                     oninput="filterSettingsDownloads()">
 
             </div>
-
-
-            <select
-                id="downloadStatusFilter"
-                onchange="filterSettingsDownloads()">
-
-                <option value="all">
-                    All Status
-                </option>
-
-                <option value="active">
-                    Active
-                </option>
-
-                <option value="inactive">
-                    Inactive
-                </option>
-
-            </select>
 
         </div>
 
@@ -678,80 +601,6 @@
                 </div>
 
 
-                <div class="settings-form-row">
-
-
-                    <div class="settings-form-group">
-
-                        <label for="videoCategory">
-                            Category
-                        </label>
-
-                        <select
-                            id="videoCategory"
-                            required>
-
-                            <option value="">
-                                Select Category
-                            </option>
-
-                            <option value="getting-started">
-                                Getting Started
-                            </option>
-
-                            <option value="mining">
-                                Mining
-                            </option>
-
-                            <option value="wallet">
-                                Wallet
-                            </option>
-
-                            <option value="deposits">
-                                Deposits
-                            </option>
-
-                            <option value="withdrawals">
-                                Withdrawals
-                            </option>
-
-                            <option value="security">
-                                Security
-                            </option>
-
-                            <option value="other">
-                                Other
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                    <div class="settings-form-group">
-
-                        <label for="videoStatus">
-                            Status
-                        </label>
-
-                        <select
-                            id="videoStatus">
-
-                            <option value="active">
-                                Active
-                            </option>
-
-                            <option value="inactive">
-                                Inactive
-                            </option>
-
-                        </select>
-
-                    </div>
-
-                </div>
-
-
                 <div class="settings-form-group">
 
                     <label for="videoDescription">
@@ -769,25 +618,6 @@
 
                 <div class="settings-form-group">
 
-                    <label for="videoUrl">
-                        Video URL
-                    </label>
-
-                    <input
-                        type="url"
-                        id="videoUrl"
-                        placeholder="https://...">
-
-                    <small>
-                        You can use a hosted video URL or supported
-                        video platform URL.
-                    </small>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
                     <label for="videoFile">
                         Video File
                     </label>
@@ -796,10 +626,6 @@
                         type="file"
                         id="videoFile"
                         accept="video/*">
-
-                    <small>
-                        Upload a video file if you are not using a URL.
-                    </small>
 
                 </div>
 
@@ -814,21 +640,6 @@
                         type="file"
                         id="videoThumbnail"
                         accept="image/*">
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="videoOrder">
-                        Display Order
-                    </label>
-
-                    <input
-                        type="number"
-                        id="videoOrder"
-                        min="0"
-                        value="0">
 
                 </div>
 
@@ -977,14 +788,14 @@
                             Status
                         </label>
 
-                        <select id="guideStatus">
+                        <select id="guideStatus" onchange="toggleGuideMediaField()">
 
-                            <option value="active">
-                                Active
+                            <option value="photo">
+                                Photo
                             </option>
 
-                            <option value="inactive">
-                                Inactive
+                            <option value="video">
+                                Video
                             </option>
 
                         </select>
@@ -994,37 +805,7 @@
                 </div>
 
 
-                <div class="settings-form-group">
-
-                    <label for="guideDescription">
-                        Short Description
-                    </label>
-
-                    <textarea
-                        id="guideDescription"
-                        rows="3"
-                        placeholder="Enter a short description...">
-                    </textarea>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="guideContent">
-                        Guide Content
-                    </label>
-
-                    <textarea
-                        id="guideContent"
-                        rows="8"
-                        placeholder="Write the guide content here...">
-                    </textarea>
-
-                </div>
-
-
-                <div class="settings-form-group">
+                <div class="settings-form-group" id="guidePhotoField">
 
                     <label for="guideImage">
                         Guide Photo
@@ -1038,31 +819,16 @@
                 </div>
 
 
-                <div class="settings-form-group">
+                <div class="settings-form-group" id="guideVideoField" style="display:none;">
 
-                    <label for="guideVideo">
+                    <label for="guideVideoFile">
                         Guide Video
                     </label>
 
                     <input
-                        type="url"
-                        id="guideVideo"
-                        placeholder="Video URL (optional)">
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="guideOrder">
-                        Display Order
-                    </label>
-
-                    <input
-                        type="number"
-                        id="guideOrder"
-                        min="0"
-                        value="0">
+                        type="file"
+                        id="guideVideoFile"
+                        accept="video/*">
 
                 </div>
 
@@ -1169,27 +935,6 @@
 
                 <div class="settings-form-group">
 
-                    <label for="downloadStatus">
-                        Status
-                    </label>
-
-                    <select id="downloadStatus">
-
-                        <option value="active">
-                            Active
-                        </option>
-
-                        <option value="inactive">
-                            Inactive
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
                     <label for="downloadDescription">
                         Description
                     </label>
@@ -1217,39 +962,6 @@
                     <small>
                         Select the PDF users will be able to download.
                     </small>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="downloadUrl">
-                        File URL
-                    </label>
-
-                    <input
-                        type="url"
-                        id="downloadUrl"
-                        placeholder="https://...">
-
-                    <small>
-                        Alternatively, provide a hosted PDF URL.
-                    </small>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="downloadOrder">
-                        Display Order
-                    </label>
-
-                    <input
-                        type="number"
-                        id="downloadOrder"
-                        min="0"
-                        value="0">
 
                 </div>
 
@@ -1356,6 +1068,13 @@
         </div>
 
     </div>
+
+
+    <!-- =====================================================
+         TOAST
+         ===================================================== -->
+
+    <div id="settingsToast" class="settings-toast"></div>
 
 
 </div>

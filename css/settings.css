@@ -1727,3 +1727,35 @@
     }
 
 }
+
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+
+.settings-toast {
+
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translate(-50%, 20px);
+    background: #1f2937;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 9999;
+
+}
+
+.settings-toast.show {
+
+    opacity: 1;
+    transform: translate(-50%, 0);
+
+}
