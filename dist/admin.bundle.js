@@ -22244,22 +22244,21 @@ window.deleteChatFromProfile = deleteChatFromProfile;
    KT CLOUD MINING ADMIN
    SETTINGS / CONTENT MANAGEMENT — wired to real Supabase
    tables + Storage (bucket: "content")
+
+   Three content types managed here:
+   - videos          -> "Educational Videos" -> user app /videos (film icon page)
+   - content_guides  -> "Guides" -> Help & Support placeholders
+   - content_downloads -> "Downloads" -> Help & Support downloads section (PDF only)
    ========================================================= */
 
 let settingsVideos = [];
 let settingsGuides = [];
-let settingsTutorials = [];
 let settingsDownloads = [];
-let settingsMedia = [];
 
 
 /* =========================================================
    SHARED HELPERS
    ========================================================= */
-
-function generateSettingsId(prefix) {
-    return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-}
 
 function escapeSettingsHTML(str) {
     const div = document.createElement("div");
@@ -22358,47 +22357,17 @@ function loadSettingsData() {
             }
         });
 
-    sb.from("content_tutorials").select("*").order("sort_order")
-        .then(({ data, error }) => {
-            if (!error) {
-                settingsTutorials = data.map(t => ({
-                    id: t.id, title: t.title, category: t.category,
-                    status: t.status, description: t.description,
-                    content: t.content, video: t.video_url,
-                    images: t.images || [], order: t.sort_order
-                }));
-                renderSettingsTutorials();
-                renderSettingsOverview();
-            }
-        });
-
     sb.from("content_downloads").select("*").order("sort_order")
         .then(({ data, error }) => {
             if (!error) {
                 settingsDownloads = data.map(d => ({
-                    id: d.id, title: d.title, category: d.category,
+                    id: d.id, title: d.title,
                     status: d.status, description: d.description,
                     url: d.file_url, fileName: d.file_name,
                     fileType: d.file_type, fileSize: d.file_size,
                     order: d.sort_order
                 }));
                 renderSettingsDownloads();
-                renderSettingsOverview();
-            }
-        });
-
-    sb.from("content_media").select("*").order("created_at", { ascending: false })
-        .then(({ data, error }) => {
-            if (!error) {
-                settingsMedia = data.map(m => ({
-                    id: m.id, title: m.title, type: m.type,
-                    description: m.description, usage: m.usage,
-                    fileName: m.file_name, fileType: m.file_type,
-                    fileSize: m.file_size, used: m.used,
-                    preview: m.type === "image" ? m.file_url : "",
-                    url: m.file_url
-                }));
-                renderSettingsMedia();
                 renderSettingsOverview();
             }
         });
@@ -22419,10 +22388,7 @@ function renderSettingsOverview() {
 
     set("settingsVideoCount", settingsVideos.length);
     set("settingsGuideCount", settingsGuides.length);
-    set("settingsTutorialCount", settingsTutorials.length);
     set("settingsDownloadCount", settingsDownloads.length);
-    set("settingsPhotoCount", settingsMedia.filter(m => m.type === "image").length);
-    set("settingsFileCount", settingsMedia.filter(m => m.type !== "image").length);
 
 }
 
@@ -22442,14 +22408,14 @@ function showSettingsTab(tabName) {
     const selectedSection = document.getElementById("settings-" + tabName);
     if (selectedSection) selectedSection.classList.add("active");
 
-    const selectedTab = document.querySelector('.settings-tab[data-tab="' + tabName + '"]');
+    const selectedTab = document.querySelector('.settings-tab[data-settings-tab="' + tabName + '"]');
     if (selectedTab) selectedTab.classList.add("active");
 
 }
 
 
 /* =========================================================
-   VIDEOS
+   VIDEOS  (Educational Videos -> user app /videos page)
    ========================================================= */
 
 function openAddVideoModal() {
@@ -22629,9 +22595,26 @@ function renderSettingsVideos(videos) {
 
 }
 
+function filterSettingsVideos() {
+
+    const search = (document.getElementById("videoSearchInput").value || "").toLowerCase();
+    const category = document.getElementById("videoCategoryFilter").value;
+    const status = document.getElementById("videoStatusFilter").value;
+
+    const filtered = settingsVideos.filter(v => {
+        const matchesSearch = !search || (v.title || "").toLowerCase().includes(search);
+        const matchesCategory = category === "all" || v.category === category;
+        const matchesStatus = status === "all" || v.status === status;
+        return matchesSearch && matchesCategory && matchesStatus;
+    });
+
+    renderSettingsVideos(filtered);
+
+}
+
 
 /* =========================================================
-   GUIDES
+   GUIDES  (Help & Support video/photo placeholders)
    ========================================================= */
 
 function openAddGuideModal() {
@@ -22787,178 +22770,26 @@ function renderSettingsGuides(guides) {
 
 }
 
+function filterSettingsGuides() {
 
-/* =========================================================
-   TUTORIALS
-   ========================================================= */
+    const search = (document.getElementById("guideSearchInput").value || "").toLowerCase();
+    const category = document.getElementById("guideCategoryFilter").value;
+    const status = document.getElementById("guideStatusFilter").value;
 
-function openAddTutorialModal() {
-
-    const modal = document.getElementById("settingsTutorialModal");
-    const form = document.getElementById("tutorialForm");
-
-    if (!modal) return;
-    if (form) form.reset();
-
-    document.getElementById("tutorialEditId").value = "";
-    document.getElementById("tutorialModalTitle").textContent = "Add Tutorial";
-
-    modal.classList.add("active");
-}
-
-function closeTutorialModal() {
-    document.getElementById("settingsTutorialModal").classList.remove("active");
-}
-
-function editSettingsTutorial(id) {
-
-    const tutorial = settingsTutorials.find(t => t.id === id);
-    if (!tutorial) return;
-
-    document.getElementById("tutorialEditId").value = tutorial.id;
-    document.getElementById("tutorialTitle").value = tutorial.title || "";
-    document.getElementById("tutorialCategory").value = tutorial.category || "";
-    document.getElementById("tutorialStatus").value = tutorial.status || "active";
-    document.getElementById("tutorialDescription").value = tutorial.description || "";
-    document.getElementById("tutorialContent").value = tutorial.content || "";
-    document.getElementById("tutorialVideo").value = tutorial.video || "";
-    document.getElementById("tutorialOrder").value = tutorial.order || 0;
-
-    document.getElementById("tutorialModalTitle").textContent = "Edit Tutorial";
-    document.getElementById("settingsTutorialModal").classList.add("active");
-
-}
-
-function saveSettingsTutorial(event) {
-
-    event.preventDefault();
-
-    const editId = document.getElementById("tutorialEditId").value;
-    const title = document.getElementById("tutorialTitle").value.trim();
-    const category = document.getElementById("tutorialCategory").value;
-
-    if (!title) { alert("Please enter a tutorial title."); return; }
-    if (!category) { alert("Please select a tutorial category."); return; }
-
-    const payload = {
-        title, category,
-        status: document.getElementById("tutorialStatus").value,
-        description: document.getElementById("tutorialDescription").value.trim(),
-        content: document.getElementById("tutorialContent").value.trim(),
-        video_url: document.getElementById("tutorialVideo").value.trim(),
-        sort_order: parseInt(document.getElementById("tutorialOrder").value) || 0
-    };
-
-    const imagesInput = document.getElementById("tutorialImages");
-    const existing = editId ? settingsTutorials.find(t => t.id === editId) : null;
-
-    Promise.resolve()
-
-        .then(() => {
-
-            if (imagesInput && imagesInput.files && imagesInput.files.length > 0) {
-
-                const uploads = Array.from(imagesInput.files).map(file =>
-                    uploadContentFile(file, "tutorials")
-                );
-
-                return Promise.all(uploads).then(urls => {
-                    payload.images = (existing ? existing.images : []).concat(urls);
-                });
-
-            } else {
-                payload.images = existing ? existing.images : [];
-            }
-
-        })
-
-        .then(() => {
-            if (editId) {
-                return sb.from("content_tutorials").update(payload).eq("id", editId);
-            } else {
-                return sb.from("content_tutorials").insert(payload);
-            }
-        })
-
-        .then(({ error }) => {
-
-            if (error) {
-                alert("Failed to save tutorial: " + error.message);
-                return;
-            }
-
-            loadSettingsData();
-            closeTutorialModal();
-            alert(editId ? "Tutorial updated successfully." : "Tutorial added successfully.");
-
-        })
-
-        .catch(error => alert("Upload failed: " + error.message));
-
-}
-
-function renderSettingsTutorials(tutorials) {
-
-    const container = document.getElementById("settingsTutorialList");
-    if (!container) return;
-
-    const list = tutorials || settingsTutorials;
-
-    if (list.length === 0) {
-        container.innerHTML =
-            '<div class="settings-empty-state">' +
-                '<i class="fa-solid fa-graduation-cap"></i>' +
-                '<h3>No Tutorials</h3>' +
-                '<p>Add step-by-step tutorials for users.</p>' +
-            '</div>';
-        return;
-    }
-
-    container.innerHTML = "";
-
-    list.forEach(tutorial => {
-
-        const item = document.createElement("div");
-        item.className = "settings-content-item";
-
-        const thumbnail = (tutorial.images && tutorial.images.length > 0)
-            ? '<img src="' + tutorial.images[0] + '" alt="Tutorial image">'
-            : '<i class="fa-solid fa-graduation-cap"></i>';
-
-        item.innerHTML =
-            '<div class="settings-content-thumbnail">' + thumbnail + '</div>' +
-            '<div class="settings-content-info">' +
-                '<h3 class="settings-content-title">' + escapeSettingsHTML(tutorial.title) + '</h3>' +
-                '<p class="settings-content-description">' +
-                    escapeSettingsHTML(tutorial.description || "No description available.") +
-                '</p>' +
-                '<div class="settings-content-meta">' +
-                    '<span class="settings-badge settings-badge-category">' +
-                        escapeSettingsHTML(formatSettingsCategory(tutorial.category)) +
-                    '</span>' +
-                    '<span class="settings-badge ' +
-                        (tutorial.status === "active" ? "settings-badge-active" : "settings-badge-inactive") +
-                    '">' + escapeSettingsHTML(capitalizeSettings(tutorial.status)) + '</span>' +
-                '</div>' +
-            '</div>' +
-            '<div class="settings-content-actions">' +
-                '<button type="button" class="settings-content-action" title="Edit Tutorial" onclick="editSettingsTutorial(\'' + tutorial.id + '\')">' +
-                    '<i class="fa-solid fa-pen"></i>' +
-                '</button>' +
-                '<button type="button" class="settings-content-action delete" title="Delete Tutorial" onclick="openSettingsDeleteModal(\'' + tutorial.id + '\', \'tutorial\')">' +
-                    '<i class="fa-solid fa-trash"></i>' +
-                '</button>' +
-            '</div>';
-
-        container.appendChild(item);
-
+    const filtered = settingsGuides.filter(g => {
+        const matchesSearch = !search || (g.title || "").toLowerCase().includes(search);
+        const matchesCategory = category === "all" || g.category === category;
+        const matchesStatus = status === "all" || g.status === status;
+        return matchesSearch && matchesCategory && matchesStatus;
     });
 
+    renderSettingsGuides(filtered);
+
 }
 
 
 /* =========================================================
-   DOWNLOADS
+   DOWNLOADS  (Help & Support downloads section — PDF only)
    ========================================================= */
 
 function openAddDownloadModal() {
@@ -22986,7 +22817,6 @@ function editSettingsDownload(id) {
 
     document.getElementById("downloadEditId").value = item.id;
     document.getElementById("downloadTitle").value = item.title || "";
-    document.getElementById("downloadCategory").value = item.category || "";
     document.getElementById("downloadStatus").value = item.status || "active";
     document.getElementById("downloadDescription").value = item.description || "";
     document.getElementById("downloadUrl").value = item.url || "";
@@ -23003,21 +22833,26 @@ function saveSettingsDownload(event) {
 
     const editId = document.getElementById("downloadEditId").value;
     const title = document.getElementById("downloadTitle").value.trim();
-    const category = document.getElementById("downloadCategory").value;
     const fileInput = document.getElementById("downloadFile");
     const urlValue = document.getElementById("downloadUrl").value.trim();
     const existing = editId ? settingsDownloads.find(d => d.id === editId) : null;
 
     if (!title) { alert("Please enter a file name."); return; }
-    if (!category) { alert("Please select a category."); return; }
 
     if (!urlValue && (!fileInput || fileInput.files.length === 0) && !existing) {
-        alert("Please provide a file or file URL.");
+        alert("Please provide a PDF file or file URL.");
+        return;
+    }
+
+    const file = fileInput && fileInput.files.length > 0 ? fileInput.files[0] : null;
+
+    if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+        alert("Only PDF files are supported.");
         return;
     }
 
     const payload = {
-        title, category,
+        title,
         status: document.getElementById("downloadStatus").value,
         description: document.getElementById("downloadDescription").value.trim(),
         sort_order: parseInt(document.getElementById("downloadOrder").value) || 0
@@ -23027,11 +22862,10 @@ function saveSettingsDownload(event) {
 
         .then(() => {
 
-            if (fileInput && fileInput.files.length > 0) {
+            if (file) {
 
-                const file = fileInput.files[0];
                 payload.file_name = file.name;
-                payload.file_type = file.type;
+                payload.file_type = file.type || "application/pdf";
                 payload.file_size = file.size;
 
                 return uploadContentFile(file, "downloads").then(url => {
@@ -23042,7 +22876,7 @@ function saveSettingsDownload(event) {
 
                 payload.file_url = urlValue || (existing ? existing.url : "");
                 payload.file_name = existing ? existing.fileName : "";
-                payload.file_type = existing ? existing.fileType : "";
+                payload.file_type = existing ? existing.fileType : "application/pdf";
                 payload.file_size = existing ? existing.fileSize : 0;
 
             }
@@ -23086,7 +22920,7 @@ function renderSettingsDownloads(downloads) {
             '<div class="settings-empty-state">' +
                 '<i class="fa-solid fa-file-arrow-down"></i>' +
                 '<h3>No Downloads</h3>' +
-                '<p>Add downloadable files for users.</p>' +
+                '<p>Add downloadable PDF files for users.</p>' +
             '</div>';
         return;
     }
@@ -23099,16 +22933,13 @@ function renderSettingsDownloads(downloads) {
         el.className = "settings-content-item";
 
         el.innerHTML =
-            '<div class="settings-content-thumbnail"><i class="fa-solid fa-file-arrow-down"></i></div>' +
+            '<div class="settings-content-thumbnail"><i class="fa-solid fa-file-pdf"></i></div>' +
             '<div class="settings-content-info">' +
                 '<h3 class="settings-content-title">' + escapeSettingsHTML(item.title) + '</h3>' +
                 '<p class="settings-content-description">' +
                     escapeSettingsHTML(item.description || "No description available.") +
                 '</p>' +
                 '<div class="settings-content-meta">' +
-                    '<span class="settings-badge settings-badge-category">' +
-                        escapeSettingsHTML(formatSettingsCategory(item.category)) +
-                    '</span>' +
                     '<span class="settings-badge ' +
                         (item.status === "active" ? "settings-badge-active" : "settings-badge-inactive") +
                     '">' + escapeSettingsHTML(capitalizeSettings(item.status)) + '</span>' +
@@ -23130,126 +22961,24 @@ function renderSettingsDownloads(downloads) {
 
 }
 
+function filterSettingsDownloads() {
 
-/* =========================================================
-   MEDIA LIBRARY
-   ========================================================= */
+    const search = (document.getElementById("downloadSearchInput").value || "").toLowerCase();
+    const status = document.getElementById("downloadStatusFilter").value;
 
-function openUploadMediaModal() {
-
-    const form = document.getElementById("mediaForm");
-    if (form) form.reset();
-
-    document.getElementById("settingsMediaModal").classList.add("active");
-}
-
-function closeMediaModal() {
-    document.getElementById("settingsMediaModal").classList.remove("active");
-}
-
-function saveSettingsMedia(event) {
-
-    event.preventDefault();
-
-    const title = document.getElementById("mediaTitle").value.trim();
-    const type = document.getElementById("mediaType").value;
-    const description = document.getElementById("mediaDescription").value.trim();
-    const fileInput = document.getElementById("mediaFile");
-    const usage = document.getElementById("mediaUsage").value;
-
-    if (!title) { alert("Please enter a media name."); return; }
-    if (!type) { alert("Please select a media type."); return; }
-    if (!fileInput || fileInput.files.length === 0) { alert("Please select a file."); return; }
-
-    const file = fileInput.files[0];
-
-    uploadContentFile(file, "media")
-
-        .then(url => {
-
-            return sb.from("content_media").insert({
-                title, type, description, usage,
-                file_url: url,
-                file_name: file.name,
-                file_type: file.type,
-                file_size: file.size,
-                used: false
-            });
-
-        })
-
-        .then(({ error }) => {
-
-            if (error) {
-                alert("Failed to save media: " + error.message);
-                return;
-            }
-
-            loadSettingsData();
-            closeMediaModal();
-            alert("Media uploaded successfully.");
-
-        })
-
-        .catch(error => alert("Upload failed: " + error.message));
-
-}
-
-function renderSettingsMedia(media) {
-
-    const container = document.getElementById("settingsMediaList");
-    if (!container) return;
-
-    const list = media || settingsMedia;
-
-    if (list.length === 0) {
-        container.innerHTML =
-            '<div class="settings-empty-state">' +
-                '<i class="fa-solid fa-photo-film"></i>' +
-                '<h3>No Media Files</h3>' +
-                '<p>Upload images and files to your media library.</p>' +
-            '</div>';
-        return;
-    }
-
-    container.innerHTML = "";
-
-    list.forEach(item => {
-
-        const el = document.createElement("div");
-        el.className = "settings-content-item";
-
-        const thumbnail = item.type === "image" && item.preview
-            ? '<img src="' + item.preview + '" alt="' + escapeSettingsHTML(item.title) + '">'
-            : '<i class="fa-solid fa-file"></i>';
-
-        el.innerHTML =
-            '<div class="settings-content-thumbnail">' + thumbnail + '</div>' +
-            '<div class="settings-content-info">' +
-                '<h3 class="settings-content-title">' + escapeSettingsHTML(item.title) + '</h3>' +
-                '<p class="settings-content-description">' +
-                    escapeSettingsHTML(item.description || "No description.") +
-                '</p>' +
-                '<div class="settings-content-meta">' +
-                    '<span class="settings-badge settings-badge-category">' + escapeSettingsHTML(item.type) + '</span>' +
-                    '<span class="settings-badge settings-badge-category">' + formatFileSize(item.fileSize) + '</span>' +
-                '</div>' +
-            '</div>' +
-            '<div class="settings-content-actions">' +
-                '<button type="button" class="settings-content-action delete" title="Delete" onclick="openSettingsDeleteModal(\'' + item.id + '\', \'media\')">' +
-                    '<i class="fa-solid fa-trash"></i>' +
-                '</button>' +
-            '</div>';
-
-        container.appendChild(el);
-
+    const filtered = settingsDownloads.filter(d => {
+        const matchesSearch = !search || (d.title || "").toLowerCase().includes(search);
+        const matchesStatus = status === "all" || d.status === status;
+        return matchesSearch && matchesStatus;
     });
 
+    renderSettingsDownloads(filtered);
+
 }
 
 
 /* =========================================================
-   DELETE (shared across all 5 content types)
+   DELETE (shared across videos / guides / downloads)
    ========================================================= */
 
 function openSettingsDeleteModal(id, type) {
@@ -23274,9 +23003,7 @@ function closeSettingsDeleteModal() {
 const SETTINGS_DELETE_TABLES = {
     video: "videos",
     guide: "content_guides",
-    tutorial: "content_tutorials",
-    download: "content_downloads",
-    media: "content_media"
+    download: "content_downloads"
 };
 
 function confirmSettingsDelete() {

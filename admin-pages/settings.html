@@ -19,8 +19,8 @@
             </h1>
 
             <p>
-                Manage videos, photos, tutorials, guides and
-                downloadable files available in the user app.
+                Manage educational videos, guides and
+                downloadable PDF files available in the user app.
             </p>
 
         </div>
@@ -76,38 +76,12 @@
         <button
             type="button"
             class="settings-tab"
-            data-settings-tab="tutorials"
-            onclick="showSettingsTab('tutorials')">
-
-            <i class="fa-solid fa-graduation-cap"></i>
-
-            <span>Tutorials</span>
-
-        </button>
-
-
-        <button
-            type="button"
-            class="settings-tab"
             data-settings-tab="downloads"
             onclick="showSettingsTab('downloads')">
 
             <i class="fa-solid fa-download"></i>
 
             <span>Downloads</span>
-
-        </button>
-
-
-        <button
-            type="button"
-            class="settings-tab"
-            data-settings-tab="media"
-            onclick="showSettingsTab('media')">
-
-            <i class="fa-solid fa-photo-film"></i>
-
-            <span>Media Library</span>
 
         </button>
 
@@ -199,31 +173,6 @@
             </div>
 
 
-            <!-- TUTORIALS -->
-
-            <div class="settings-stat-card">
-
-                <div class="settings-stat-icon">
-
-                    <i class="fa-solid fa-graduation-cap"></i>
-
-                </div>
-
-                <div class="settings-stat-info">
-
-                    <span class="settings-stat-label">
-                        Tutorials
-                    </span>
-
-                    <strong id="settingsTutorialCount">
-                        0
-                    </strong>
-
-                </div>
-
-            </div>
-
-
             <!-- DOWNLOADS -->
 
             <div class="settings-stat-card">
@@ -241,56 +190,6 @@
                     </span>
 
                     <strong id="settingsDownloadCount">
-                        0
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- PHOTOS -->
-
-            <div class="settings-stat-card">
-
-                <div class="settings-stat-icon">
-
-                    <i class="fa-solid fa-images"></i>
-
-                </div>
-
-                <div class="settings-stat-info">
-
-                    <span class="settings-stat-label">
-                        Photos
-                    </span>
-
-                    <strong id="settingsPhotoCount">
-                        0
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- FILES -->
-
-            <div class="settings-stat-card">
-
-                <div class="settings-stat-icon">
-
-                    <i class="fa-solid fa-folder"></i>
-
-                </div>
-
-                <div class="settings-stat-info">
-
-                    <span class="settings-stat-label">
-                        Files
-                    </span>
-
-                    <strong id="settingsFileCount">
                         0
                     </strong>
 
@@ -359,40 +258,12 @@
                 <button
                     type="button"
                     class="settings-action-btn"
-                    onclick="openAddTutorialModal()">
-
-                    <i class="fa-solid fa-graduation-cap"></i>
-
-                    <span>
-                        Add Tutorial
-                    </span>
-
-                </button>
-
-
-                <button
-                    type="button"
-                    class="settings-action-btn"
                     onclick="openAddDownloadModal()">
 
                     <i class="fa-solid fa-file-arrow-up"></i>
 
                     <span>
                         Add Download
-                    </span>
-
-                </button>
-
-
-                <button
-                    type="button"
-                    class="settings-action-btn"
-                    onclick="openUploadMediaModal()">
-
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-
-                    <span>
-                        Upload Media
                     </span>
 
                 </button>
@@ -601,32 +472,20 @@
                     All Categories
                 </option>
 
-                <option value="account">
-                    Account
+                <option value="getting-started">
+                    Getting Started
                 </option>
 
-                <option value="mining">
-                    Mining
+                <option value="deposit">
+                    Making a Deposit
                 </option>
 
-                <option value="wallet">
-                    Wallet
+                <option value="withdraw">
+                    Requesting a Withdrawal
                 </option>
 
-                <option value="deposits">
-                    Deposits
-                </option>
-
-                <option value="withdrawals">
-                    Withdrawals
-                </option>
-
-                <option value="security">
-                    Security
-                </option>
-
-                <option value="other">
-                    Other
+                <option value="kyc">
+                    Completing KYC
                 </option>
 
             </select>
@@ -664,131 +523,6 @@
 
     </section>
 
-
-
-    <!-- =====================================================
-         TUTORIALS
-         ===================================================== -->
-
-    <section
-        id="settings-tutorials"
-        class="settings-section">
-
-
-        <div class="settings-section-header">
-
-            <div>
-
-                <h2>
-                    Tutorials
-                </h2>
-
-                <p>
-                    Manage step-by-step tutorials containing
-                    text, photos and videos.
-                </p>
-
-            </div>
-
-
-            <button
-                type="button"
-                class="settings-primary-btn"
-                onclick="openAddTutorialModal()">
-
-                <i class="fa-solid fa-plus"></i>
-
-                Add Tutorial
-
-            </button>
-
-        </div>
-
-
-        <div class="settings-toolbar">
-
-            <div class="settings-search">
-
-                <i class="fa-solid fa-search"></i>
-
-                <input
-                    type="text"
-                    id="tutorialSearchInput"
-                    placeholder="Search tutorials..."
-                    oninput="filterSettingsTutorials()">
-
-            </div>
-
-
-            <select
-                id="tutorialCategoryFilter"
-                onchange="filterSettingsTutorials()">
-
-                <option value="all">
-                    All Categories
-                </option>
-
-                <option value="getting-started">
-                    Getting Started
-                </option>
-
-                <option value="mining">
-                    Mining
-                </option>
-
-                <option value="wallet">
-                    Wallet
-                </option>
-
-                <option value="deposits">
-                    Deposits
-                </option>
-
-                <option value="withdrawals">
-                    Withdrawals
-                </option>
-
-                <option value="other">
-                    Other
-                </option>
-
-            </select>
-
-
-            <select
-                id="tutorialStatusFilter"
-                onchange="filterSettingsTutorials()">
-
-                <option value="all">
-                    All Status
-                </option>
-
-                <option value="active">
-                    Active
-                </option>
-
-                <option value="inactive">
-                    Inactive
-                </option>
-
-            </select>
-
-        </div>
-
-
-        <div
-            id="settingsTutorialList"
-            class="settings-content-list">
-
-            <!-- Tutorials inserted by JavaScript -->
-
-        </div>
-
-
-    </section>
-
-
-
     <!-- =====================================================
          DOWNLOADS
          ===================================================== -->
@@ -807,7 +541,7 @@
                 </h2>
 
                 <p>
-                    Manage files available for users to download
+                    PDF files available for users to download
                     from the Help & Support section.
                 </p>
 
@@ -844,72 +578,6 @@
 
 
             <select
-                id="downloadCategoryFilter"
-                onchange="filterSettingsDownloads()">
-
-                <option value="all">
-                    All Categories
-                </option>
-
-                <option value="documents">
-                    Documents
-                </option>
-
-                <option value="guides">
-                    Guides
-                </option>
-
-                <option value="forms">
-                    Forms
-                </option>
-
-                <option value="app">
-                    App Files
-                </option>
-
-                <option value="other">
-                    Other
-                </option>
-
-            </select>
-
-
-            <select
-                id="downloadTypeFilter"
-                onchange="filterSettingsDownloads()">
-
-                <option value="all">
-                    All File Types
-                </option>
-
-                <option value="pdf">
-                    PDF
-                </option>
-
-                <option value="doc">
-                    DOC / DOCX
-                </option>
-
-                <option value="xls">
-                    XLS / XLSX
-                </option>
-
-                <option value="zip">
-                    ZIP
-                </option>
-
-                <option value="image">
-                    Image
-                </option>
-
-                <option value="other">
-                    Other
-                </option>
-
-            </select>
-
-
-            <select
                 id="downloadStatusFilter"
                 onchange="filterSettingsDownloads()">
 
@@ -935,121 +603,6 @@
             class="settings-content-list">
 
             <!-- Downloads inserted by JavaScript -->
-
-        </div>
-
-
-    </section>
-
-
-
-    <!-- =====================================================
-         MEDIA LIBRARY
-         ===================================================== -->
-
-    <section
-        id="settings-media"
-        class="settings-section">
-
-
-        <div class="settings-section-header">
-
-            <div>
-
-                <h2>
-                    Media Library
-                </h2>
-
-                <p>
-                    Manage uploaded photos, videos and other
-                    media used throughout the user app.
-                </p>
-
-            </div>
-
-
-            <button
-                type="button"
-                class="settings-primary-btn"
-                onclick="openUploadMediaModal()">
-
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-
-                Upload Media
-
-            </button>
-
-        </div>
-
-
-        <!-- MEDIA FILTER -->
-
-        <div class="settings-toolbar">
-
-            <div class="settings-search">
-
-                <i class="fa-solid fa-search"></i>
-
-                <input
-                    type="text"
-                    id="mediaSearchInput"
-                    placeholder="Search media..."
-                    oninput="filterSettingsMedia()">
-
-            </div>
-
-
-            <select
-                id="mediaTypeFilter"
-                onchange="filterSettingsMedia()">
-
-                <option value="all">
-                    All Media
-                </option>
-
-                <option value="image">
-                    Photos
-                </option>
-
-                <option value="video">
-                    Videos
-                </option>
-
-                <option value="file">
-                    Files
-                </option>
-
-            </select>
-
-
-            <select
-                id="mediaUsageFilter"
-                onchange="filterSettingsMedia()">
-
-                <option value="all">
-                    All Usage
-                </option>
-
-                <option value="used">
-                    Currently Used
-                </option>
-
-                <option value="unused">
-                    Not Used
-                </option>
-
-            </select>
-
-        </div>
-
-
-        <!-- MEDIA GRID -->
-
-        <div
-            id="settingsMediaGrid"
-            class="settings-media-grid">
-
-            <!-- Media inserted by JavaScript -->
 
         </div>
 
@@ -1397,32 +950,20 @@
                                 Select Category
                             </option>
 
-                            <option value="account">
-                                Account
+                            <option value="getting-started">
+                                Getting Started
                             </option>
 
-                            <option value="mining">
-                                Mining
+                            <option value="deposit">
+                                Making a Deposit
                             </option>
 
-                            <option value="wallet">
-                                Wallet
+                            <option value="withdraw">
+                                Requesting a Withdrawal
                             </option>
 
-                            <option value="deposits">
-                                Deposits
-                            </option>
-
-                            <option value="withdrawals">
-                                Withdrawals
-                            </option>
-
-                            <option value="security">
-                                Security
-                            </option>
-
-                            <option value="other">
-                                Other
+                            <option value="kyc">
+                                Completing KYC
                             </option>
 
                         </select>
@@ -1560,249 +1101,6 @@
 
 
     <!-- =====================================================
-         ADD / EDIT TUTORIAL MODAL
-         ===================================================== -->
-
-    <div
-        id="settingsTutorialModal"
-        class="settings-modal">
-
-
-
-
-        <div class="settings-modal-box">
-
-
-            <div class="settings-modal-header">
-
-                <div>
-
-                    <h2 id="tutorialModalTitle">
-                        Add Tutorial
-                    </h2>
-
-                    <p>
-                        Create a tutorial containing text,
-                        photos and videos.
-                    </p>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    class="settings-modal-close"
-                    onclick="closeTutorialModal()">
-
-                    <i class="fa-solid fa-xmark"></i>
-
-                </button>
-
-            </div>
-
-
-            <form
-                id="tutorialForm"
-                onsubmit="saveSettingsTutorial(event)">
-
-
-                <input
-                    type="hidden"
-                    id="tutorialEditId">
-
-
-                <div class="settings-form-group">
-
-                    <label for="tutorialTitle">
-                        Tutorial Title
-                    </label>
-
-                    <input
-                        type="text"
-                        id="tutorialTitle"
-                        placeholder="Enter tutorial title"
-                        required>
-
-                </div>
-
-
-                <div class="settings-form-row">
-
-
-                    <div class="settings-form-group">
-
-                        <label for="tutorialCategory">
-                            Category
-                        </label>
-
-                        <select
-                            id="tutorialCategory"
-                            required>
-
-                            <option value="">
-                                Select Category
-                            </option>
-
-                            <option value="getting-started">
-                                Getting Started
-                            </option>
-
-                            <option value="mining">
-                                Mining
-                            </option>
-
-                            <option value="wallet">
-                                Wallet
-                            </option>
-
-                            <option value="deposits">
-                                Deposits
-                            </option>
-
-                            <option value="withdrawals">
-                                Withdrawals
-                            </option>
-
-                            <option value="other">
-                                Other
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                    <div class="settings-form-group">
-
-                        <label for="tutorialStatus">
-                            Status
-                        </label>
-
-                        <select id="tutorialStatus">
-
-                            <option value="active">
-                                Active
-                            </option>
-
-                            <option value="inactive">
-                                Inactive
-                            </option>
-
-                        </select>
-
-                    </div>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="tutorialDescription">
-                        Description
-                    </label>
-
-                    <textarea
-                        id="tutorialDescription"
-                        rows="3"
-                        placeholder="Describe this tutorial...">
-                    </textarea>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="tutorialContent">
-                        Tutorial Content
-                    </label>
-
-                    <textarea
-                        id="tutorialContent"
-                        rows="8"
-                        placeholder="Write the tutorial instructions...">
-                    </textarea>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="tutorialImages">
-                        Tutorial Photos
-                    </label>
-
-                    <input
-                        type="file"
-                        id="tutorialImages"
-                        accept="image/*"
-                        multiple>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="tutorialVideo">
-                        Tutorial Video URL
-                    </label>
-
-                    <input
-                        type="url"
-                        id="tutorialVideo"
-                        placeholder="Video URL (optional)">
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="tutorialOrder">
-                        Display Order
-                    </label>
-
-                    <input
-                        type="number"
-                        id="tutorialOrder"
-                        min="0"
-                        value="0">
-
-                </div>
-
-
-                <div class="settings-modal-actions">
-
-                    <button
-                        type="button"
-                        class="settings-secondary-btn"
-                        onclick="closeTutorialModal()">
-
-                        Cancel
-
-                    </button>
-
-
-                    <button
-                        type="submit"
-                        class="settings-primary-btn">
-
-                        <i class="fa-solid fa-floppy-disk"></i>
-
-                        Save Tutorial
-
-                    </button>
-
-                </div>
-
-
-            </form>
-
-        </div>
-
-    </div>
-
-
-
-    <!-- =====================================================
          ADD / EDIT DOWNLOAD MODAL
          ===================================================== -->
 
@@ -1869,67 +1167,23 @@
                 </div>
 
 
-                <div class="settings-form-row">
+                <div class="settings-form-group">
 
+                    <label for="downloadStatus">
+                        Status
+                    </label>
 
-                    <div class="settings-form-group">
+                    <select id="downloadStatus">
 
-                        <label for="downloadCategory">
-                            Category
-                        </label>
+                        <option value="active">
+                            Active
+                        </option>
 
-                        <select
-                            id="downloadCategory"
-                            required>
+                        <option value="inactive">
+                            Inactive
+                        </option>
 
-                            <option value="">
-                                Select Category
-                            </option>
-
-                            <option value="documents">
-                                Documents
-                            </option>
-
-                            <option value="guides">
-                                Guides
-                            </option>
-
-                            <option value="forms">
-                                Forms
-                            </option>
-
-                            <option value="app">
-                                App Files
-                            </option>
-
-                            <option value="other">
-                                Other
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                    <div class="settings-form-group">
-
-                        <label for="downloadStatus">
-                            Status
-                        </label>
-
-                        <select id="downloadStatus">
-
-                            <option value="active">
-                                Active
-                            </option>
-
-                            <option value="inactive">
-                                Inactive
-                            </option>
-
-                        </select>
-
-                    </div>
+                    </select>
 
                 </div>
 
@@ -1952,15 +1206,16 @@
                 <div class="settings-form-group">
 
                     <label for="downloadFile">
-                        Upload File
+                        Upload PDF
                     </label>
 
                     <input
                         type="file"
-                        id="downloadFile">
+                        id="downloadFile"
+                        accept="application/pdf,.pdf">
 
                     <small>
-                        Select the file users will be able to download.
+                        Select the PDF users will be able to download.
                     </small>
 
                 </div>
@@ -1978,7 +1233,7 @@
                         placeholder="https://...">
 
                     <small>
-                        Alternatively, provide a hosted file URL.
+                        Alternatively, provide a hosted PDF URL.
                     </small>
 
                 </div>
@@ -2029,196 +1284,6 @@
         </div>
 
     </div>
-
-
-
-    <!-- =====================================================
-         UPLOAD MEDIA MODAL
-         ===================================================== -->
-
-    <div
-        id="settingsMediaModal"
-        class="settings-modal">
-
-
-        
-
-
-        <div class="settings-modal-box">
-
-
-            <div class="settings-modal-header">
-
-                <div>
-
-                    <h2>
-                        Upload Media
-                    </h2>
-
-                    <p>
-                        Upload photos, videos or files to the
-                        KT Cloud Mining media library.
-                    </p>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    class="settings-modal-close"
-                    onclick="closeMediaModal()">
-
-                    <i class="fa-solid fa-xmark"></i>
-
-                </button>
-
-            </div>
-
-
-            <form
-                id="mediaForm"
-                onsubmit="saveSettingsMedia(event)">
-
-
-                <div class="settings-form-group">
-
-                    <label for="mediaTitle">
-                        Media Name
-                    </label>
-
-                    <input
-                        type="text"
-                        id="mediaTitle"
-                        placeholder="Enter media name"
-                        required>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="mediaType">
-                        Media Type
-                    </label>
-
-                    <select
-                        id="mediaType"
-                        required>
-
-                        <option value="">
-                            Select Media Type
-                        </option>
-
-                        <option value="image">
-                            Photo / Image
-                        </option>
-
-                        <option value="video">
-                            Video
-                        </option>
-
-                        <option value="file">
-                            File
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="mediaDescription">
-                        Description
-                    </label>
-
-                    <textarea
-                        id="mediaDescription"
-                        rows="3"
-                        placeholder="Optional description...">
-                    </textarea>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="mediaFile">
-                        Select File
-                    </label>
-
-                    <input
-                        type="file"
-                        id="mediaFile"
-                        required>
-
-                </div>
-
-
-                <div class="settings-form-group">
-
-                    <label for="mediaUsage">
-                        Intended Usage
-                    </label>
-
-                    <select id="mediaUsage">
-
-                        <option value="general">
-                            General
-                        </option>
-
-                        <option value="video">
-                            Educational Videos
-                        </option>
-
-                        <option value="guide">
-                            Guides
-                        </option>
-
-                        <option value="tutorial">
-                            Tutorials
-                        </option>
-
-                        <option value="download">
-                            Downloads
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="settings-modal-actions">
-
-                    <button
-                        type="button"
-                        class="settings-secondary-btn"
-                        onclick="closeMediaModal()">
-
-                        Cancel
-
-                    </button>
-
-
-                    <button
-                        type="submit"
-                        class="settings-primary-btn">
-
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-
-                        Upload Media
-
-                    </button>
-
-                </div>
-
-
-            </form>
-
-        </div>
-
-    </div>
-
 
 
     <!-- =====================================================

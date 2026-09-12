@@ -1007,201 +1007,6 @@
 
 
 /* =========================================================
-   MEDIA GRID
-   ========================================================= */
-
-.settings-media-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(4, minmax(0, 1fr));
-
-    gap: 14px;
-
-}
-
-
-.settings-media-card {
-
-    background: #fff;
-
-    border: 1px solid #e5e5e5;
-
-    border-radius: 9px;
-
-    overflow: hidden;
-
-    min-width: 0;
-
-    transition:
-        box-shadow 0.2s ease,
-        border-color 0.2s ease;
-
-}
-
-
-.settings-media-card:hover {
-
-    border-color: #ccc;
-
-    box-shadow:
-        0 3px 10px rgba(0, 0, 0, 0.07);
-
-}
-
-
-/* =========================================================
-   MEDIA PREVIEW
-   ========================================================= */
-
-.settings-media-preview {
-
-    width: 100%;
-
-    height: 150px;
-
-    background: #eeeeee;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    overflow: hidden;
-
-    position: relative;
-
-}
-
-
-.settings-media-preview img {
-
-    width: 100%;
-
-    height: 100%;
-
-    object-fit: cover;
-
-}
-
-
-.settings-media-preview i {
-
-    font-size: 35px;
-
-    color: #888;
-
-}
-
-
-.settings-media-type {
-
-    position: absolute;
-
-    top: 8px;
-
-    left: 8px;
-
-    padding: 4px 7px;
-
-    border-radius: 5px;
-
-    background: rgba(0, 0, 0, 0.65);
-
-    color: #fff;
-
-    font-size: 9px;
-
-    font-weight: 600;
-
-}
-
-
-/* =========================================================
-   MEDIA CARD INFORMATION
-   ========================================================= */
-
-.settings-media-info {
-
-    padding: 11px;
-
-}
-
-
-.settings-media-title {
-
-    margin: 0;
-
-    font-size: 13px;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-
-}
-
-
-.settings-media-details {
-
-    margin-top: 5px;
-
-    font-size: 11px;
-
-    color: #888;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    gap: 5px;
-
-}
-
-
-.settings-media-actions {
-
-    display: flex;
-
-    gap: 6px;
-
-    margin-top: 10px;
-
-}
-
-
-.settings-media-actions button {
-
-    flex: 1;
-
-    height: 32px;
-
-    border: none;
-
-    border-radius: 6px;
-
-    cursor: pointer;
-
-    background: #f1f1f1;
-
-    color: #555;
-
-}
-
-
-.settings-media-actions button.delete {
-
-    color: #d93025;
-
-}
-
-
-/* =========================================================
    MODAL
    ========================================================= */
 
@@ -1615,14 +1420,6 @@
 
     }
 
-
-    .settings-media-grid {
-
-        grid-template-columns:
-            repeat(3, minmax(0, 1fr));
-
-    }
-
 }
 
 
@@ -1640,14 +1437,6 @@
 
 
     .settings-stats {
-
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-
-    }
-
-
-    .settings-media-grid {
 
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
@@ -1858,44 +1647,6 @@
     }
 
 
-    .settings-media-grid {
-
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-
-        gap: 9px;
-
-    }
-
-
-    .settings-media-preview {
-
-        height: 115px;
-
-    }
-
-
-    .settings-media-info {
-
-        padding: 9px;
-
-    }
-
-
-    .settings-media-title {
-
-        font-size: 12px;
-
-    }
-
-
-    .settings-media-details {
-
-        font-size: 10px;
-
-    }
-
-
     .settings-modal {
 
         padding: 10px;
@@ -1961,14 +1712,6 @@
 @media (max-width: 380px) {
 
     .settings-stats {
-
-        grid-template-columns:
-            1fr;
-
-    }
-
-
-    .settings-media-grid {
 
         grid-template-columns:
             1fr;
