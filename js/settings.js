@@ -107,43 +107,49 @@ function loadSettingsData() {
 
     sb.from("videos").select("*").order("created_at")
         .then(({ data, error }) => {
-            if (!error) {
-                settingsVideos = data.map(v => ({
-                    id: v.id, title: v.title,
-                    description: v.description,
-                    url: v.url, fileName: v.file_name,
-                    thumbnail: v.thumbnail_url
-                }));
-                renderSettingsVideos();
-                renderSettingsOverview();
+            if (error) {
+                console.error("Failed to load videos:", error);
+                return;
             }
+            settingsVideos = data.map(v => ({
+                id: v.id, title: v.title,
+                description: v.description,
+                url: v.url, fileName: v.file_name,
+                thumbnail: v.thumbnail_url
+            }));
+            renderSettingsVideos();
+            renderSettingsOverview();
         });
 
     sb.from("content_guides").select("*").order("created_at")
         .then(({ data, error }) => {
-            if (!error) {
-                settingsGuides = data.map(g => ({
-                    id: g.id, title: g.title, category: g.category,
-                    status: g.status,
-                    video: g.video_url, image: g.image_url
-                }));
-                renderSettingsGuides();
-                renderSettingsOverview();
+            if (error) {
+                console.error("Failed to load guides:", error);
+                return;
             }
+            settingsGuides = data.map(g => ({
+                id: g.id, title: g.title, category: g.category,
+                status: g.status,
+                video: g.video_url, image: g.image_url
+            }));
+            renderSettingsGuides();
+            renderSettingsOverview();
         });
 
     sb.from("content_downloads").select("*").order("created_at")
         .then(({ data, error }) => {
-            if (!error) {
-                settingsDownloads = data.map(d => ({
-                    id: d.id, title: d.title,
-                    description: d.description,
-                    url: d.file_url, fileName: d.file_name,
-                    fileType: d.file_type, fileSize: d.file_size
-                }));
-                renderSettingsDownloads();
-                renderSettingsOverview();
+            if (error) {
+                console.error("Failed to load downloads:", error);
+                return;
             }
+            settingsDownloads = data.map(d => ({
+                id: d.id, title: d.title,
+                description: d.description,
+                url: d.file_url, fileName: d.file_name,
+                fileType: d.file_type, fileSize: d.file_size
+            }));
+            renderSettingsDownloads();
+            renderSettingsOverview();
         });
 
 }
