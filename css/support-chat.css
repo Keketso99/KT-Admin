@@ -3780,3 +3780,6 @@
   overflow-y: auto; 
 }
 
+#chatSelectionPriorityBtn.priority-add i{
+    color: #f5c400 !important;
+}

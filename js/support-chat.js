@@ -90,7 +90,6 @@ let currentUser = null;
 
 
 // ------------------------------------------------------
-// Current group
 // ------------------------------------------------------
 
 let currentGroup = null;
@@ -188,7 +187,6 @@ let priorityActionValue = null;
 let chatSelectionMode = false;
 
 let chatSelectionType = null;
-// "individual" | "group" | null
 
 let selectedChatIds = [];
 
@@ -533,9 +531,6 @@ function showIndividualChats() {
 
 
 
-// ======================================================
-// 7. SHOW GROUPS
-// ======================================================
 
 
 
@@ -557,9 +552,6 @@ function findIndividualChat(chatId) {
 }
 
 
-// ======================================================
-// 9. FIND GROUP
-// ======================================================
 
 
 
@@ -1235,9 +1227,6 @@ function openIndividualChat(
 }
 
 
-// ======================================================
-// 16. OPEN GROUP CHAT
-// ======================================================
 
 
 
@@ -1801,9 +1790,6 @@ function closeChatMenu() {
 
 
 
-// ======================================================
-// 20. RENDER GROUP HEADER
-// ======================================================
 
 
 
@@ -2443,9 +2429,6 @@ function filterChats(
 }
 
 
-// ======================================================
-// 25. FILTER GROUPS
-// ======================================================
 
 
 
@@ -2527,30 +2510,18 @@ function clearChatSearch() {
 }
 
 
-// ======================================================
-// 28. RENDER GROUPS
-// ======================================================
 
 
 
 
-// ======================================================
-// 29. CREATE GROUP CHAT ITEM
-// ======================================================
 
 
 
 
-// ======================================================
-// 30. UPDATE GROUP COUNT
-// ======================================================
 
 
 
 
-// ======================================================
-// 31. SEARCH GROUPS
-// ======================================================
 
 
 
@@ -2594,9 +2565,6 @@ function initializeIndividualChats() {
 }
 
 
-// ======================================================
-// 35. INITIALIZE GROUPS
-// ======================================================
 
 
 
@@ -3099,52 +3067,30 @@ window.initSupportChatPage =
 
 // ======================================================
 // SUPPORT CHAT SYSTEM
-// STAGE 2 — CREATE GROUP
-// ======================================================
-
-
-// ======================================================
-// 44. OPEN CREATE GROUP MODAL
-// ======================================================
-
-// ======================================================
-// OPEN CREATE GROUP MODAL
 // ======================================================
 
 
 
 
-// ======================================================
-// SHOW ALL GROUP MODAL SECTIONS
-// ======================================================
 
 
 
 
-// ======================================================
-// SET GROUP MODAL TITLE
-// ======================================================
 
 
 
 
-// ======================================================
-// SET GROUP MODAL SUBMIT LABEL
-// ======================================================
 
 
 
 
-// ======================================================
-// RESET GROUP PERMISSION SELECTS
-// ======================================================
 
 
 
 
-// ======================================================
-// OPEN EDIT GROUP MODAL (used by editGroupInformation)
-// ======================================================
+
+
+
 
 
 
@@ -3156,66 +3102,39 @@ window.initSupportChatPage =
 
 
 
-// ======================================================
-// 45. CLOSE CREATE GROUP MODAL
-// ======================================================
-
-
-
-
-// ======================================================
-// SUBMIT GROUP MODAL (dispatch by mode)
-// ======================================================
 
 
 
 
 
-// ======================================================
-// 48. CREATE GROUP
-// ======================================================
 
 
 
 
-// ======================================================
-// SAVE GROUP EDIT
-// ======================================================
 
 
 
 
-// ======================================================
-// ADD SELECTED MEMBERS TO GROUP
-// ======================================================
 
 
 
 
-// ======================================================
-// 49. GROUP MEMBER SEARCH
-// ======================================================
 
 
 
 
-// ======================================================
-// 50. GROUP CREATION EVENTS
-// ======================================================
 
 
 
 
-// ======================================================
-// RENDER GROUP USER SELECTION
-// ======================================================
 
 
 
 
-// ======================================================
-// TOGGLE GROUP MEMBER
-// ======================================================
+
+
+
+
 
 
 
@@ -3567,15 +3486,9 @@ function updateIndividualChatPreview(
 }
 
 
-// ======================================================
-// 60. UPDATE GROUP CHAT PREVIEW
-// ======================================================
 
 
 
-// ======================================================
-// 60. UPDATE GROUP CHAT PREVIEW
-// ======================================================
 
 
 
@@ -9718,9 +9631,7 @@ window.initializeMessageEngine =
 
 
 
-// ======================================================
 
-// ======================================================
 
 // ======================================================
 // SUPPORT CHAT GLOBAL FUNCTIONS
@@ -9914,9 +9825,6 @@ function attachCamera() {
 }
 
 
-// ======================================================
-// CHOOSE GROUP PHOTO
-// ======================================================
 
 
 
@@ -10011,9 +9919,6 @@ function handleAttachmentFileChange(
 }
 
 
-// ======================================================
-// HANDLE GROUP PHOTO INPUT CHANGE
-// ======================================================
 
 
 
@@ -10416,55 +10321,32 @@ function startVoiceMessage() {
 
 // ==========================================================================
 // SUPPORT CHAT SYSTEM
-// STAGE 8 — GROUP INFO & GROUP SETTINGS
 // ==========================================================================
 
-// ======================================================
-// OPEN GROUP INFO
-// ======================================================
 
 
 
 
-// ======================================================
-// CLOSE GROUP INFO
-// ======================================================
 
 
 
 
-// ======================================================
-// RENDER GROUP INFO MEMBERS
-// ======================================================
 
 
 
 
-// ======================================================
-// OPEN GROUP SETTINGS
-// ======================================================
 
 
 
 
-// ======================================================
-// CLOSE GROUP SETTINGS
-// ======================================================
 
 
 
 
-// ======================================================
-// SAVE GROUP SETTINGS
-// ======================================================
 
 
 
 
-// ======================================================
-// EDIT GROUP INFORMATION
-// (opens the create-group modal in "edit" mode)
-// ======================================================
 
 
 
@@ -10502,9 +10384,6 @@ function startVoiceMessage() {
 
 
 
-// ======================================================
-// REMOVE MEMBER FROM GROUP
-// ======================================================
 
 
 
@@ -10516,8 +10395,6 @@ function startVoiceMessage() {
 
 // ======================================================
 // OPEN CURRENT PROFILE
-// (header avatar / name click — routes to group info
-// for group chats, or the user profile for individual)
 // ======================================================
 
 function openCurrentProfile() {
@@ -10780,9 +10657,6 @@ function deleteCurrentChat() {
 
 
 
-// ======================================================
-// DELETE CURRENT GROUP
-// ======================================================
 
 
 
@@ -10889,9 +10763,6 @@ window.attachCamera = attachCamera;
 
 window.startVoiceMessage = startVoiceMessage;
 
-window.viewMemberProfile = viewMemberProfile;
-window.toggleMemberAdmin = toggleMemberAdmin;
-window.closeMemberActions = closeMemberActions;
 
 window.openCurrentProfile = openCurrentProfile;
 window.closeUserProfile = closeUserProfile;
@@ -10934,295 +10805,14 @@ window.closeDeleteConfirmation = closeDeleteConfirmation;
 // Scoping the flag per item makes that impossible.
 // ======================================================
 
-function attachChatPressHandlers(
-    item,
-    chatId,
-    chatType,
-    onTap
-) {
 
-    let pressTimer =
-        null;
-
-    let pressFired =
-        false;
-
-    let pressStartX =
-        0;
-
-    let pressStartY =
-        0;
-
-
-    function clearPressTimer() {
-
-        if (pressTimer) {
-
-            clearTimeout(
-                pressTimer
-            );
-
-            pressTimer =
-                null;
-
-        }
-
-    }
-
-
-    function startPress(
-        clientX,
-        clientY
-    ) {
-
-        clearPressTimer();
-
-        pressFired =
-            false;
-
-        pressStartX =
-            clientX;
-
-        pressStartY =
-            clientY;
-
-
-        pressTimer =
-            setTimeout(
-                function() {
-
-                    pressFired =
-                        true;
-
-                    pressTimer =
-                        null;
-
-
-                    handleChatLongPress(
-                        chatId,
-                        chatType
-                    );
-
-                },
-                CHAT_LONG_PRESS_DURATION
-            );
-
-    }
-
-
-    function endPress() {
-
-        clearPressTimer();
-
-    }
-
-
-    item.addEventListener(
-        "mousedown",
-        function(event) {
-
-            startPress(
-                event.clientX,
-                event.clientY
-            );
-
-        }
-    );
-
-
-    item.addEventListener(
-        "mouseup",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "mouseleave",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "touchstart",
-        function(event) {
-
-            const touch =
-                event.touches[0];
-
-
-            startPress(
-                touch.clientX,
-                touch.clientY
-            );
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    item.addEventListener(
-        "touchend",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "touchcancel",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "touchmove",
-        function(event) {
-
-            const touch =
-                event.touches[0];
-
-
-            const movedX =
-                Math.abs(
-                    touch.clientX -
-                    pressStartX
-                );
-
-            const movedY =
-                Math.abs(
-                    touch.clientY -
-                    pressStartY
-                );
-
-
-            if (
-                movedX > CHAT_LONG_PRESS_MOVE_TOLERANCE ||
-                movedY > CHAT_LONG_PRESS_MOVE_TOLERANCE
-            ) {
-
-                endPress();
-
-            }
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    /*
-     * Normal tap handling lives here too (rather than
-     * a separate click listener elsewhere) so it shares
-     * this exact same closure-scoped "pressFired" flag —
-     * the only reliable way to tell "this click is the
-     * tail end of a long-press that already fired" from
-     * "this is an unrelated, ordinary click".
-     */
-
-    item.addEventListener(
-        "click",
-        function(event) {
-
-            event.preventDefault();
-
-
-            if (pressFired) {
-
-                pressFired =
-                    false;
-
-                return;
-
-            }
-
-
-            if (chatSelectionMode) {
-
-                toggleChatSelection(
-                    chatId,
-                    chatType
-                );
-
-                return;
-
-            }
-
-
-            onTap();
-
-        }
-    );
-
-}
 
 
 // ======================================================
 // HANDLE CHAT LONG PRESS
 // ======================================================
 
-function handleChatLongPress(
-    chatId,
-    chatType
-) {
 
-    /*
-     * A long-press started on a chat of a
-     * different type than the current selection
-     * starts a fresh selection instead of mixing
-     * individual chats and groups together.
-     */
-
-    if (
-        chatSelectionMode &&
-        chatSelectionType !== chatType
-    ) {
-
-        exitChatSelectionMode();
-
-    }
-
-
-    chatSelectionMode =
-        true;
-
-    chatSelectionType =
-        chatType;
-
-
-    if (
-        !selectedChatIds.includes(
-            chatId
-        )
-    ) {
-
-        selectedChatIds.push(
-            chatId
-        );
-
-    }
-
-
-    refreshChatSelectionUI();
-
-
-    /*
-     * Only show the delete/priority chooser on the
-     * FIRST long-press of a selection. Once a mode has
-     * already been picked, a long-press on another chat
-     * should just add it to the batch, not reopen the
-     * modal.
-     */
-
-    if (pendingBulkAction === null) {
-
-        openChatActionsModal(
-            chatId,
-            chatType
-        );
-  }
-
-}
 
 
 // ======================================================
@@ -11231,53 +10821,7 @@ function handleChatLongPress(
 // is already active)
 // ======================================================
 
-function toggleChatSelection(
-    chatId,
-    chatType
-) {
 
-    if (chatType !== chatSelectionType) {
-
-        return;
-
-    }
-
-
-    const index =
-        selectedChatIds.indexOf(
-            chatId
-        );
-
-
-    if (index === -1) {
-
-        selectedChatIds.push(
-            chatId
-        );
-
-    }
-    else {
-
-        selectedChatIds.splice(
-            index,
-            1
-        );
-
-    }
-
-
-    if (selectedChatIds.length === 0) {
-
-        exitChatSelectionMode();
-
-        return;
-
-    }
-
-
-    refreshChatSelectionUI();
-
-}
 
 
 // ======================================================
@@ -11286,213 +10830,21 @@ function toggleChatSelection(
 // active list so highlighted items stay in sync)
 // ======================================================
 
-function refreshChatSelectionUI() {
 
-    const bar =
-        supportChatElement(
-            "chatSelectionBar"
-        );
-
-    const countLabel =
-        supportChatElement(
-            "chatSelectionCount"
-        );
-
-
-    if (bar) {
-
-        if (
-            chatSelectionMode &&
-            selectedChatIds.length > 0
-        ) {
-
-            bar.classList.remove(
-                "hidden"
-            );
-
-        }
-        else {
-
-            bar.classList.add(
-                "hidden"
-            );
-
-        }
-
-    }
-
-
-    if (countLabel) {
-
-        countLabel.textContent =
-            selectedChatIds.length +
-            (
-                selectedChatIds.length === 1
-                    ? " selected"
-                    : " selected"
-            );
-
-    }
-
-
-    /*
-     * Groups have no priority concept — hide the
-     * header's priority button whenever the current
-     * selection is a group selection.
-     */
-
-        const headerPriorityBtn =
-        supportChatElement(
-            "chatSelectionPriorityBtn"
-        );
-
-    const headerDeleteBtn =
-        supportChatElement(
-            "chatSelectionDeleteBtn"
-        );
-
-
-    if (headerPriorityBtn) {
-
-        const hidePriorityBtn =
-            chatSelectionType === "group" ||
-            pendingBulkAction === "delete";
-
-
-        if (hidePriorityBtn) {
-
-            headerPriorityBtn.classList.add(
-                "hidden"
-            );
-
-        }
-        else {
-
-            headerPriorityBtn.classList.remove(
-                "hidden"
-            );
-
-        }
-
-    }
-
-
-    if (headerDeleteBtn) {
-
-        const hideDeleteBtn =
-            pendingBulkAction === "priority";
-
-
-        if (hideDeleteBtn) {
-
-            headerDeleteBtn.classList.add(
-                "hidden"
-            );
-
-        }
-        else {
-
-            headerDeleteBtn.classList.remove(
-                "hidden"
-            );
-
-        }
-
-    }
-
-
-    
-
-
-
-  
-
-
-    if (chatSelectionType === "group") {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderIndividualChats();
-
-    }
-
-}
 
 
 // ======================================================
 // EXIT CHAT SELECTION MODE
 // ======================================================
 
-function exitChatSelectionMode() {
 
-    chatSelectionMode =
-        false;
-
-    chatSelectionType =
-        null;
-
-    selectedChatIds =
-        [];
-
-    pendingBulkAction =
-        null;
-
-    pendingPriorityMode =
-        null;
-
-
-    const bar =
-        supportChatElement(
-            "chatSelectionBar"
-        );
-
-
-    if (bar) {
-
-        bar.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    renderIndividualChats();
-
-    renderIndividualChats();
-
-}
 
 
 // ======================================================
 // OPEN CHAT ACTIONS MODAL
 // ======================================================
 
-function openChatActionsModal(anchorChatId) {
 
-    const modal = supportChatElement("chatActionsModal");
-    if (!modal) return;
-
-    const anchorChat = findIndividualChat(anchorChatId);
-    const titleElement = supportChatElement("chatActionsTitle");
-    const priorityButton = supportChatElement("chatActionsPriorityBtn");
-
-    if (titleElement && anchorChat) titleElement.textContent = anchorChat.name;
-
-    if (priorityButton) {
-        priorityButton.classList.remove("hidden");
-        if (anchorChat) {
-            priorityButton.innerHTML = anchorChat.priority
-                ? '<i class="fa-solid fa-star"></i> Remove from Priority'
-                : '<i class="fa-solid fa-star"></i> Add to Priority';
-        }
-    }
-
-    modal.classList.remove("hidden");
-
-}
 
 
 
@@ -11503,42 +10855,10 @@ function openChatActionsModal(anchorChatId) {
 // deleting or re-opening this modal on another chat)
 // ======================================================
 
-function closeChatActionsModal() {
-   
-    const modal =
-        supportChatElement(
-            "chatActionsModal"
-        );
 
 
-  if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-  exitChatSelectionMode();
-
-}
 
 
-function hideChatActionsModal() {
-
-    const modal =
-        supportChatElement(
-            "chatActionsModal"
-        );
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
 
 // ======================================================
 // CHOOSE BULK DELETE MODE
@@ -11547,30 +10867,7 @@ function hideChatActionsModal() {
 // person keep tapping more chats to add to the batch)
 // ======================================================
 
-function chooseBulkDeleteMode() {
 
-    if (selectedChatIds.length === 0) {
-
-        closeChatActionsModal();
-
-        return;
-
-    }
-
-
-    pendingBulkAction =
-        "delete";
-
-    pendingPriorityMode =
-        null;
-
-
-    hideChatActionsModal();
-
-
-    refreshChatSelectionUI();
-
-}
 
 
 // ======================================================
@@ -11583,20 +10880,7 @@ function chooseBulkDeleteMode() {
 // chats eligible for that action)
 // ======================================================
 
-function chooseBulkPriorityMode() {
 
-    if (selectedChatIds.length === 0) {
-        closeChatActionsModal();
-        return;
-    }
-
-    const anchorChat = findIndividualChat(selectedChatIds[0]);
-    pendingBulkAction = "priority";
-    pendingPriorityMode = anchorChat && anchorChat.priority ? "remove" : "add";
-    hideChatActionsModal();
-    refreshChatSelectionUI();
-
-}
 
 
 
@@ -11606,156 +10890,14 @@ function chooseBulkPriorityMode() {
 // confirmDeleteSelectedChats for the priority action)
 // ======================================================
 
-function confirmPrioritySelectedChats() {
 
-    if (selectedChatIds.length === 0) {
-
-        return;
-
-    }
-
-
-    // groups have no priority concept —
-    // only individual chats can be prioritized
-    if (chatSelectionType === "group") {
-
-        return;
-
-    }
-
-
-    const anchorChat =
-        findIndividualChat(
-            selectedChatIds[0]
-        );
-
-
-    const newPriority =
-        anchorChat
-            ? !anchorChat.priority
-            : true;
-
-
-    priorityActionIds =
-        [...selectedChatIds];
-
-    priorityActionValue =
-        newPriority;
-
-
-    const count =
-        selectedChatIds.length;
-
-    const noun =
-        count === 1
-            ? "conversation"
-            : "conversations";
-
-    const actionWord =
-        newPriority
-            ? "Add"
-            : "Remove";
-
-    const actionPrep =
-        newPriority
-            ? "to"
-            : "from";
-
-
-    const titleElement =
-        supportChatElement(
-            "priorityConfirmTitle"
-        );
-
-    const textElement =
-        supportChatElement(
-            "priorityConfirmText"
-        );
-
-    const confirmBtn =
-        supportChatElement(
-            "confirmPriorityBtn"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            actionWord +
-            " " +
-            count +
-            " " +
-            noun +
-            " " +
-            actionPrep +
-            " Priority?";
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            newPriority
-                ? "The selected " + noun + " will be marked as priority."
-                : "The selected " + noun + " will be removed from priority.";
-
-    }
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            actionWord;
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "priorityConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
-
-}
 
 
 // ======================================================
 // CLOSE PRIORITY CONFIRMATION
 // ======================================================
 
-function closePriorityConfirmation() {
 
-    const modal =
-        supportChatElement(
-            "priorityConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    priorityActionIds =
-        [];
-
-    priorityActionValue =
-        null;
-
-}
 
 
 // ======================================================
@@ -11764,35 +10906,7 @@ function closePriorityConfirmation() {
 // chat captured at confirmation time)
 // ======================================================
 
-function confirmPriorityAction() {
 
-    individualChats.forEach(
-        function(chat) {
-
-            if (
-                priorityActionIds.includes(
-                    chat.id
-                )
-            ) {
-
-                chat.priority =
-                    priorityActionValue;
-
-            }
-
-        }
-    );
-
-
-    exitChatSelectionMode();
-
-
-    closePriorityConfirmation();
-
-
-    renderIndividualChats();
-
-}
 
 
 // ======================================================
@@ -11801,31 +10915,7 @@ function confirmPriorityAction() {
 // generalized to accept one or many chat ids)
 // ======================================================
 
-function confirmDeleteSelectedChats() {
 
-    if (selectedChatIds.length === 0) {
-        closeChatActionsModal();
-        return;
-    }
-
-    hideChatActionsModal();
-    deleteActionType = "bulkChats";
-    deleteActionIds = [...selectedChatIds];
-    deleteActionChatType = "individual";
-
-    const count = selectedChatIds.length;
-    const noun = count === 1 ? "conversation" : "conversations";
-    const titleElement = supportChatElement("deleteConfirmTitle");
-    const textElement = supportChatElement("deleteConfirmText");
-    const confirmBtn = supportChatElement("confirmDeleteBtn");
-    const modal = supportChatElement("deleteConfirmModal");
-
-    if (titleElement) titleElement.textContent = "Delete " + count + " " + noun + "?";
-    if (textElement) textElement.textContent = "This will permanently delete the selected " + noun + ". This action cannot be undone.";
-    if (confirmBtn) confirmBtn.textContent = "Delete";
-    if (modal) modal.classList.remove("hidden");
-
-}
 
 
 // ======================================================
@@ -11834,59 +10924,12 @@ function confirmDeleteSelectedChats() {
 // chat actions modal, the confirmation modals, or a chat
 // list item itself cancels the current selection and
 // closes whichever of those modals is open — this also
-// fixes the individual/group switch and filter buttons,
 // since they count as "outside" and are handled by the
 // same check, with no extra code needed in those
 // functions)
 // ======================================================
 
-function setupChatSelectionOutsideClick() {
 
-    document.addEventListener(
-        "click",
-        function(event) {
-
-            if (!chatSelectionMode) {
-
-                return;
-
-            }
-
-
-            const isInsideSelectionUI =
-                event.target.closest(
-                    "#chatSelectionBar, " +
-                    "#chatActionsModal, " +
-                    "#deleteConfirmModal, " +
-                    "#priorityConfirmModal, " +
-                    ".chat-list-item"
-                );
-
-
-            if (isInsideSelectionUI) {
-
-                return;
-
-            }
-
-
-            exitChatSelectionMode();
-
-            closeChatActionsModal();
-
-            closeDeleteConfirmation();
-
-            closePriorityConfirmation();
-
-        },
-        true
-        // capture phase — this runs BEFORE the clicked
-        // element's own onclick (e.g. showIndividualChats,
-        // filterChats), so selection is already cleared
-        // by the time those functions run
-    );
-
-}
 
 
 // ======================================================
@@ -12625,6 +11668,19 @@ function closeChatActionsModal() {
 
     }
 
+    const priorityButton =
+    supportChatElement(
+        "chatSelectionPriorityBtn"
+    );
+
+if (priorityButton) {
+
+    priorityButton.classList.remove(
+        "priority-add"
+    );
+
+}
+
 
     exitChatSelectionMode();
 
@@ -12723,13 +11779,40 @@ function chooseBulkPriorityMode() {
             : "add";
 
 
+    const priorityButton =
+        supportChatElement(
+            "chatSelectionPriorityBtn"
+        );
+
+
+    if (priorityButton) {
+
+        if (
+            pendingPriorityMode === "add"
+        ) {
+
+            priorityButton.classList.add(
+                "priority-add"
+            );
+
+        }
+        else {
+
+            priorityButton.classList.remove(
+                "priority-add"
+            );
+
+        }
+
+    }
+
+
     hideChatActionsModal();
 
 
     refreshChatSelectionUI();
 
 }
-
 
 // ======================================================
 // CONFIRM PRIORITY SELECTED CHATS
@@ -12883,6 +11966,19 @@ function closePriorityConfirmation() {
         );
 
     }
+
+  const priorityButton =
+    supportChatElement(
+        "chatSelectionPriorityBtn"
+    );
+
+if (priorityButton) {
+
+    priorityButton.classList.remove(
+        "priority-add"
+    );
+
+}
 
 
     priorityActionIds =

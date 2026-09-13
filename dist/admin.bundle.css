@@ -9633,7 +9633,9 @@ transition: filter .15s ease, transform .1s ease;
   overflow-y: auto; 
 }
 
-
+#chatSelectionPriorityBtn.priority-add i{
+    color: #f5c400 !important;
+}
 
 /* ===== css/settings.css ===== */
 /* =========================================================
