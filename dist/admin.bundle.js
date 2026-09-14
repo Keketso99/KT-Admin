@@ -18569,56 +18569,6 @@ function initSettings() {
 
     showSettingsTab("overview");
 
-    /* =====================================================
-       SETTINGS MODAL OUTSIDE-CLICK HANDLER
-       ===================================================== */
-
-    const settingsModalIds = [
-        "settingsVideoModal",
-        "settingsGuideModal",
-        "settingsDownloadModal",
-        "settingsDeleteModal"
-    ];
-
-    settingsModalIds.forEach(function(id) {
-
-        const modal = document.getElementById(id);
-
-        if (!modal) return;
-
-        /*
-         * Prevent duplicate listeners if Settings is opened
-         * more than once.
-         */
-        if (modal.dataset.outsideClickReady === "true") {
-            return;
-        }
-
-        modal.dataset.outsideClickReady = "true";
-
-        modal.addEventListener("click", function(event) {
-
-            /*
-             * Only close when the actual modal backdrop
-             * itself was clicked.
-             *
-             * Anything inside .settings-modal-box remains open.
-             */
-            if (event.target === modal) {
-
-                modal.classList.remove("active");
-
-                console.log(
-                    "Settings modal closed by outside click:",
-                    id
-                );
-
-            }
-
-        });
-
-    });
-
     console.log("KT Settings page initialized.");
 }
 
@@ -18734,11 +18684,15 @@ function openAddVideoModal() {
     document.getElementById("videoEditId").value = "";
     document.getElementById("videoModalTitle").textContent = "Add Video";
 
-    modal.classList.add("active");
+    modal.style.display = "flex";
 }
 
 function closeVideoModal() {
-    document.getElementById("settingsVideoModal").classList.remove("active");
+    const modal = document.getElementById("settingsVideoModal");
+
+    if (modal) {
+        modal.style.display = "none";
+    }
 }
 
 function editSettingsVideo(id) {
@@ -18925,11 +18879,15 @@ function openAddGuideModal() {
     document.getElementById("guideStatus").value = "photo";
     toggleGuideMediaField();
 
-    modal.classList.add("active");
+    modal.style.display = "flex";
 }
 
 function closeGuideModal() {
-    document.getElementById("settingsGuideModal").classList.remove("active");
+    const modal = document.getElementById("settingsGuideModal");
+
+    if (modal) {
+        modal.style.display = "none";
+    }
 }
 
 function editSettingsGuide(id) {
@@ -19107,11 +19065,15 @@ function openAddDownloadModal() {
     document.getElementById("downloadEditId").value = "";
     document.getElementById("downloadModalTitle").textContent = "Add Download";
 
-    modal.classList.add("active");
+    modal.style.display = "flex";
 }
 
 function closeDownloadModal() {
-    document.getElementById("settingsDownloadModal").classList.remove("active");
+    const modal = document.getElementById("settingsDownloadModal");
+
+    if (modal) {
+        modal.style.display = "none";
+    }
 }
 
 function editSettingsDownload(id) {
@@ -19272,12 +19234,16 @@ function openSettingsDeleteModal(id, type) {
             "Are you sure you want to delete this " + formatSettingsDeleteType(type) + "? This action cannot be undone.";
     }
 
-    document.getElementById("settingsDeleteModal").classList.add("active");
+    document.getElementById("settingsDeleteModal").style.display = "flex";
 
 }
 
 function closeSettingsDeleteModal() {
-    document.getElementById("settingsDeleteModal").classList.remove("active");
+    const modal = document.getElementById("settingsDeleteModal");
+
+    if (modal) {
+        modal.style.display = "none";
+    }
 }
 
 const SETTINGS_DELETE_TABLES = {
@@ -19313,38 +19279,20 @@ function confirmSettingsDelete() {
 
 }
 
-
 /* =========================================================
-   SETTINGS MODALS — OUTSIDE CLICK
+   SETTINGS MODALS — CLICK OUTSIDE TO CLOSE
+   Same behavior as Users page modals
 ========================================================= */
 
-document.addEventListener("click", function(event){
+document.addEventListener("click", function(event) {
 
-    const modals = document.querySelectorAll(".settings-modal");
+    if (
+        event.target.classList.contains("settings-modal")
+    ) {
 
-    modals.forEach(function(modal){
+        event.target.style.display = "none";
 
-        if(!modal.classList.contains("active")){
-            return;
-        }
-
-        /*
-         * If the click happened inside the modal box,
-         * do nothing.
-         */
-        if(event.target.closest(".settings-modal-box")){
-            return;
-        }
-
-        /*
-         * If the click happened on the modal backdrop,
-         * close this Settings modal.
-         */
-        if(event.target === modal){
-            modal.classList.remove("active");
-        }
-
-    });
+    }
 
 });
 

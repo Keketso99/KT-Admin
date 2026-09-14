@@ -10761,27 +10761,30 @@ transition: filter .15s ease, transform .1s ease;
 
 .settings-modal {
 
-    display:none;
-    position:fixed;
-    top:65px; /* below your fixed header */
-    right: 40px; /* beside sidebar */
-    width:calc(100% - 35px);
-    height:calc(100vh - 65px);
-    background:rgba(0,0,0,.55);
-    z-index:5000;
+    display: none;
+
+    position: fixed;
+
+    top: 65px;
+    right: 40px;
+
+    width: calc(100% - 35px);
+    height: calc(100vh - 65px);
+
+    background: rgba(0,0,0,.55);
+
+    z-index: 5000;
+
     padding: 15px;
-    overflow-y:auto;
-    backdrop-filter:blur(4px);
-    -webkit-backdrop-filter:blur(4px);
+
+    overflow-y: auto;
+
+    box-sizing: border-box;
 
 }
 
 
-.settings-modal.active {
 
-    display: flex;
-
-}
 
 
 
@@ -11507,17 +11510,4 @@ transition: filter .15s ease, transform .1s ease;
     opacity: 1;
     transform: translate(-50%, 0);
 
-}
-
-
-/* =========================================================
-   SETTINGS MODALS — KEEP ABOVE GLOBAL MODAL OVERLAY
-========================================================= */
-
-.settings-modal{
-    z-index:6000 !important;
-}
-
-.settings-modal-box{
-    z-index:6001 !important;
 }
