@@ -11509,15 +11509,3 @@ transition: filter .15s ease, transform .1s ease;
 
 }
 
-
-/* =========================================================
-   SETTINGS MODALS — KEEP ABOVE GLOBAL MODAL OVERLAY
-========================================================= */
-
-.settings-modal{
-    z-index:6000 !important;
-}
-
-.settings-modal-box{
-    z-index:6001 !important;
-}

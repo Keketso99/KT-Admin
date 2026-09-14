@@ -18569,6 +18569,56 @@ function initSettings() {
 
     showSettingsTab("overview");
 
+    /* =====================================================
+       SETTINGS MODAL OUTSIDE-CLICK HANDLER
+       ===================================================== */
+
+    const settingsModalIds = [
+        "settingsVideoModal",
+        "settingsGuideModal",
+        "settingsDownloadModal",
+        "settingsDeleteModal"
+    ];
+
+    settingsModalIds.forEach(function(id) {
+
+        const modal = document.getElementById(id);
+
+        if (!modal) return;
+
+        /*
+         * Prevent duplicate listeners if Settings is opened
+         * more than once.
+         */
+        if (modal.dataset.outsideClickReady === "true") {
+            return;
+        }
+
+        modal.dataset.outsideClickReady = "true";
+
+        modal.addEventListener("click", function(event) {
+
+            /*
+             * Only close when the actual modal backdrop
+             * itself was clicked.
+             *
+             * Anything inside .settings-modal-box remains open.
+             */
+            if (event.target === modal) {
+
+                modal.classList.remove("active");
+
+                console.log(
+                    "Settings modal closed by outside click:",
+                    id
+                );
+
+            }
+
+        });
+
+    });
+
     console.log("KT Settings page initialized.");
 }
 
