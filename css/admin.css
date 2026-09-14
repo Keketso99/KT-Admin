@@ -433,8 +433,8 @@ body {
 
     background:rgba(255,255,255,.72);
 
-    backdrop-filter:blur(2px);
-    -webkit-backdrop-filter:blur(2px);
+    backdrop-filter:blur(1px);
+    -webkit-backdrop-filter:blur(1px);
 
     z-index:99998;
 
