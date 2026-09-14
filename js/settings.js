@@ -791,52 +791,35 @@ function confirmSettingsDelete() {
 
 
 /* =========================================================
-   SETTINGS MODAL — OUTSIDE CLICK HANDLER
-   =========================================================
-   
-   Closes any open Settings modal when the user clicks
-   the dark area outside the modal box.
+   SETTINGS MODALS — OUTSIDE CLICK
+========================================================= */
 
-   Clicking inside .settings-modal-box does NOT close it.
+document.addEventListener("click", function(event){
 
-   Handles:
-   - Add / Edit Video
-   - Add / Edit Guide
-   - Add / Edit Download
-   - Delete Confirmation
-   ========================================================= */
+    const modals = document.querySelectorAll(".settings-modal");
 
-document.addEventListener("click", function(event) {
+    modals.forEach(function(modal){
 
-    /*
-     * Find the Settings modal that contains the clicked
-     * element.
-     */
-    const clickedModal = event.target.closest(".settings-modal");
-
-
-    /*
-     * If the click happened inside a Settings modal...
-     */
-    if (clickedModal) {
-
-        /*
-         * If the click was INSIDE the modal box,
-         * do nothing.
-         */
-        if (event.target.closest(".settings-modal-box")) {
-
+        if(!modal.classList.contains("active")){
             return;
-
         }
 
+        /*
+         * If the click happened inside the modal box,
+         * do nothing.
+         */
+        if(event.target.closest(".settings-modal-box")){
+            return;
+        }
 
         /*
-         * Otherwise the user clicked the backdrop.
-         * Close this Settings modal.
+         * If the click happened on the modal backdrop,
+         * close this Settings modal.
          */
-        clickedModal.classList.remove("active");
+        if(event.target === modal){
+            modal.classList.remove("active");
+        }
 
-    }
+    });
 
 });
