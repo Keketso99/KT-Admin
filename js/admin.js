@@ -5,6 +5,178 @@
 
 const adminBody = document.getElementById("admin-body");
 
+// ==============================
+// ADMIN PAGE LOADING SYSTEM
+// ==============================
+
+
+
+
+// ======================================================
+// GLOBAL PAGE LOADER
+// ======================================================
+
+const globalPageLoader =
+    document.getElementById("global-page-loader");
+
+
+let pageLoading = false;
+
+let pageFetchRequests = 0;
+
+let pageLoadGeneration = 0;
+
+let pageLoadQuietTimer = null;
+
+
+// ======================================================
+// SHOW GLOBAL LOADER
+// ======================================================
+
+function showGlobalPageLoader(){
+
+    if(!globalPageLoader) return;
+
+    globalPageLoader.classList.add("show");
+
+}
+
+
+// ======================================================
+// HIDE GLOBAL LOADER
+// ======================================================
+
+function hideGlobalPageLoader(){
+
+    if(!globalPageLoader) return;
+
+    globalPageLoader.classList.remove("show");
+
+}
+
+
+// ======================================================
+// WAIT UNTIL INITIAL PAGE REQUESTS ARE FINISHED
+// ======================================================
+
+function finishGlobalPageLoading(generation){
+
+    if(generation !== pageLoadGeneration){
+
+        return;
+
+    }
+
+
+    clearTimeout(pageLoadQuietTimer);
+
+
+    /*
+     * Give the page a very short quiet period.
+     *
+     * This is important because page initialization can
+     * start another Supabase request immediately after
+     * the first request finishes.
+     */
+
+    pageLoadQuietTimer = setTimeout(()=>{
+
+        if(generation !== pageLoadGeneration){
+
+            return;
+
+        }
+
+
+        if(pageFetchRequests === 0){
+
+            pageLoading = false;
+
+            hideGlobalPageLoader();
+
+        }
+
+        else{
+
+            finishGlobalPageLoading(generation);
+
+        }
+
+    },120);
+
+}
+
+
+// ======================================================
+// TRACK FETCH REQUESTS DURING PAGE INITIALIZATION
+// ======================================================
+//
+// Supabase requests use fetch internally.
+// This allows the global loader to wait for those
+// requests without changing every individual page JS.
+// ======================================================
+
+const originalFetch = window.fetch.bind(window);
+
+
+window.fetch = function(...args){
+
+    const shouldTrack =
+        pageLoading === true;
+
+
+    if(shouldTrack){
+
+        pageFetchRequests++;
+
+    }
+
+
+    return originalFetch(...args)
+
+        .finally(()=>{
+
+            if(!shouldTrack){
+
+                return;
+
+            }
+
+
+            pageFetchRequests--;
+
+
+            if(pageFetchRequests < 0){
+
+                pageFetchRequests = 0;
+
+            }
+
+        });
+
+};
+
+
+// ======================================================
+// START PAGE LOADING
+// ======================================================
+
+function startGlobalPageLoading(){
+
+    pageLoadGeneration++;
+
+    pageLoading = true;
+
+    pageFetchRequests = 0;
+
+    clearTimeout(pageLoadQuietTimer);
+
+    showGlobalPageLoader();
+
+    return pageLoadGeneration;
+
+}
+
 document.addEventListener(
     "contextmenu",
     function(event) {
@@ -27,113 +199,338 @@ document.addEventListener(
 
 // Load admin page
 
+// ======================================================
+// ADMIN PAGE CACHE
+// ======================================================
 
 const pageCache = {};
 
+
+// ======================================================
+// LOAD ADMIN PAGE
+// ======================================================
+
 function loadAdminPage(page){
+
+    const loadingGeneration =
+        startGlobalPageLoading();
+
 
     adminBody.classList.remove("page-fade-in");
 
+
     const render = (data) => {
 
+        /*
+         * A newer page may have been requested while this
+         * page was loading.
+         *
+         * If so, do not allow the older page to hide the
+         * loader or overwrite the newer page.
+         */
+
+        if(
+            loadingGeneration !== pageLoadGeneration
+        ){
+
+            return;
+
+        }
+
+
         adminBody.innerHTML = data;
+
         adminBody.appendChild(modalOverlay);
 
+
         // Reset scroll position
+
         adminBody.scrollTop = 0;
 
+
         // Change active menu
+
         setActiveMenu(page);
 
+
         // Trigger fade-in transition
+
         requestAnimationFrame(()=>{
-            adminBody.classList.add("page-fade-in");
+
+            adminBody.classList.add(
+                "page-fade-in"
+            );
+
         });
 
-        // Initialize page scripts
+
+        // ==================================================
+        // INITIALIZE PAGE SCRIPTS
+        // ==================================================
+
         switch(page){
 
             case "transactions":
-                if(typeof initTransactions === "function") initTransactions();
+
+                if(
+                    typeof initTransactions === "function"
+                ){
+
+                    initTransactions();
+
+                }
+
             break;
+
 
             case "withdrawals":
-                if(typeof initWithdrawals === "function") initWithdrawals();
+
+                if(
+                    typeof initWithdrawals === "function"
+                ){
+
+                    initWithdrawals();
+
+                }
+
             break;
+
 
             case "deposits":
-                if(typeof initDeposits === "function") initDeposits();
+
+                if(
+                    typeof initDeposits === "function"
+                ){
+
+                    initDeposits();
+
+                }
+
             break;
+
 
             case "plans":
-                if(typeof initPlans === "function") initPlans();
+
+                if(
+                    typeof initPlans === "function"
+                ){
+
+                    initPlans();
+
+                }
+
             break;
+
 
             case "users":
-                if(typeof initUsers === "function") initUsers();
+
+                if(
+                    typeof initUsers === "function"
+                ){
+
+                    initUsers();
+
+                }
+
             break;
+
 
             case "verification":
-                if(typeof initVerification === "function") initVerification();
+
+                if(
+                    typeof initVerification === "function"
+                ){
+
+                    initVerification();
+
+                }
+
             break;
+
 
             case "exchange":
-                if(typeof initExchangeRates === "function") initExchangeRates();
+
+                if(
+                    typeof initExchangeRates === "function"
+                ){
+
+                    initExchangeRates();
+
+                }
+
             break;
+
 
             case "notifications":
-                if(typeof initNotifications === "function") initNotifications();
+
+                if(
+                    typeof initNotifications === "function"
+                ){
+
+                    initNotifications();
+
+                }
+
             break;
+
 
             case "activity-log":
-                if(typeof initActivityLogs === "function") initActivityLogs();
+
+                if(
+                    typeof initActivityLogs === "function"
+                ){
+
+                    initActivityLogs();
+
+                }
+
             break;
+
 
             case "support-chat":
-                if(typeof initSupportChatPage === "function") initSupportChatPage();
+
+                if(
+                    typeof initSupportChatPage === "function"
+                ){
+
+                    initSupportChatPage();
+
+                }
+
             break;
+
 
             case "settings":
-                if(typeof initSettings === "function") initSettings();
+
+                if(
+                    typeof initSettings === "function"
+                ){
+
+                    initSettings();
+
+                }
+
             break;
+
 
             case "dashboard":
-                if(typeof initDashboard === "function") initDashboard();
+
+                if(
+                    typeof initDashboard === "function"
+                ){
+
+                    initDashboard();
+
+                }
+
             break;
 
         }
+
+
+        /*
+         * The page's initialization functions above may have
+         * started Supabase/fetch requests.
+         *
+         * Wait until those requests have finished before
+         * removing the loader.
+         */
+
+        finishGlobalPageLoading(
+            loadingGeneration
+        );
+
     };
 
-    // Serve instantly from cache if we already have it
+
+    // ==================================================
+    // SERVE FROM CACHE
+    // ==================================================
+
     if(pageCache[page]){
+
         render(pageCache[page]);
+
         return;
+
     }
 
-    fetch("admin-pages/" + page + ".html")
+
+    // ==================================================
+    // LOAD PAGE HTML
+    // ==================================================
+
+    fetch(
+        "admin-pages/" + page + ".html"
+    )
 
     .then(response=>{
+
         if(!response.ok){
-            throw new Error("Page not found");
+
+            throw new Error(
+                "Page not found"
+            );
+
         }
+
+
         return response.text();
+
     })
 
     .then(data=>{
+
         pageCache[page] = data;
+
         render(data);
+
     })
 
     .catch(error=>{
+
+        if(
+            loadingGeneration !== pageLoadGeneration
+        ){
+
+            return;
+
+        }
+
+
         adminBody.innerHTML = `
+
         <div class="admin-card">
+
             <h2>Page Error</h2>
+
             <p>${error.message}</p>
+
         </div>
+
         `;
+
+
         requestAnimationFrame(()=>{
-            adminBody.classList.add("page-fade-in");
+
+            adminBody.classList.add(
+                "page-fade-in"
+            );
+
         });
+
+
+        /*
+         * Even if the page fails, never leave the
+         * loading spinner stuck on the screen.
+         */
+
+        pageLoading = false;
+
+        pageFetchRequests = 0;
+
+        hideGlobalPageLoader();
+
     });
 
 }
