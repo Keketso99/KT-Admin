@@ -128,8 +128,11 @@ function renderPendingCounts(counts){
     document.getElementById("pendingPinResets").textContent =
         formatNumber(counts.pinResetsPending);
 
-    document.getElementById("pendingChangeRequests").textContent =
+        document.getElementById("pendingChangeRequests").textContent =
         formatNumber(counts.changeRequestsPending);
+
+    document.getElementById("pendingKycResets").textContent =
+        formatNumber(counts.kycResetsPending);
 
 }
 
@@ -152,7 +155,8 @@ function loadPendingCounts(){
                 withdrawalsPending: row.withdrawals_pending,
                 passwordResetsPending: row.password_resets_pending,
                 pinResetsPending: row.pin_resets_pending,
-                changeRequestsPending: row.change_requests_pending
+                changeRequestsPending: row.change_requests_pending,
+                kycResetsPending: row.kyc_resets_pending
             });
 
         })

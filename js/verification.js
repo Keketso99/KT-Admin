@@ -22,11 +22,13 @@ function initVerification() {
     const reviewIdBack = document.getElementById("reviewIdBack");
     const reviewSelfie = document.getElementById("reviewSelfie");
 
-    const approveBtn = document.querySelector(".approve-btn");
+        const approveBtn = document.querySelector(".approve-btn");
     const rejectBtn = document.querySelector(".reject-btn");
     const requestBtn = document.querySelector(".request-btn");
     const resetBtn = document.querySelector(".reset-btn");
-
+    const rejectResubmissionBtn = document.querySelector(".reject-resubmission-btn");
+    const resubmissionStatusEl = document.getElementById("resubmissionStatus");
+  
     let selectedRow = null;
     let kycData = {};
 
@@ -277,12 +279,14 @@ function initVerification() {
 
                 document.getElementById("adminNoteInput").value = "";
 
-                if (entry.status === "pending") {
+                                if (entry.status === "pending") {
 
                     approveBtn.style.display = "inline-block";
                     rejectBtn.style.display = "inline-block";
                     requestBtn.style.display = "inline-block";
                     resetBtn.style.display = "none";
+                    rejectResubmissionBtn.style.display = "none";
+                    resubmissionStatusEl.style.display = "none";
 
                 } else {
 
@@ -291,6 +295,13 @@ function initVerification() {
                     requestBtn.style.display = "none";
                     resetBtn.style.display = "inline-block";
 
+                }
+
+                if (entry.status === "approved") {
+                    refreshResubmissionStatus(entry.userId);
+                } else {
+                    rejectResubmissionBtn.style.display = "none";
+                    resubmissionStatusEl.style.display = "none";
                 }
 
                 modal.style.display = "flex";
@@ -382,12 +393,13 @@ function initVerification() {
     // Reset Verification (real — admin_reset_kyc RPC)
     // ===============================
 
-    resetBtn.onclick = function () {
+        resetBtn.onclick = function () {
 
         if (!selectedRow) return;
 
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
+        const entry = kycData[kycId];
 
         sb.rpc("admin_reset_kyc", { p_kyc_id: kycId, p_note: note })
 
@@ -396,6 +408,12 @@ function initVerification() {
                 if(error){
                     alert("Failed to reset: " + error.message);
                     return;
+                }
+
+                // Fulfilling the reset also resolves any pending resubmission
+                // request, so "Resubmission pending" doesn't linger after this.
+                if (entry && entry.userId) {
+                    sb.rpc("admin_complete_kyc_reset_request", { p_user_id: entry.userId });
                 }
 
                 modal.style.display = "none";
@@ -429,6 +447,69 @@ function initVerification() {
                 alert("Request for additional documents has been sent.");
 
                 modal.style.display = "none";
+
+            });
+
+        };
+
+    // ===============================
+    // Resubmission status (real — account_reset_requests, kind='kyc')
+    // ===============================
+
+    function refreshResubmissionStatus(userId) {
+
+        resubmissionStatusEl.style.display = "block";
+        resubmissionStatusEl.textContent = "Checking resubmission status…";
+        rejectResubmissionBtn.style.display = "none";
+
+        sb.from("account_reset_requests")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("kind", "kyc")
+            .eq("status", "pending")
+            .maybeSingle()
+
+            .then(({ data, error }) => {
+
+                if (error) {
+                    resubmissionStatusEl.textContent = "Failed to check resubmission status: " + error.message;
+                    return;
+                }
+
+                if (data) {
+                    resubmissionStatusEl.textContent = "This user has requested a resubmission.";
+                    rejectResubmissionBtn.style.display = "inline-block";
+                } else {
+                    resubmissionStatusEl.textContent = "No resubmission request.";
+                    rejectResubmissionBtn.style.display = "none";
+                }
+
+            });
+
+    }
+
+    rejectResubmissionBtn.onclick = function () {
+
+        if (!selectedRow) return;
+
+        const kycId = selectedRow.dataset.kycid;
+        const entry = kycData[kycId];
+        if (!entry || !entry.userId) return;
+
+        const note = document.getElementById("adminNoteInput").value.trim() || null;
+
+        sb.rpc("admin_reject_kyc_resubmission", { p_user_id: entry.userId, p_note: note })
+
+            .then(({ error }) => {
+
+                if (error) {
+                    alert("Failed to reject resubmission: " + error.message);
+                    return;
+                }
+
+                alert("Resubmission request rejected — the user has been notified.");
+
+                refreshResubmissionStatus(entry.userId);
 
             });
 

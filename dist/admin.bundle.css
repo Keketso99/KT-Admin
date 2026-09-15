@@ -4187,6 +4187,31 @@ opacity:.1;
     background-color: #ec971f;
 }
 
+
+.reject-resubmission-btn {
+    background-color: #e53935;
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.reject-resubmission-btn:hover {
+    opacity: 0.9;
+}
+
+.resubmission-status {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #555;
+    font-size: 13px;
+}
+
 /* ===== css/exchange.css ===== */
 /* =================================
    EXCHANGE RATES PAGE
