@@ -393,7 +393,7 @@ function initVerification() {
     // Reset Verification (real — admin_reset_kyc RPC)
     // ===============================
 
-        resetBtn.onclick = function () {
+    resetBtn.onclick = function () {
 
         if (!selectedRow) return;
 
@@ -407,19 +407,33 @@ function initVerification() {
 
                 if(error){
                     alert("Failed to reset: " + error.message);
-                    return;
+                    return Promise.reject(error);
                 }
 
                 // Fulfilling the reset also resolves any pending resubmission
                 // request, so "Resubmission pending" doesn't linger after this.
+                // Chained (not fire-and-forget) so a failure here is visible
+                // instead of silently leaving a stale pending row behind.
                 if (entry && entry.userId) {
-                    sb.rpc("admin_complete_kyc_reset_request", { p_user_id: entry.userId });
+                    return sb.rpc("admin_complete_kyc_reset_request", { p_user_id: entry.userId });
+                }
+
+            })
+
+            .then((result) => {
+
+                if (result && result.error) {
+                    alert("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
                 }
 
                 modal.style.display = "none";
 
                 loadKyc();
 
+            })
+
+            .catch(() => {
+                // Reset itself already alerted above; nothing more to do.
             });
 
     };
