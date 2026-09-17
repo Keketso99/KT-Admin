@@ -1197,3 +1197,43 @@
 
 
 }
+
+/* =========================================================
+   CHANGE REQUEST DECISION MODAL
+========================================================= */
+
+.change-decision-modal .delete-content{
+    width: 360px;
+    max-width: 95%;
+}
+
+.change-decision-modal .confirm-buttons{
+    margin-top: 20px;
+    margin-bottom: 0;
+}
+
+.change-decision-modal .change-approve-btn,
+.change-decision-modal .change-reject-btn{
+    flex: 1;
+    padding: 11px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.change-decision-modal .change-approve-btn{
+    background: #1b8ef2;
+    color: white;
+}
+
+.change-decision-modal .change-reject-btn{
+    background: #e53935;
+    color: white;
+}
+
+.change-decision-modal .change-approve-btn:hover,
+.change-decision-modal .change-reject-btn:hover{
+    opacity: .9;
+}

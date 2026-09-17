@@ -549,47 +549,75 @@
 </div>
 
 
-
-<!-- Approve Changes — pick which page to unlock -->
+<!-- =========================================================
+     APPROVE CHANGES — SELECT REQUESTED PAGE
+========================================================= -->
 
 <div class="delete-modal" id="approveModal">
 
     <div class="delete-content">
 
+        <span class="close-modal">&times;</span>
+
         <h2>
-
             Approve Changes
-
         </h2>
 
         <p>
-
-            Choose which page this user requested changes for. Approving unlocks editing there until they save.
-
+            Select the page with a pending change request.
         </p>
 
         <div class="confirm-buttons">
 
-            <button class="cancel-btn approve-cancel-btn">
+            <button
+                type="button"
+                class="delete-btn approve-personal-btn">
+                Personal Information
+            </button>
 
-                Cancel
-
+            <button
+                type="button"
+                class="delete-btn approve-payment-btn">
+                Payment Methods
             </button>
 
         </div>
 
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     CHANGE REQUEST DECISION MODAL
+========================================================= -->
+
+<div class="delete-modal change-decision-modal" id="changeDecisionModal">
+
+    <div class="delete-content">
+
+        <span class="close-modal">&times;</span>
+
+        <h2 id="changeDecisionTitle">
+            Personal Information
+        </h2>
+
+        <p id="changeDecisionText">
+            Approve or reject this change request.
+        </p>
+
         <div class="confirm-buttons">
 
-            <button class="delete-btn approve-personal-btn">
-
-                Personal Information
-
+            <button
+                type="button"
+                class="change-approve-btn">
+                Approve
             </button>
 
-            <button class="delete-btn approve-payment-btn">
-
-                Payment Methods
-
+            <button
+                type="button"
+                class="change-reject-btn">
+                Reject
             </button>
 
         </div>

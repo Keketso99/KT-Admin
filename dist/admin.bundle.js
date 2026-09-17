@@ -4173,39 +4173,77 @@ function initUsers(){
     // enforce_profile_lock / enforce_payment_method_lock in SQL).
 
     const approveBtn = document.querySelector(".approve-btn");
-    const approveModal = document.getElementById("approveModal");
-    const approveCancelBtn = document.querySelector(".approve-cancel-btn");
-    const approvePersonalBtn = document.querySelector(".approve-personal-btn");
-    const approvePaymentBtn = document.querySelector(".approve-payment-btn");
 
+const approveModal =
+    document.getElementById("approveModal");
 
-  
+const approvePersonalBtn =
+    document.querySelector(".approve-personal-btn");
 
-  function updateApproveButton(){
+const approvePaymentBtn =
+    document.querySelector(".approve-payment-btn");
 
-        if(!currentRow || !approveBtn) return;
+const changeDecisionModal =
+    document.getElementById("changeDecisionModal");
 
-        const hiddenData = currentRow.querySelector(".user-hidden-data");
-        const changeRequested = hiddenData.querySelector(".change-requested").textContent === "1";
-        const paymentMethodsChangeRequested = hiddenData.querySelector(".payment-methods-change-requested").textContent === "1";
+const changeDecisionTitle =
+    document.getElementById("changeDecisionTitle");
 
-        const anyRequested = changeRequested || paymentMethodsChangeRequested;
+const changeDecisionText =
+    document.getElementById("changeDecisionText");
 
-        approveBtn.textContent = anyRequested ? "Approve Changes" : "No Pending Requests";
-        approveBtn.disabled = !anyRequested;
+const changeApproveBtn =
+    document.querySelector(".change-approve-btn");
 
-        if(approvePersonalBtn){
-            approvePersonalBtn.disabled = !changeRequested;
-        }
-        if(approvePaymentBtn){
-            approvePaymentBtn.disabled = !paymentMethodsChangeRequested;
-        }
+const changeRejectBtn =
+    document.querySelector(".change-reject-btn");
+
+let selectedChangePage = null;
+
+function updateApproveButton(){
+
+    if(!currentRow || !approveBtn) return;
+
+    const hiddenData = currentRow.querySelector(".user-hidden-data");
+
+    const changeRequested =
+        hiddenData.querySelector(".change-requested").textContent === "1";
+
+    const paymentMethodsChangeRequested =
+        hiddenData.querySelector(".payment-methods-change-requested").textContent === "1";
+
+    const anyRequested =
+        changeRequested || paymentMethodsChangeRequested;
+
+    // Main button
+    approveBtn.textContent =
+        anyRequested
+            ? "Approve Changes"
+            : "No Pending Requests";
+
+    approveBtn.disabled = !anyRequested;
+
+    // Personal Information button
+    if(approvePersonalBtn){
+
+        approvePersonalBtn.style.display =
+            changeRequested
+                ? "inline-block"
+                : "none";
 
     }
 
+    // Payment Methods button
+    if(approvePaymentBtn){
 
+        approvePaymentBtn.style.display =
+            paymentMethodsChangeRequested
+                ? "inline-block"
+                : "none";
 
-  
+    }
+
+}
 
     if(approveBtn){
 
@@ -4227,71 +4265,213 @@ function initUsers(){
 
     if(approvePersonalBtn){
 
-        approvePersonalBtn.onclick=function(){
+    approvePersonalBtn.onclick = function(){
 
-            if(!currentRow) return;
+        if(!currentRow) return;
 
-            sb.rpc("admin_approve_profile_changes", {
-                p_user_id: currentRow.dataset.userid
-            })
+        selectedChangePage = "personal";
 
-            .then(({ error }) => {
+        changeDecisionTitle.textContent =
+            "Personal Information";
 
-                approveModal.style.display="none";
+        changeDecisionText.textContent =
+            "Approve or reject the Personal Information change request.";
 
-                if(error){
-                    alert("Failed to approve changes: " + error.message);
-                    return;
-                }
+        approveModal.style.display = "none";
 
-                const hiddenData = currentRow.querySelector(".user-hidden-data");
-                hiddenData.querySelector(".info-locked").textContent = "0";
-                hiddenData.querySelector(".change-requested").textContent = "0";
+        changeDecisionModal.style.display = "flex";
 
-                modalInfoStatus.textContent = "Editable (approved)";
-                updateApproveButton();
+    };
 
-                alert("Changes approved — the user can now edit their personal information.");
-
-            });
-
-        };
-
-    }
+}
 
     if(approvePaymentBtn){
 
-        approvePaymentBtn.onclick=function(){
+    approvePaymentBtn.onclick = function(){
 
-            if(!currentRow) return;
+        if(!currentRow) return;
 
-            sb.rpc("admin_approve_payment_methods_changes", {
-                p_user_id: currentRow.dataset.userid
-            })
+        selectedChangePage = "payment";
 
-            .then(({ error }) => {
+        changeDecisionTitle.textContent =
+            "Payment Methods";
 
-                approveModal.style.display="none";
+        changeDecisionText.textContent =
+            "Approve or reject the Payment Methods change request.";
 
-                if(error){
-                    alert("Failed to approve changes: " + error.message);
-                    return;
-                }
+        approveModal.style.display = "none";
 
-                const hiddenData = currentRow.querySelector(".user-hidden-data");
-                hiddenData.querySelector(".payment-methods-locked").textContent = "0";
-                hiddenData.querySelector(".payment-methods-change-requested").textContent = "0";
+        changeDecisionModal.style.display = "flex";
 
-                modalPaymentMethodsStatus.textContent = "Editable (approved)";
-                updateApproveButton();
+    };
 
-                alert("Changes approved — the user can now edit their payment methods.");
+}
 
-            });
+  // =========================================================
+// CHANGE REQUEST — APPROVE / REJECT
+// =========================================================
 
-        };
+if(changeApproveBtn){
 
-    }
+    changeApproveBtn.onclick = function(){
+
+        if(!currentRow || !selectedChangePage) return;
+
+        const userId = currentRow.dataset.userid;
+
+        let rpcName = "";
+
+        if(selectedChangePage === "personal"){
+            rpcName = "admin_approve_profile_changes";
+        }
+
+        if(selectedChangePage === "payment"){
+            rpcName = "admin_approve_payment_methods_changes";
+        }
+
+        if(!rpcName) return;
+
+        changeApproveBtn.disabled = true;
+        changeRejectBtn.disabled = true;
+
+        sb.rpc(rpcName, {
+            p_user_id: userId
+        })
+
+        .then(({ error }) => {
+
+            changeApproveBtn.disabled = false;
+            changeRejectBtn.disabled = false;
+
+            if(error){
+
+                alert(
+                    "Failed to approve changes: " +
+                    error.message
+                );
+
+                return;
+            }
+
+            const hiddenData =
+                currentRow.querySelector(".user-hidden-data");
+
+            if(selectedChangePage === "personal"){
+
+                hiddenData
+                    .querySelector(".info-locked")
+                    .textContent = "0";
+
+                hiddenData
+                    .querySelector(".change-requested")
+                    .textContent = "0";
+
+                modalInfoStatus.textContent =
+                    "Editable (approved)";
+            }
+
+            if(selectedChangePage === "payment"){
+
+                hiddenData
+                    .querySelector(".payment-methods-locked")
+                    .textContent = "0";
+
+                hiddenData
+                    .querySelector(".payment-methods-change-requested")
+                    .textContent = "0";
+
+                modalPaymentMethodsStatus.textContent =
+                    "Editable (approved)";
+            }
+
+            changeDecisionModal.style.display = "none";
+
+            selectedChangePage = null;
+
+            updateApproveButton();
+
+        });
+
+    };
+
+}
+
+  if(changeRejectBtn){
+
+    changeRejectBtn.onclick = function(){
+
+        if(!currentRow || !selectedChangePage) return;
+
+        const userId = currentRow.dataset.userid;
+
+        let rpcName = "";
+
+        if(selectedChangePage === "personal"){
+            rpcName = "admin_reject_profile_changes";
+        }
+
+        if(selectedChangePage === "payment"){
+            rpcName = "admin_reject_payment_methods_changes";
+        }
+
+        if(!rpcName) return;
+
+        changeApproveBtn.disabled = true;
+        changeRejectBtn.disabled = true;
+
+        sb.rpc(rpcName, {
+            p_user_id: userId
+        })
+
+        .then(({ error }) => {
+
+            changeApproveBtn.disabled = false;
+            changeRejectBtn.disabled = false;
+
+            if(error){
+
+                alert(
+                    "Failed to reject changes: " +
+                    error.message
+                );
+
+                return;
+            }
+
+            const hiddenData =
+                currentRow.querySelector(".user-hidden-data");
+
+            if(selectedChangePage === "personal"){
+
+                hiddenData
+                    .querySelector(".change-requested")
+                    .textContent = "0";
+
+                modalInfoStatus.textContent =
+                    "Locked — request rejected";
+            }
+
+            if(selectedChangePage === "payment"){
+
+                hiddenData
+                    .querySelector(".payment-methods-change-requested")
+                    .textContent = "0";
+
+                modalPaymentMethodsStatus.textContent =
+                    "Locked — request rejected";
+            }
+
+            changeDecisionModal.style.display = "none";
+
+            selectedChangePage = null;
+
+            updateApproveButton();
+
+        });
+
+    };
+
+}
 
     // ===============================
     // CREDIT BALANCE (real — admin_credit_wallet)
