@@ -4208,7 +4208,7 @@ function showChangeRequestToast(message, type = "success"){
             toast.remove();
         }, 500);
 
-    }, 3000);
+    }, 5000);
 }
 
   

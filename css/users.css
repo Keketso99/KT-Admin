@@ -1207,6 +1207,11 @@
     max-width: 95%;
 }
 
+.change-decision-modal .close-modal{
+  right:8px;
+  top:0;
+}
+
 .change-decision-modal .confirm-buttons{
     margin-top: 20px;
     margin-bottom: 0;
