@@ -78,9 +78,102 @@ async function loginSubmit(event){
     await handleAuthedSession(data.session);
 }
 
-async function adminLogout(){
-    await sb.auth.signOut();
-    showLoginOverlay();
+// =========================================================
+// LOGOUT CONFIRMATION MODAL
+// =========================================================
+
+function openLogoutModal(){
+
+    const modal =
+        document.getElementById("logoutModal");
+
+    if(!modal) return;
+
+    modal.classList.add("show");
 }
+
+
+// =========================================================
+// CLOSE LOGOUT CONFIRMATION MODAL
+// =========================================================
+
+function closeLogoutModal(){
+
+    const modal =
+        document.getElementById("logoutModal");
+
+    if(!modal) return;
+
+    modal.classList.remove("show");
+}
+
+
+// =========================================================
+// CONFIRM ADMIN LOGOUT
+// =========================================================
+
+async function confirmAdminLogout(){
+
+    const confirmBtn =
+        document.querySelector(".logout-confirm-btn");
+
+    if(confirmBtn){
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Logging out...";
+    }
+
+    const { error } =
+        await sb.auth.signOut();
+
+    if(error){
+
+        console.error(
+            "Logout failed:",
+            error
+        );
+
+        if(confirmBtn){
+
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Confirm";
+        }
+
+        return;
+    }
+
+    closeLogoutModal();
+
+    showLoginOverlay();
+
+}
+
+function adminLogout(){
+
+    openLogoutModal();
+
+}
+
+// =========================================================
+// CLOSE LOGOUT MODAL — OUTSIDE CLICK
+// =========================================================
+
+document.addEventListener("click", function(event){
+
+    const modal =
+        document.getElementById("logoutModal");
+
+    if(!modal) return;
+
+    if(
+        modal.classList.contains("show") &&
+        event.target === modal
+    ){
+
+        closeLogoutModal();
+
+    }
+
+});
 
 document.addEventListener("DOMContentLoaded", initAuth);

@@ -123,6 +123,13 @@ onclick="loadAdminPage('settings')">
 Settings
 </div>
 
+<!-- LOGOUT -->
+<div class="side-item side-logout-item"
+onclick="openLogoutModal()">
+<i class="fa-solid fa-right-from-bracket"></i>
+Logout
+</div>
+
 
 </aside>
 
@@ -137,6 +144,53 @@ Settings
   
 <!-- SIDEBAR OVERLAY (blurs + blocks clicks behind sidebar) -->
 <div id="sidebar-overlay"></div>
+
+<!-- =========================================================
+     LOGOUT CONFIRMATION MODAL
+========================================================= -->
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-modal-content">
+
+        <button
+            type="button"
+            class="logout-modal-close"
+            onclick="closeLogoutModal()">
+            &times;
+        </button>
+
+        <div class="logout-modal-icon">
+            <i class="fa-solid fa-right-from-bracket"></i>
+        </div>
+
+        <h2>Logout</h2>
+
+        <p>
+            Are you sure you want to logout?
+        </p>
+
+        <div class="logout-modal-actions">
+
+            <button
+                type="button"
+                class="logout-cancel-btn"
+                onclick="closeLogoutModal()">
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                class="logout-confirm-btn"
+                onclick="confirmAdminLogout()">
+                Confirm
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
 
 </div>
   
