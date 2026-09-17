@@ -157,7 +157,47 @@ async function handleAuthedSession(session){
 
     }
 
+// =====================================================
+// PERSISTENT ADMIN DEVICE ID
+// =====================================================
 
+let deviceId =
+    localStorage.getItem(
+        "kt_admin_device_id"
+    );
+
+
+if(!deviceId){
+
+    if(
+        typeof crypto !== "undefined" &&
+        crypto.randomUUID
+    ){
+
+        deviceId =
+            crypto.randomUUID();
+
+    }else{
+
+        deviceId =
+            "kt-admin-" +
+            Date.now() +
+            "-" +
+            Math.random()
+                .toString(36)
+                .substring(2);
+
+    }
+
+
+    localStorage.setItem(
+        "kt_admin_device_id",
+        deviceId
+    );
+
+}
+
+      
     // -----------------------------------------------------
     // Record successful Admin login
     // -----------------------------------------------------
@@ -166,6 +206,9 @@ async function handleAuthedSession(session){
         "record_successful_login",
         {
 
+            p_device_id:
+                deviceId,
+          
             p_device_name:
                 deviceName,
 
