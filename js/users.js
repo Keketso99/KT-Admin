@@ -541,6 +541,46 @@ function initUsers(){
     // DEFINER RPCs so the unlock/audit logic lives in one place (see
     // enforce_profile_lock / enforce_payment_method_lock in SQL).
 
+// =========================================================
+// CHANGE REQUEST TOAST
+// =========================================================
+
+function showChangeRequestToast(message, type = "success"){
+
+    const existingToast =
+        document.querySelector(".change-request-toast");
+
+    if(existingToast){
+        existingToast.remove();
+    }
+
+    const toast =
+        document.createElement("div");
+
+    toast.className =
+        `change-request-toast ${type}`;
+
+    toast.textContent =
+        message;
+
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.classList.add("show");
+    });
+
+    setTimeout(() => {
+
+        toast.classList.remove("show");
+
+        setTimeout(() => {
+            toast.remove();
+        }, 500);
+
+    }, 3000);
+}
+
+  
     const approveBtn = document.querySelector(".approve-btn");
 
 const approveModal =
@@ -717,13 +757,19 @@ if(changeApproveBtn){
 
             if(error){
 
-                alert(
-                    "Failed to approve changes: " +
-                    error.message
-                );
+    alert(
+        "Failed to approve changes: " +
+        error.message
+    );
 
-                return;
-            }
+    return;
+}
+
+showChangeRequestToast(
+    selectedChangePage === "personal"
+        ? "Personal Information change request approved successfully."
+        : "Payment Methods change request approved successfully."
+);
 
             const hiddenData =
                 currentRow.querySelector(".user-hidden-data");
@@ -802,15 +848,21 @@ if(changeApproveBtn){
 
             if(error){
 
-                alert(
-                    "Failed to reject changes: " +
-                    error.message
-                );
+    alert(
+        "Failed to reject changes: " +
+        error.message
+    );
 
-                return;
-            }
+    return;
+}
 
-            const hiddenData =
+showChangeRequestToast(
+    selectedChangePage === "personal"
+        ? "Personal Information change request rejected successfully."
+        : "Payment Methods change request rejected successfully."
+);
+
+const hiddenData =
                 currentRow.querySelector(".user-hidden-data");
 
             if(selectedChangePage === "personal"){

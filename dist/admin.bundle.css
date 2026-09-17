@@ -3807,6 +3807,67 @@ button{
     opacity: .9;
 }
 
+/* =========================================================
+   CHANGE REQUEST TOAST
+========================================================= */
+
+.change-request-toast{
+    position: fixed;
+    bottom: 25px;
+    left: 20px;
+    z-index: 99999;
+
+    min-width: 280px;
+    max-width: 90%;
+
+    padding: 14px 18px;
+
+    border-radius: 10px;
+
+    background: #1f2937;
+    color: #ffffff;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    box-shadow: 0 8px 25px rgba(0,0,0,.18);
+
+    opacity: 0;
+    transform: translateY(-15px);
+
+    transition:
+        opacity .3s ease,
+        transform .3s ease;
+}
+
+.change-request-toast.show{
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.change-request-toast.success{
+    background: #16a34a;
+}
+
+.change-request-toast.error{
+    background: #dc2626;
+}
+
+@media(max-width:600px){
+
+    .change-request-toast{
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+
+        min-width: auto;
+        max-width: none;
+
+        text-align: center;
+    }
+
+}
+
 /* ===== css/verification.css ===== */
 /* =================================
 VERIFICATION PAGE
