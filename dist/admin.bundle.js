@@ -48,11 +48,189 @@ async function handleAuthedSession(session){
     const isAdmin = await checkIsAdmin(session.user.id);
 
     if(isAdmin){
-        hideLoginOverlay();
-        if(typeof loadAdminPage === "function"){
-            loadAdminPage("dashboard");
+
+    // =====================================================
+    // SECURITY / LOGIN AUDIT
+    // =====================================================
+
+    const ua =
+        navigator.userAgent;
+
+
+    let deviceName =
+        "Unknown device";
+
+    let osName =
+        "Unknown";
+
+    let osVersion =
+        "Unknown";
+
+
+    // -----------------------------------------------------
+    // Android
+    // -----------------------------------------------------
+
+    const androidMatch =
+        ua.match(/Android\s+([0-9.]+)/i);
+
+
+    if(androidMatch){
+
+        osName =
+            "Android";
+
+        osVersion =
+            androidMatch[1];
+
+
+        const modelMatch =
+            ua.match(
+                /Android\s+[0-9.]+;\s*(?:[a-z]{2}-[A-Z]{2};\s*)?([^;)]+?)(?:\s+Build\/|\))/i
+            );
+
+
+        if(
+            modelMatch &&
+            modelMatch[1]
+        ){
+
+            deviceName =
+                modelMatch[1].trim();
+
         }
-    } else {
+
+    }
+
+
+    // -----------------------------------------------------
+    // iPhone
+    // -----------------------------------------------------
+
+    else if(
+        /iPhone/i.test(ua)
+    ){
+
+        osName =
+            "iOS";
+
+        deviceName =
+            "iPhone";
+
+    }
+
+
+    // -----------------------------------------------------
+    // iPad
+    // -----------------------------------------------------
+
+    else if(
+        /iPad/i.test(ua)
+    ){
+
+        osName =
+            "iOS";
+
+        deviceName =
+            "iPad";
+
+    }
+
+
+    // -----------------------------------------------------
+    // Windows
+    // -----------------------------------------------------
+
+    else if(
+        /Windows NT/i.test(ua)
+    ){
+
+        osName =
+            "Windows";
+
+        deviceName =
+            "Windows device";
+
+    }
+
+
+    // -----------------------------------------------------
+    // macOS
+    // -----------------------------------------------------
+
+    else if(
+        /Mac OS X/i.test(ua)
+    ){
+
+        osName =
+            "macOS";
+
+        deviceName =
+            "Mac";
+
+    }
+
+
+    // -----------------------------------------------------
+    // Record successful Admin login
+    // -----------------------------------------------------
+
+    sb.rpc(
+        "record_successful_login",
+        {
+
+            p_device_name:
+                deviceName,
+
+            p_os_name:
+                osName,
+
+            p_os_version:
+                osVersion,
+
+            p_approximate_location:
+                null,
+
+            p_session_id:
+                null
+
+        }
+    )
+    .then(
+        ({
+            error: logError
+        }) => {
+
+            if(logError){
+
+                console.warn(
+                    "Admin login audit error:",
+                    logError
+                );
+
+            }
+
+        }
+    );
+
+
+    hideLoginOverlay();
+
+
+    if(
+        typeof loadAdminPage ===
+        "function"
+    ){
+
+        loadAdminPage(
+            "dashboard"
+        );
+
+    }
+
+}
+    
+    else {
         await sb.auth.signOut();
         showLoginOverlay("This account doesn't have admin access.");
     }
@@ -78,17 +256,204 @@ async function loginSubmit(event){
     btn.disabled = true;
     btn.textContent = "Signing in...";
 
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } =
+    await sb.auth.signInWithPassword({
+        email,
+        password
+    });
 
-    btn.disabled = false;
-    btn.textContent = "Sign In";
+btn.disabled = false;
+btn.textContent = "Sign In";
 
-    if(error){
-        showLoginOverlay(error.message);
-        return;
+
+if(error){
+
+    // =====================================================
+    // SECURITY AUDIT — FAILED ADMIN LOGIN
+    // =====================================================
+
+    const maskedIdentifier =
+        email.length > 4
+            ? "******" +
+              email.slice(-4)
+            : "******";
+
+
+    const ua =
+        navigator.userAgent;
+
+
+    let deviceName =
+        "Unknown device";
+
+    let osName =
+        "Unknown";
+
+    let osVersion =
+        "Unknown";
+
+
+    // -----------------------------------------------------
+    // Android
+    // -----------------------------------------------------
+
+    const androidMatch =
+        ua.match(/Android\s+([0-9.]+)/i);
+
+
+    if(androidMatch){
+
+        osName =
+            "Android";
+
+        osVersion =
+            androidMatch[1];
+
+
+        const modelMatch =
+            ua.match(
+                /Android\s+[0-9.]+;\s*(?:[a-z]{2}-[A-Z]{2};\s*)?([^;)]+?)(?:\s+Build\/|\))/i
+            );
+
+
+        if(
+            modelMatch &&
+            modelMatch[1]
+        ){
+
+            deviceName =
+                modelMatch[1].trim();
+
+        }
+
     }
 
-    await handleAuthedSession(data.session);
+
+    // -----------------------------------------------------
+    // iPhone
+    // -----------------------------------------------------
+
+    else if(
+        /iPhone/i.test(ua)
+    ){
+
+        osName =
+            "iOS";
+
+        deviceName =
+            "iPhone";
+
+    }
+
+
+    // -----------------------------------------------------
+    // iPad
+    // -----------------------------------------------------
+
+    else if(
+        /iPad/i.test(ua)
+    ){
+
+        osName =
+            "iOS";
+
+        deviceName =
+            "iPad";
+
+    }
+
+
+    // -----------------------------------------------------
+    // Windows
+    // -----------------------------------------------------
+
+    else if(
+        /Windows NT/i.test(ua)
+    ){
+
+        osName =
+            "Windows";
+
+        deviceName =
+            "Windows device";
+
+    }
+
+
+    // -----------------------------------------------------
+    // macOS
+    // -----------------------------------------------------
+
+    else if(
+        /Mac OS X/i.test(ua)
+    ){
+
+        osName =
+            "macOS";
+
+        deviceName =
+            "Mac";
+
+    }
+
+
+    // -----------------------------------------------------
+    // Write security event.
+    // -----------------------------------------------------
+
+    sb.rpc(
+        "record_failed_login",
+        {
+
+            p_identifier_masked:
+                maskedIdentifier,
+
+            p_reason:
+                "Invalid credentials",
+
+            p_device_name:
+                deviceName,
+
+            p_os_name:
+                osName,
+
+            p_os_version:
+                osVersion,
+
+            p_approximate_location:
+                null
+
+        }
+    )
+    .then(
+        ({
+            error: logError
+        }) => {
+
+            if(logError){
+
+                console.warn(
+                    "Failed-login audit error:",
+                    logError
+                );
+
+            }
+
+        }
+    );
+
+
+    showLoginOverlay(
+        error.message
+    );
+
+    return;
+}
+
+
+await handleAuthedSession(
+    data.session
+);
 }
 
 // =========================================================
@@ -128,16 +493,52 @@ function closeLogoutModal(){
 async function confirmAdminLogout(){
 
     const confirmBtn =
-        document.querySelector(".logout-confirm-btn");
+        document.querySelector(
+            ".logout-confirm-btn"
+        );
+
 
     if(confirmBtn){
 
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = "Logging out...";
+        confirmBtn.disabled =
+            true;
+
+        confirmBtn.textContent =
+            "Logging out...";
+
     }
 
-    const { error } =
+
+    // =====================================================
+    // RECORD LOGOUT BEFORE SESSION IS DESTROYED
+    // =====================================================
+
+    const {
+        error: auditError
+    } = await sb.rpc(
+        "record_logout"
+    );
+
+
+    if(auditError){
+
+        console.warn(
+            "Logout audit error:",
+            auditError
+        );
+
+    }
+
+
+    // =====================================================
+    // ACTUAL LOGOUT
+    // =====================================================
+
+    const {
+        error
+    } =
         await sb.auth.signOut();
+
 
     if(error){
 
@@ -146,20 +547,29 @@ async function confirmAdminLogout(){
             error
         );
 
+
         if(confirmBtn){
 
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = "Confirm";
+            confirmBtn.disabled =
+                false;
+
+            confirmBtn.textContent =
+                "Confirm";
+
         }
 
         return;
+
     }
+
 
     closeLogoutModal();
 
     showLoginOverlay();
 
 }
+
+
 
 function adminLogout(){
 
