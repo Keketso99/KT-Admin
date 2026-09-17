@@ -3823,9 +3823,10 @@ button{
     padding: 14px 18px;
 
     border-radius: 10px;
-
+    
+    border:1px solid #ddd;
     background: #1f2937;
-    color: #ffffff;
+    color: #1f2937;
 
     font-size: 14px;
     font-weight: 600;
@@ -3846,7 +3847,7 @@ button{
 }
 
 .change-request-toast.success{
-    background: #16a34a;
+    background: #ffffff;
 }
 
 .change-request-toast.error{
