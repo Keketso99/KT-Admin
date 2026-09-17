@@ -4177,6 +4177,9 @@ function initUsers(){
 const approveModal =
     document.getElementById("approveModal");
 
+const approveCancelBtn =
+    document.querySelector(".approve-cancel-btn");
+  
 const approvePersonalBtn =
     document.querySelector(".approve-personal-btn");
 
