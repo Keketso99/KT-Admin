@@ -10,199 +10,217 @@ let activitySearchValue = "";
 // CATEGORY / ICON MAPPING
 // =========================================================
 
+/*
+ * IMPORTANT:
+ * The Activity Log page intentionally displays ONLY the admin-app
+ * audit actions defined below. Database trigger activity that is not
+ * part of these categories is ignored by this page so user-app events
+ * and unrelated database changes do not get mixed into the log.
+ */
+
 const ACTIVITY_CATEGORY = {
-    // Login / security
+    // ---------------------------------------------------------
+    // LOGIN — ADMIN APP ONLY
+    // ---------------------------------------------------------
     successful_login: "login",
     logout: "login",
-    non_admin_login: "security",
-    new_device_login: "security",
-    new_ip_login: "security",
-    new_location_login: "security",
-    failed_login: "security",
 
-    // Transactions
-    deposit_created: "transactions",
-    deposit_approved: "transactions",
-    deposit_rejected: "transactions",
-    deposit_status_changed: "transactions",
-    deposit_updated: "transactions",
-    deposit_deleted: "transactions",
-    withdrawal_created: "transactions",
-    withdrawal_approved: "transactions",
-    withdrawal_rejected: "transactions",
-    withdrawal_status_changed: "transactions",
-    withdrawal_updated: "transactions",
-    withdrawal_deleted: "transactions",
-    wallet_credited: "transactions",
-    wallet_debited: "transactions",
-    deposit_transaction_created: "transactions",
-    withdrawal_transaction_created: "transactions",
-    mining_payout_created: "transactions",
-    plan_purchase_created: "transactions",
-    plan_upgrade_created: "transactions",
-    plan_refund_created: "transactions",
-    transaction_created: "transactions",
-    transaction_updated: "transactions",
-    transaction_deleted: "transactions",
-
-    // Users
-    user_created: "users",
-    user_updated: "users",
-    user_deleted: "users",
-    user_blocked: "users",
-    user_activated: "users",
-    admin_role_assigned: "users",
-    admin_role_removed: "users",
-    user_role_assigned: "users",
-    user_role_removed: "users",
-    user_role_changed: "users",
-    approved_kyc: "users",
-    rejected_kyc: "users",
-    kyc_submitted: "users",
-    kyc_approved: "users",
-    kyc_rejected: "users",
-    kyc_status_changed: "users",
-    kyc_resubmission_requested: "users",
-    kyc_resubmission_completed: "users",
-    kyc_updated: "users",
-    kyc_deleted: "users",
-    password_reset_request: "users",
-    pin_reset_request: "users",
-    kyc_reset_request: "users",
-    reset_kyc: "users",
-    requested_kyc_documents: "users",
-    payment_method_added: "users",
-    payment_method_updated: "users",
-    payment_method_deleted: "users",
-    set_user_plan: "users",
-
-    // Changes
-    mining_plan_created: "changes",
-    mining_plan_deleted: "changes",
-    mining_plan_activated: "changes",
-    mining_plan_deactivated: "changes",
-    mining_plan_updated: "changes",
+    // ---------------------------------------------------------
+    // CHANGES — ADMIN APP ONLY
+    // ---------------------------------------------------------
     exchange_rate_added: "changes",
     exchange_rate_updated: "changes",
     exchange_rate_deleted: "changes",
-    mining_subscription_created: "changes",
-    mining_subscription_plan_changed: "changes",
-    mining_subscription_status_changed: "changes",
-    mining_subscription_updated: "changes",
-    mining_subscription_deleted: "changes",
-    profile_change_requested: "changes",
-    profile_change_approved: "changes",
-    profile_change_rejected: "changes",
-    payment_methods_change_requested: "changes",
-    payment_methods_change_approved: "changes",
-    payment_methods_change_rejected: "changes",
-    account_reset_request_created: "changes",
-    account_reset_request_updated: "changes",
-    video_added: "changes",
-    video_updated: "changes",
-    video_deleted: "changes",
-    guide_added: "changes",
-    guide_updated: "changes",
-    guide_deleted: "changes",
-    download_added: "changes",
-    download_updated: "changes",
-    download_deleted: "changes"
+    mining_plan_created: "changes",
+    mining_plan_updated: "changes",
+    mining_plan_deleted: "changes",
+    mining_plan_activated: "changes",
+    mining_plan_deactivated: "changes",
+    admin_role_assigned: "changes",
+    admin_role_removed: "changes",
+
+    // ---------------------------------------------------------
+    // TRANSACTIONS — ADMIN APP ONLY
+    // ---------------------------------------------------------
+    deposit_approved: "transactions",
+    deposit_rejected: "transactions",
+    withdrawal_approved: "transactions",
+    withdrawal_rejected: "transactions",
+    wallet_credited: "transactions",
+    wallet_debited: "transactions",
+    bonus_added: "transactions",
+    add_bonus: "transactions",
+    admin_bonus: "transactions",
+    bonus_created: "transactions",
+
+    // ---------------------------------------------------------
+    // USERS — ADMIN APP ONLY
+    // ---------------------------------------------------------
+    password_reset_rejected: "users",
+    password_reset_completed: "users",
+    password_reset: "users",
+    reset_password: "users",
+    pin_reset_rejected: "users",
+    pin_reset_completed: "users",
+    pin_reset: "users",
+    reset_pin: "users",
+    withdrawal_pin_reset_rejected: "users",
+    withdrawal_pin_reset_completed: "users",
+    withdrawal_pin_reset: "users",
+    profile_change_approved: "users",
+    profile_change_rejected: "users",
+    payment_methods_change_approved: "users",
+    payment_methods_change_rejected: "users",
+    kyc_resubmission_requested: "users",
+    kyc_approved: "users",
+    approved_kyc: "users",
+    kyc_rejected: "users",
+    rejected_kyc: "users",
+    kyc_reset: "users",
+    reset_kyc: "users",
+    kyc_reset_request: "users",
+    user_blocked: "users",
+    user_activated: "users",
+    set_user_plan: "users",
+    user_deleted: "users",
+
+    // ---------------------------------------------------------
+    // SECURITY — ADMIN APP ONLY
+    // ---------------------------------------------------------
+    failed_login: "security",
+    new_device_login: "security",
+    new_ip_login: "security",
+    new_location_login: "security",
+    non_admin_login: "security"
 };
 
 const ACTIVITY_ICONS = {
     successful_login: "fa-solid fa-right-to-bracket",
     logout: "fa-solid fa-right-from-bracket",
-    non_admin_login: "fa-solid fa-user-lock",
+    failed_login: "fa-solid fa-triangle-exclamation",
     new_device_login: "fa-solid fa-mobile-screen-button",
     new_ip_login: "fa-solid fa-globe",
     new_location_login: "fa-solid fa-location-dot",
-    failed_login: "fa-solid fa-triangle-exclamation",
+    non_admin_login: "fa-solid fa-user-lock",
 
-    deposit_created: "fa-solid fa-arrow-down-to-line",
-    deposit_approved: "fa-solid fa-circle-check",
-    deposit_rejected: "fa-solid fa-circle-xmark",
-    deposit_status_changed: "fa-solid fa-arrows-rotate",
-    deposit_updated: "fa-solid fa-pen-to-square",
-    deposit_deleted: "fa-solid fa-trash",
-    withdrawal_created: "fa-solid fa-arrow-up-from-line",
-    withdrawal_approved: "fa-solid fa-circle-check",
-    withdrawal_rejected: "fa-solid fa-circle-xmark",
-    withdrawal_status_changed: "fa-solid fa-arrows-rotate",
-    withdrawal_updated: "fa-solid fa-pen-to-square",
-    withdrawal_deleted: "fa-solid fa-trash",
-    wallet_credited: "fa-solid fa-circle-plus",
-    wallet_debited: "fa-solid fa-circle-minus",
-    deposit_transaction_created: "fa-solid fa-money-bill-transfer",
-    withdrawal_transaction_created: "fa-solid fa-money-bill-transfer",
-    mining_payout_created: "fa-solid fa-coins",
-    plan_purchase_created: "fa-solid fa-cart-plus",
-    plan_upgrade_created: "fa-solid fa-arrow-up",
-    plan_refund_created: "fa-solid fa-rotate-left",
-    transaction_created: "fa-solid fa-receipt",
-    transaction_updated: "fa-solid fa-pen-to-square",
-    transaction_deleted: "fa-solid fa-trash",
-
-    user_created: "fa-solid fa-user-plus",
-    user_updated: "fa-solid fa-user-pen",
-    user_deleted: "fa-solid fa-user-minus",
-    user_blocked: "fa-solid fa-user-slash",
-    user_activated: "fa-solid fa-user-check",
-    admin_role_assigned: "fa-solid fa-user-shield",
-    admin_role_removed: "fa-solid fa-user-minus",
-    user_role_assigned: "fa-solid fa-user-tag",
-    user_role_removed: "fa-solid fa-user-minus",
-    user_role_changed: "fa-solid fa-user-gear",
-    approved_kyc: "fa-solid fa-user-check",
-    rejected_kyc: "fa-solid fa-user-xmark",
-    kyc_submitted: "fa-solid fa-file-circle-plus",
-    kyc_approved: "fa-solid fa-id-card",
-    kyc_rejected: "fa-solid fa-id-card-clip",
-    kyc_status_changed: "fa-solid fa-arrows-rotate",
-    kyc_resubmission_requested: "fa-solid fa-file-circle-question",
-    kyc_resubmission_completed: "fa-solid fa-file-circle-check",
-    kyc_updated: "fa-solid fa-file-pen",
-    kyc_deleted: "fa-solid fa-file-circle-xmark",
-    password_reset_request: "fa-solid fa-key",
-    pin_reset_request: "fa-solid fa-key",
-    kyc_reset_request: "fa-solid fa-rotate-left",
-    reset_kyc: "fa-solid fa-rotate-left",
-    requested_kyc_documents: "fa-solid fa-file-circle-question",
-    payment_method_added: "fa-solid fa-credit-card",
-    payment_method_updated: "fa-solid fa-credit-card",
-    payment_method_deleted: "fa-solid fa-credit-card",
-    set_user_plan: "fa-solid fa-chart-line",
-
-    mining_plan_created: "fa-solid fa-circle-plus",
-    mining_plan_deleted: "fa-solid fa-trash",
-    mining_plan_activated: "fa-solid fa-toggle-on",
-    mining_plan_deactivated: "fa-solid fa-toggle-off",
-    mining_plan_updated: "fa-solid fa-pen-to-square",
     exchange_rate_added: "fa-solid fa-plus-minus",
     exchange_rate_updated: "fa-solid fa-arrow-right-arrow-left",
     exchange_rate_deleted: "fa-solid fa-trash",
-    mining_subscription_created: "fa-solid fa-chart-line",
-    mining_subscription_plan_changed: "fa-solid fa-arrow-up",
-    mining_subscription_status_changed: "fa-solid fa-arrows-rotate",
-    mining_subscription_updated: "fa-solid fa-pen-to-square",
-    mining_subscription_deleted: "fa-solid fa-trash",
-    profile_change_requested: "fa-solid fa-user-pen",
+    mining_plan_created: "fa-solid fa-circle-plus",
+    mining_plan_updated: "fa-solid fa-pen-to-square",
+    mining_plan_deleted: "fa-solid fa-trash",
+    mining_plan_activated: "fa-solid fa-toggle-on",
+    mining_plan_deactivated: "fa-solid fa-toggle-off",
+    admin_role_assigned: "fa-solid fa-user-shield",
+    admin_role_removed: "fa-solid fa-user-minus",
+
+    deposit_approved: "fa-solid fa-circle-check",
+    deposit_rejected: "fa-solid fa-circle-xmark",
+    withdrawal_approved: "fa-solid fa-circle-check",
+    withdrawal_rejected: "fa-solid fa-circle-xmark",
+    wallet_credited: "fa-solid fa-circle-plus",
+    wallet_debited: "fa-solid fa-circle-minus",
+    bonus_added: "fa-solid fa-gift",
+    add_bonus: "fa-solid fa-gift",
+    admin_bonus: "fa-solid fa-gift",
+    bonus_created: "fa-solid fa-gift",
+
+    password_reset_rejected: "fa-solid fa-key",
+    password_reset_completed: "fa-solid fa-key",
+    password_reset: "fa-solid fa-key",
+    reset_password: "fa-solid fa-key",
+    pin_reset_rejected: "fa-solid fa-key",
+    pin_reset_completed: "fa-solid fa-key",
+    pin_reset: "fa-solid fa-key",
+    reset_pin: "fa-solid fa-key",
+    withdrawal_pin_reset_rejected: "fa-solid fa-key",
+    withdrawal_pin_reset_completed: "fa-solid fa-key",
+    withdrawal_pin_reset: "fa-solid fa-key",
     profile_change_approved: "fa-solid fa-circle-check",
     profile_change_rejected: "fa-solid fa-circle-xmark",
-    payment_methods_change_requested: "fa-solid fa-credit-card",
     payment_methods_change_approved: "fa-solid fa-circle-check",
     payment_methods_change_rejected: "fa-solid fa-circle-xmark",
-    account_reset_request_created: "fa-solid fa-key",
-    account_reset_request_updated: "fa-solid fa-key",
-    video_added: "fa-solid fa-video",
-    video_updated: "fa-solid fa-video",
-    video_deleted: "fa-solid fa-video-slash",
-    guide_added: "fa-solid fa-book",
-    guide_updated: "fa-solid fa-book-open",
-    guide_deleted: "fa-solid fa-book-bookmark",
-    download_added: "fa-solid fa-download",
-    download_updated: "fa-solid fa-file-pen",
-    download_deleted: "fa-solid fa-file-circle-xmark"
+    kyc_resubmission_requested: "fa-solid fa-file-circle-question",
+    kyc_approved: "fa-solid fa-id-card",
+    approved_kyc: "fa-solid fa-id-card",
+    kyc_rejected: "fa-solid fa-id-card-clip",
+    rejected_kyc: "fa-solid fa-id-card-clip",
+    kyc_reset: "fa-solid fa-rotate-left",
+    reset_kyc: "fa-solid fa-rotate-left",
+    kyc_reset_request: "fa-solid fa-rotate-left",
+    user_blocked: "fa-solid fa-user-slash",
+    user_activated: "fa-solid fa-user-check",
+    set_user_plan: "fa-solid fa-chart-line",
+    user_deleted: "fa-solid fa-user-minus"
 };
+
+// Actions that this page is allowed to display.
+const ALLOWED_ACTIVITY_ACTIONS = new Set(Object.keys(ACTIVITY_CATEGORY));
+
+function getMetadataObject(row){
+    if(!row || !row.metadata || typeof row.metadata !== "object") return {};
+    return row.metadata;
+}
+
+function metadataContainsAny(row, terms){
+    const metadata = getMetadataObject(row);
+    let text = "";
+
+    try{
+        text = JSON.stringify(metadata).toLowerCase();
+    }catch(error){
+        text = String(metadata).toLowerCase();
+    }
+
+    return terms.some(term => text.includes(String(term).toLowerCase()));
+}
+
+/*
+ * A few reset/bonus operations can be represented by a generic database
+ * action. Their metadata is used only to identify the requested admin
+ * operation; the actual stored record remains unchanged.
+ */
+function classifySpecialActivity(row){
+    const action = String(row && row.action || "").toLowerCase();
+
+    if(action === "account_reset_request_created" || action === "account_reset_request_updated"){
+        if(metadataContainsAny(row, ["password", "forgot password", "password reset"])){
+            return "users";
+        }
+
+        if(metadataContainsAny(row, ["withdrawal pin", "pin reset", "withdrawal_pin", "pin"])){
+            return "users";
+        }
+    }
+
+    if(action === "transaction_created" || action === "transaction_updated"){
+        if(metadataContainsAny(row, ["bonus", "admin_bonus", "bonus_added"])){
+            return "transactions";
+        }
+    }
+
+    return null;
+}
+
+function isAdminActor(row){
+    return String(row && row.actor_type || "").toLowerCase() === "admin";
+}
+
+function categoryForActivity(row){
+    if(!row) return null;
+
+    const action = String(row.action || "").toLowerCase();
+    let category = ACTIVITY_CATEGORY[action] || classifySpecialActivity(row);
+
+    if(!category) return null;
+
+    // Login records are explicitly restricted to the admin application.
+    // Admin actions are recorded with actor_type=admin. This prevents
+    // ordinary user-app successful_login/logout rows from appearing here.
+    if(category === "login" && !isAdminActor(row)) return null;
+
+    return category;
+}
 
 // =========================================================
 // HELPERS
@@ -422,14 +440,22 @@ async function loadActivityLogs(){
 
         if(error) throw error;
 
-        activityData = (data || []).map(row => ({
-            ...row,
-            category: categoryForActivity(row),
-            icon: ACTIVITY_ICONS[row.action] || "fa-solid fa-circle-info",
-            activity: labelForActivity(row.action),
-            status: resultLabel(row.result),
-            searchText: buildSearchText(row)
-        }));
+        activityData = (data || [])
+            .map(row => ({
+                ...row,
+                category: categoryForActivity(row)
+            }))
+            .filter(row => row.category && (
+                ALLOWED_ACTIVITY_ACTIONS.has(String(row.action || "").toLowerCase()) ||
+                classifySpecialActivity(row) !== null
+            ))
+            .map(row => ({
+                ...row,
+                icon: ACTIVITY_ICONS[row.action] || "fa-solid fa-circle-info",
+                activity: labelForActivity(row.action),
+                status: resultLabel(row.result),
+                searchText: buildSearchText(row)
+            }));
 
         renderActivityLogs();
         updateActivityCounts();
