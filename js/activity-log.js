@@ -1029,6 +1029,242 @@ function closeActivityModal(){
     document.body.classList.remove("activity-modal-open");
 }
 
+
+// =========================================================
+// DELETE ACTIVITY RECORDS
+// =========================================================
+
+let activityDeleteCategory = null;
+
+
+/* =================================
+   OPEN CATEGORY MODAL
+================================= */
+
+function openDeleteActivityModal(){
+
+    const modal = document.getElementById("activityDeleteModal");
+
+    if(!modal) return;
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+
+    document.body.classList.add("activity-modal-open");
+}
+
+
+/* =================================
+   CLOSE CATEGORY MODAL
+================================= */
+
+function closeDeleteActivityModal(){
+
+    const modal = document.getElementById("activityDeleteModal");
+
+    if(!modal) return;
+
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+
+    /*
+     * Keep body locked if the confirmation modal
+     * is currently open.
+     */
+    const confirmModal = document.getElementById(
+        "activityDeleteConfirmModal"
+    );
+
+    if(!confirmModal || !confirmModal.classList.contains("show")){
+        document.body.classList.remove("activity-modal-open");
+    }
+}
+
+
+/* =================================
+   OPEN CONFIRMATION
+================================= */
+
+function requestDeleteActivityCategory(category){
+
+    const allowedCategories = [
+        "all",
+        "login",
+        "changes",
+        "transactions",
+        "users",
+        "security"
+    ];
+
+    if(!allowedCategories.includes(category)){
+        return;
+    }
+
+    activityDeleteCategory = category;
+
+    closeDeleteActivityModal();
+
+    const confirmModal = document.getElementById(
+        "activityDeleteConfirmModal"
+    );
+
+    const confirmText = document.getElementById(
+        "activityDeleteConfirmText"
+    );
+
+    if(!confirmModal || !confirmText){
+        return;
+    }
+
+    const categoryNames = {
+        all: "All",
+        login: "Login",
+        changes: "Changes",
+        transactions: "Transactions",
+        users: "Users",
+        security: "Security"
+    };
+
+    const categoryName = categoryNames[category];
+
+    if(category === "all"){
+
+        confirmText.textContent =
+            "This will permanently delete all activity records. This action cannot be undone.";
+
+    }else{
+
+        confirmText.textContent =
+            `This will permanently delete all ${categoryName} activity records. This action cannot be undone.`;
+
+    }
+
+    confirmModal.classList.add("show");
+    confirmModal.setAttribute("aria-hidden", "false");
+
+    document.body.classList.add("activity-modal-open");
+}
+
+
+/* =================================
+   CLOSE CONFIRMATION
+================================= */
+
+function closeDeleteActivityConfirmModal(){
+
+    const modal = document.getElementById(
+        "activityDeleteConfirmModal"
+    );
+
+    if(!modal) return;
+
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+
+    activityDeleteCategory = null;
+
+    document.body.classList.remove("activity-modal-open");
+}
+
+
+/* =================================
+   CONFIRM DELETE
+================================= */
+
+async function confirmDeleteActivityRecords(){
+
+    if(!activityDeleteCategory){
+        return;
+    }
+
+    const category = activityDeleteCategory;
+
+    const button = document.getElementById(
+        "confirmDeleteActivityBtn"
+    );
+
+    if(button){
+
+        button.disabled = true;
+
+        button.innerHTML =
+            '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+    }
+
+    try{
+
+        const { data, error } = await sb.rpc(
+            "admin_delete_activity_logs",
+            {
+                p_category: category
+            }
+        );
+
+        if(error){
+            throw error;
+        }
+
+        const deletedCount = Number(data || 0);
+
+        closeDeleteActivityConfirmModal();
+
+        /*
+         * Reload the Activity Log from the database.
+         */
+        await loadActivityLogs();
+
+        /*
+         * Show a small notification if the global notification
+         * function exists in the Admin app.
+         */
+        if(typeof showToast === "function"){
+
+            showToast(
+                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`,
+                "success"
+            );
+
+        }else if(typeof showNotification === "function"){
+
+            showNotification(
+                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`,
+                "success"
+            );
+
+        }else{
+
+            console.log(
+                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`
+            );
+
+        }
+
+    }catch(error){
+
+        console.error(
+            "Failed to delete activity records:",
+            error
+        );
+
+        alert(
+            error?.message ||
+            "Failed to delete activity records."
+        );
+
+    }finally{
+
+        if(button){
+
+            button.disabled = false;
+
+            button.innerHTML = "Delete";
+
+        }
+
+        activityDeleteCategory = null;
+    }
+}
+
 // =========================================================
 // GLOBAL ACCESS
 // =========================================================
@@ -1038,3 +1274,9 @@ window.loadActivityLogs = loadActivityLogs;
 window.showActivityTab = showActivityTab;
 window.viewActivity = viewActivity;
 window.closeActivityModal = closeActivityModal;
+
+window.openDeleteActivityModal = openDeleteActivityModal;
+window.closeDeleteActivityModal = closeDeleteActivityModal;
+window.requestDeleteActivityCategory = requestDeleteActivityCategory;
+window.closeDeleteActivityConfirmModal = closeDeleteActivityConfirmModal;
+window.confirmDeleteActivityRecords = confirmDeleteActivityRecords;

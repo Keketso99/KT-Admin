@@ -94,13 +94,14 @@
                 placeholder="Search user, action, IP, device, ID...">
         </div>
 
-        <button
-            class="activity-refresh-btn"
-            type="button"
-            onclick="initActivityLogs()">
-            <i class="fa-solid fa-rotate"></i>
-            <span>Refresh</span>
-        </button>
+ <button
+    class="activity-refresh-btn"
+    type="button"
+    onclick="openDeleteActivityModal()"
+    aria-label="Delete activity records">
+    <i class="fa-solid fa-trash"></i>
+    <span>Delete</span>
+ </button>
 
     </div>
 
@@ -173,5 +174,195 @@
         </div>
 
     </div>
+
+<!-- =================================
+     DELETE ACTIVITY CATEGORY MODAL
+================================== -->
+
+<div class="activity-delete-modal"
+     id="activityDeleteModal"
+     aria-hidden="true">
+
+    <div class="activity-delete-modal-content"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="activityDeleteTitle">
+
+        <div class="activity-delete-header">
+
+            <div class="activity-delete-title-wrap">
+
+                <div class="activity-delete-title-icon">
+                    <i class="fa-solid fa-trash"></i>
+                </div>
+
+                <div>
+                    <h3 id="activityDeleteTitle">
+                        Delete Activity Records
+                    </h3>
+
+                    <span>
+                        Choose which records to delete
+                    </span>
+                </div>
+
+            </div>
+
+            <button
+                class="activity-delete-close"
+                type="button"
+                onclick="closeDeleteActivityModal()"
+                aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <div class="activity-delete-options">
+
+            <button
+                type="button"
+                class="activity-delete-option"
+                onclick="requestDeleteActivityCategory('all')">
+
+                <i class="fa-solid fa-layer-group"></i>
+
+                <div>
+                    <strong>All</strong>
+                    <span>Delete all activity records</span>
+                </div>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="activity-delete-option"
+                onclick="requestDeleteActivityCategory('login')">
+
+                <i class="fa-solid fa-right-to-bracket"></i>
+
+                <div>
+                    <strong>Login</strong>
+                    <span>Delete login records</span>
+                </div>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="activity-delete-option"
+                onclick="requestDeleteActivityCategory('changes')">
+
+                <i class="fa-solid fa-pen-to-square"></i>
+
+                <div>
+                    <strong>Changes</strong>
+                    <span>Delete changes records</span>
+                </div>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="activity-delete-option"
+                onclick="requestDeleteActivityCategory('transactions')">
+
+                <i class="fa-solid fa-money-bill-transfer"></i>
+
+                <div>
+                    <strong>Transactions</strong>
+                    <span>Delete transaction records</span>
+                </div>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="activity-delete-option"
+                onclick="requestDeleteActivityCategory('users')">
+
+                <i class="fa-solid fa-users"></i>
+
+                <div>
+                    <strong>Users</strong>
+                    <span>Delete user activity records</span>
+                </div>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="activity-delete-option"
+                onclick="requestDeleteActivityCategory('security')">
+
+                <i class="fa-solid fa-shield-halved"></i>
+
+                <div>
+                    <strong>Security</strong>
+                    <span>Delete security records</span>
+                </div>
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =================================
+     DELETE ACTIVITY CONFIRMATION MODAL
+================================== -->
+
+<div class="activity-delete-confirm-modal"
+     id="activityDeleteConfirmModal"
+     aria-hidden="true">
+
+    <div class="activity-delete-confirm-content"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="activityDeleteConfirmTitle">
+
+        <div class="activity-delete-confirm-icon">
+            <i class="fa-solid fa-trash"></i>
+        </div>
+
+        <h3 id="activityDeleteConfirmTitle">
+            Delete Activity Records?
+        </h3>
+
+        <p id="activityDeleteConfirmText">
+            This action cannot be undone.
+        </p>
+
+        <div class="activity-delete-confirm-actions">
+
+            <button
+                type="button"
+                class="activity-delete-cancel-btn"
+                onclick="closeDeleteActivityConfirmModal()">
+                Cancel
+            </button>
+
+            <button
+                type="button"
+                class="activity-delete-confirm-btn"
+                id="confirmDeleteActivityBtn"
+                onclick="confirmDeleteActivityRecords()">
+                Delete
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
 
 </div>
