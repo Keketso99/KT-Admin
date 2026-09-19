@@ -17,14 +17,42 @@ const TRANSACTION_TYPE_LABELS = {
     plan_refund: "Plan Refund",
     plan_upgrade: "Plan Upgrade",
     admin_credit: "Credit",
-    admin_debit: "Debit"
+    admin_debit: "Debit",
+    bonus: "Bonus"
 };
 
-function formatTransactionType(type){
-    return TRANSACTION_TYPE_LABELS[type] ||
-        type.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-}
+function formatTransactionType(type, description = ""){
 
+    const normalizedType =
+        String(type || "").toLowerCase();
+
+    const normalizedDescription =
+        String(description || "").toLowerCase();
+
+    /*
+     * admin_credit is used for both:
+     * - Credit Balance
+     * - Add Bonus
+     *
+     * Bonus transactions are identified by
+     * their transaction description.
+     */
+    if(
+        normalizedType === "admin_credit" &&
+        normalizedDescription.includes("bonus")
+    ){
+        return "Bonus";
+    }
+
+    return TRANSACTION_TYPE_LABELS[normalizedType] ||
+        normalizedType
+            .split("_")
+            .map(w =>
+                w.charAt(0).toUpperCase() +
+                w.slice(1)
+            )
+            .join(" ");
+}
 
 // =====================================
 // LOAD TRANSACTIONS FROM SUPABASE
@@ -56,9 +84,18 @@ function loadTransactions(){
 
                     userId: "USR-" + row.user_id.slice(0, 8).toUpperCase(),
 
-                    type: formatTransactionType(row.type),
+                    type: formatTransactionType(
+    row.type,
+    row.description
+),
 
-                    typeKey: row.type,
+typeKey:
+    row.type === "admin_credit" &&
+    String(row.description || "")
+        .toLowerCase()
+        .includes("bonus")
+        ? "bonus"
+        : row.type,
 
                     amount: "M " + Math.abs(Number(row.amount_zar)).toLocaleString("en-US", {
                         minimumFractionDigits: 2, maximumFractionDigits: 2

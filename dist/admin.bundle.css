@@ -2237,7 +2237,35 @@ button{
 
     }
 
+}
 
+/* =================================
+   TRANSACTION TYPE — DATABASE TYPES
+================================= */
+
+.transaction-type-mining_payout{
+    background:#f39c12;
+}
+
+.transaction-type-plan_purchase{
+    background:#3498db;
+}
+
+.transaction-type-plan_refund{
+    background:#e74c3c;
+}
+
+.transaction-type-plan_upgrade{
+    background:#8e44ad;
+}
+
+.transaction-type-admin_credit{
+    background:#27ae60;
+}
+
+.transaction-type-admin_debit{
+    background:#e74c3c;
+}
 
 /* ===== css/plans.css ===== */
 .plan-page{
@@ -3515,6 +3543,16 @@ button{
 }
 
 
+.debit-content .danger-btn{
+
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+
+}
 
 /* ===========================
    DELETE / BLOCK CONFIRMATION

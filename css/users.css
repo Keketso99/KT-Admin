@@ -790,6 +790,16 @@
 }
 
 
+.debit-content .danger-btn{
+
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+
+}
 
 /* ===========================
    DELETE / BLOCK CONFIRMATION
