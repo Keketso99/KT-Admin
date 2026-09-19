@@ -121,6 +121,11 @@ function getAdminClientInfo(){
 // =========================================================
 
 async function handleAuthedSession(session){
+
+    // Always restore the logout button when entering
+    // an authenticated admin session.
+    resetLogoutButtonState();
+
     const clientInfo = getAdminClientInfo();
     const isAdmin = await checkIsAdmin(session.user.id);
 
@@ -244,6 +249,15 @@ function closeLogoutModal(){
     modal.classList.remove("show");
 }
 
+function resetLogoutButtonState(){
+    const confirmBtn = document.querySelector(".logout-confirm-btn");
+
+    if(!confirmBtn) return;
+
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Confirm";
+}
+
 // =========================================================
 // CONFIRM ADMIN LOGOUT
 // =========================================================
@@ -276,6 +290,7 @@ async function confirmAdminLogout(){
         return;
     }
 
+    resetLogoutButtonState();
     closeLogoutModal();
     showLoginOverlay();
 }
