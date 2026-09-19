@@ -6589,51 +6589,77 @@ const ACTIVITY_CATEGORY = {
     admin_role_assigned: "changes",
     admin_role_removed: "changes",
 
-    // ---------------------------------------------------------
-    // TRANSACTIONS — ADMIN APP ONLY
-    // ---------------------------------------------------------
-    deposit_approved: "transactions",
-    deposit_rejected: "transactions",
-    withdrawal_approved: "transactions",
-    withdrawal_rejected: "transactions",
-    wallet_credited: "transactions",
-    wallet_debited: "transactions",
-    bonus_added: "transactions",
-    add_bonus: "transactions",
-    admin_bonus: "transactions",
-    bonus_created: "transactions",
+    
+// TRANSACTIONS — ADMIN APP ONLY
+// ---------------------------------------------------------
+deposit_approved: "transactions",
+deposit_rejected: "transactions",
+withdrawal_approved: "transactions",
+withdrawal_rejected: "transactions",
 
-    // ---------------------------------------------------------
-    // USERS — ADMIN APP ONLY
-    // ---------------------------------------------------------
-    password_reset_rejected: "users",
-    password_reset_completed: "users",
-    password_reset: "users",
-    reset_password: "users",
-    pin_reset_rejected: "users",
-    pin_reset_completed: "users",
-    pin_reset: "users",
-    reset_pin: "users",
-    withdrawal_pin_reset_rejected: "users",
-    withdrawal_pin_reset_completed: "users",
-    withdrawal_pin_reset: "users",
-    profile_change_approved: "users",
-    profile_change_rejected: "users",
-    payment_methods_change_approved: "users",
-    payment_methods_change_rejected: "users",
-    kyc_resubmission_requested: "users",
-    kyc_approved: "users",
-    approved_kyc: "users",
-    kyc_rejected: "users",
-    rejected_kyc: "users",
-    kyc_reset: "users",
-    reset_kyc: "users",
-    kyc_reset_request: "users",
-    user_blocked: "users",
-    user_activated: "users",
-    set_user_plan: "users",
-    user_deleted: "users",
+wallet_credited: "transactions",
+wallet_debited: "transactions",
 
+balance_credited: "transactions",
+balance_debited: "transactions",
+
+bonus_added: "transactions",
+add_bonus: "transactions",
+admin_bonus: "transactions",
+bonus_created: "transactions",
+
+// ---------------------------------------------------------
+// USERS — ADMIN APP ONLY
+// ---------------------------------------------------------
+password_reset_rejected: "users",
+password_reset_completed: "users",
+password_reset: "users",
+reset_password: "users",
+
+pin_reset_rejected: "users",
+pin_reset_completed: "users",
+pin_reset: "users",
+reset_pin: "users",
+
+withdrawal_pin_reset_rejected: "users",
+withdrawal_pin_reset_completed: "users",
+withdrawal_pin_reset: "users",
+
+// Personal Information
+profile_change_approved: "users",
+profile_change_rejected: "users",
+personal_information_approved: "users",
+personal_information_rejected: "users",
+
+// Payment Methods
+payment_methods_change_approved: "users",
+payment_methods_change_rejected: "users",
+payment_methods_approved: "users",
+payment_methods_rejected: "users",
+
+// KYC
+kyc_resubmission_requested: "users",
+kyc_additional_documents_requested: "users",
+kyc_approved: "users",
+approved_kyc: "users",
+kyc_rejected: "users",
+rejected_kyc: "users",
+kyc_reset: "users",
+reset_kyc: "users",
+kyc_reset_request: "users",
+kyc_resubmission_rejected: "users",
+kyc_resubmission_completed: "users",
+
+// User status
+user_blocked: "users",
+user_activated: "users",
+user_unblocked: "users",
+
+// Mining plan
+set_user_plan: "users",
+user_mining_plan_changed: "users",
+
+user_deleted: "users",
     // ---------------------------------------------------------
     // SECURITY — ADMIN APP ONLY
     // ---------------------------------------------------------
@@ -6701,7 +6727,24 @@ const ACTIVITY_ICONS = {
     user_blocked: "fa-solid fa-user-slash",
     user_activated: "fa-solid fa-user-check",
     set_user_plan: "fa-solid fa-chart-line",
-    user_deleted: "fa-solid fa-user-minus"
+    user_deleted: "fa-solid fa-user-minus",
+
+balance_credited: "fa-solid fa-circle-plus",
+balance_debited: "fa-solid fa-circle-minus",
+
+personal_information_approved: "fa-solid fa-circle-check",
+personal_information_rejected: "fa-solid fa-circle-xmark",
+
+payment_methods_approved: "fa-solid fa-circle-check",
+payment_methods_rejected: "fa-solid fa-circle-xmark",
+
+kyc_additional_documents_requested: "fa-solid fa-file-circle-question",
+kyc_resubmission_rejected: "fa-solid fa-circle-xmark",
+kyc_resubmission_completed: "fa-solid fa-circle-check",
+
+user_unblocked: "fa-solid fa-user-check",
+
+user_mining_plan_changed: "fa-solid fa-chart-line"
 };
 
 // Actions that this page is allowed to display.
