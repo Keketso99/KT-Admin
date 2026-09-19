@@ -364,13 +364,108 @@ function initUsers(){
 
     }
 
-    // ===============================
+        // ===============================
     // BLOCK / ACTIVATE USER (real — writes profiles.is_blocked)
     // ===============================
 
     const blockModal = document.getElementById("blockModal");
 
     const confirmBlockBtn = document.querySelector(".block-content .block-btn");
+
+    const activateModal = document.getElementById("activateModal");
+
+    const activateStatus = document.getElementById("activateStatus");
+
+    const activateActions = document.getElementById("activateActions");
+
+    function bindActivateClose(){
+        const closeBtn = activateActions.querySelector(".cancel-btn");
+        if(closeBtn){
+            closeBtn.onclick = function(){ activateModal.style.display = "none"; };
+        }
+    }
+
+    function applyActivatedUI(){
+
+        if(!currentRow) return;
+
+        const status = currentRow.querySelector(".status");
+
+        status.classList.remove("blocked");
+        status.classList.add("active");
+        status.textContent = "Active";
+        modalStatus.textContent = "Active";
+
+        updateStatusButton();
+        updateStatistics();
+
+    }
+
+    function renderActivateModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        activateStatus.textContent = "Checking for a pending request…";
+        activateActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindActivateClose();
+
+        sb.from("account_reset_requests").select("id").eq("user_id", userId).eq("kind","unblock").eq("status","pending").maybeSingle()
+
+            .then(({ data, error }) => {
+
+                if(error){
+                    activateStatus.textContent = "Failed to check request: " + error.message;
+                    return;
+                }
+
+                const pending = data;
+
+                activateStatus.textContent = pending
+                    ? "This user has requested reactivation."
+                    : "No reactivation request.";
+
+                let buttonsHtml = '<button class="cancel-btn">Close</button>';
+                buttonsHtml += '<button class="reset-btn activate-confirm-btn">Activate</button>';
+                if(pending){
+                    buttonsHtml += '<button class="reset-btn reject-btn activate-reject-btn">Reject</button>';
+                }
+                activateActions.innerHTML = buttonsHtml;
+                bindActivateClose();
+
+                const confirmBtn = activateActions.querySelector(".activate-confirm-btn");
+                if(confirmBtn){
+                    confirmBtn.onclick = function(){
+                        sb.rpc("admin_activate_user", { p_user_id: userId })
+                            .then(({ error }) => {
+                                if(error){
+                                    alert("Failed to activate user: " + error.message);
+                                    return;
+                                }
+                                applyActivatedUI();
+                                activateModal.style.display = "none";
+                            });
+                    };
+                }
+
+                const rejectBtn = activateActions.querySelector(".activate-reject-btn");
+                if(rejectBtn){
+                    rejectBtn.onclick = function(){
+                        sb.rpc("admin_reject_unblock_request", { p_user_id: userId })
+                            .then(({ error }) => {
+                                if(error){
+                                    alert("Failed to reject request: " + error.message);
+                                    return;
+                                }
+                                renderActivateModal();
+                            });
+                    };
+                }
+
+            });
+
+    }
 
     toggleUserStatus.addEventListener("click",function(){
 
@@ -387,26 +482,9 @@ function initUsers(){
 
         else{
 
-            sb.from("profiles")
-                .update({ is_blocked: false })
-                .eq("id", currentRow.dataset.userid)
-
-                .then(({ error }) => {
-
-                    if(error){
-                        alert("Failed to activate user: " + error.message);
-                        return;
-                    }
-
-                    status.classList.remove("blocked");
-                    status.classList.add("active");
-                    status.textContent = "Active";
-                    modalStatus.textContent = "Active";
-
-                    updateStatusButton();
-                    updateStatistics();
-
-                });
+            userModal.style.display="none";
+            renderActivateModal();
+            activateModal.style.display="flex";
 
         }
 
