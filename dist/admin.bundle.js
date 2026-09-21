@@ -6262,27 +6262,51 @@ let currentNotificationTabButton = null;
 
 // ===============================
 // ACTION -> ICON / LABEL MAPPING
+// (only the "request created" actions logged under category REQUESTS
+//  ever reach this page — see audit_user_requests / admin_send_notification)
 // ===============================
 
 const NOTIFICATION_ICONS = {
-    approved_deposit: "fa-solid fa-wallet",
-    rejected_deposit: "fa-solid fa-wallet",
-    approved_withdrawal: "fa-solid fa-money-bill-transfer",
-    rejected_withdrawal: "fa-solid fa-money-bill-transfer",
-    approved_kyc: "fa-solid fa-user-check",
-    rejected_kyc: "fa-solid fa-user-xmark",
-    reset_kyc: "fa-solid fa-rotate-left",
-    requested_kyc_documents: "fa-solid fa-file-circle-question",
-    credited_wallet: "fa-solid fa-circle-plus",
-    debited_wallet: "fa-solid fa-circle-minus",
-    set_user_plan: "fa-solid fa-chart-line"
+    deposit_requested: "fa-solid fa-wallet",
+    withdrawal_requested: "fa-solid fa-money-bill-transfer",
+    notification_sent: "fa-solid fa-paper-plane",
+    password_reset_requested: "fa-solid fa-key",
+    withdrawal_pin_reset_requested: "fa-solid fa-key",
+    personal_info_change_requested: "fa-solid fa-user-pen",
+    payment_methods_change_requested: "fa-solid fa-credit-card",
+    kyc_verification_requested: "fa-solid fa-id-card",
+    kyc_resubmission_requested: "fa-solid fa-file-circle-question",
+    unblock_requested: "fa-solid fa-user-check"
+};
+
+const NOTIFICATION_LABELS = {
+    deposit_requested: "Deposit Request",
+    withdrawal_requested: "Withdrawal Request",
+    notification_sent: "Notification Sent",
+    password_reset_requested: "Forgot Password Request",
+    withdrawal_pin_reset_requested: "Forgot Withdrawal PIN Request",
+    personal_info_change_requested: "Personal Information Change Request",
+    payment_methods_change_requested: "Payment Method Change Request",
+    kyc_verification_requested: "KYC Verification Request",
+    kyc_resubmission_requested: "KYC Resubmission Request",
+    unblock_requested: "Account Reactivation Request"
+};
+
+const AUDIENCE_LABELS = {
+    all: "All Users",
+    verified: "Verified Users",
+    not_verified: "Not Verified Users"
 };
 
 function labelForAction(action){
-    return action
+
+    if(NOTIFICATION_LABELS[action]) return NOTIFICATION_LABELS[action];
+
+    return String(action)
         .split("_")
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
+
 }
 
 function formatRelativeTime(dateString){
@@ -6306,41 +6330,133 @@ function formatRelativeTime(dateString){
 }
 
 // ===============================
-// LOAD ACTIVITY FEED FROM SUPABASE
+// MESSAGE BUILDING
+// ===============================
+
+function messageForEntry(row, name){
+
+    const meta = row.metadata || {};
+    const who = name || "A user";
+
+    switch(row.action){
+
+        case "deposit_requested":
+            return who + " requested a deposit of R" +
+                Number(meta.amount_zar || 0).toFixed(2) +
+                (meta.method ? " via " + labelForAction(meta.method) : "");
+
+        case "withdrawal_requested":
+            return who + " requested a withdrawal of R" +
+                Number(meta.amount_zar || 0).toFixed(2);
+
+        case "notification_sent":
+            return "Sent to " +
+                (AUDIENCE_LABELS[meta.audience] || meta.audience || "users") +
+                " (" + (meta.recipient_count || 0) + "): " +
+                (meta.title || "");
+
+        case "password_reset_requested":
+            return who + " requested a password reset.";
+
+        case "withdrawal_pin_reset_requested":
+            return who + " requested a withdrawal PIN reset.";
+
+        case "personal_info_change_requested":
+            return who + " requested to change personal information.";
+
+        case "payment_methods_change_requested":
+            return who + " requested to change payment methods.";
+
+        case "kyc_verification_requested":
+            return who + " submitted KYC verification documents.";
+
+        case "kyc_resubmission_requested":
+            return who + " requested to resubmit KYC verification.";
+
+        case "unblock_requested":
+            return who + " requested account reactivation.";
+
+        default:
+            return labelForAction(row.action);
+
+    }
+
+}
+
+// ===============================
+// LOAD REQUEST-EVENT FEED FROM SUPABASE
 // ===============================
 
 function loadNotifications(){
 
     sb.from("activity_log")
         .select("*")
+        .eq("category", "REQUESTS")
         .order("created_at", { ascending: false })
         .limit(100)
 
         .then(({ data, error }) => {
 
             if(error){
-                console.error("Failed to load activity feed:", error);
+                console.error("Failed to load notifications:", error);
                 return;
             }
 
-            notificationsData = data.map(row => ({
-                id: row.id,
-                icon: NOTIFICATION_ICONS[row.action] || "fa-solid fa-bell",
-                title: labelForAction(row.action),
-                message: row.target_table
-                    ? `${labelForAction(row.action)} (${row.target_table})`
-                    : labelForAction(row.action),
-                time: formatRelativeTime(row.created_at),
-                status: row.is_read ? "read" : "unread"
-            }));
+            const rows = data || [];
 
-            renderNotifications();
+            // notification_sent rows have no requesting user to name —
+            // only look up names for rows that reference one.
+            const userIds = [...new Set(
+                rows
+                    .filter(r => r.action !== "notification_sent" && r.target_id)
+                    .map(r => r.target_id)
+            )];
 
-            updateNotificationStats();
+            if(userIds.length === 0){
+                buildNotificationsData(rows, {});
+                return;
+            }
 
-            showNotificationTab(currentNotificationTab);
+            sb.from("profiles")
+                .select("id, username, surname")
+                .in("id", userIds)
+
+                .then(({ data: profileRows, error: profileError }) => {
+
+                    if(profileError){
+                        console.error("Failed to load requester names:", profileError);
+                    }
+
+                    const names = {};
+
+                    (profileRows || []).forEach(p => {
+                        names[p.id] = (p.username + " " + (p.surname || "")).trim();
+                    });
+
+                    buildNotificationsData(rows, names);
+
+                });
 
         });
+
+}
+
+function buildNotificationsData(rows, names){
+
+    notificationsData = rows.map(row => ({
+        id: row.id,
+        icon: NOTIFICATION_ICONS[row.action] || "fa-solid fa-bell",
+        title: labelForAction(row.action),
+        message: messageForEntry(row, names[row.target_id]),
+        time: formatRelativeTime(row.created_at),
+        status: row.is_read ? "read" : "unread"
+    }));
+
+    renderNotifications();
+
+    updateNotificationStats();
+
+    showNotificationTab(currentNotificationTab);
 
 }
 
@@ -6454,6 +6570,10 @@ function showNotificationTab(type,button){
 }
 
 
+// ===============================
+// VIEW (marks read on open — real, updates activity_log.is_read)
+// ===============================
+
 function viewNotification(button){
 
     selectedNotification = button.parentElement;
@@ -6462,15 +6582,29 @@ function viewNotification(button){
     document.getElementById("notificationDetails").innerHTML =
     selectedNotification.outerHTML;
 
-    const markBtn = document.querySelector(".mark-read-btn");
+    document.getElementById("notificationModal").style.display="flex";
 
     if(selectedNotification.classList.contains("unread")){
-        markBtn.textContent = "Mark Read";
-    } else {
-        markBtn.textContent = "Mark Unread";
-    }
 
-    document.getElementById("notificationModal").style.display="flex";
+        sb.from("activity_log")
+            .update({ is_read: true })
+            .eq("id", selectedNotificationId)
+
+            .then(({ error }) => {
+
+                if(error){
+                    console.error("Failed to mark as read:", error);
+                    return;
+                }
+
+                selectedNotification.classList.remove("unread");
+                selectedNotification.classList.add("read");
+
+                updateNotificationStats();
+
+            });
+
+    }
 
 }
 
@@ -6481,17 +6615,17 @@ function closeNotificationModal(){
 
 
 // ===============================
-// MARK READ/UNREAD (real — updates activity_log.is_read)
+// MARK UNREAD (real — updates activity_log.is_read)
+// Viewing a notification already marks it read, so this button only
+// ever needs to do one thing: put it back to unread.
 // ===============================
 
-function markRead(){
+function markNotificationUnread(){
 
     if(!selectedNotificationId) return;
 
-    const isCurrentlyUnread = selectedNotification.classList.contains("unread");
-
     sb.from("activity_log")
-        .update({ is_read: isCurrentlyUnread })
+        .update({ is_read: false })
         .eq("id", selectedNotificationId)
 
         .then(({ error }) => {
@@ -6561,7 +6695,8 @@ function closeSendNotificationModal(){
 
 
 // ===============================
-// SEND NOTIFICATION (real — broadcasts to all users)
+// SEND NOTIFICATION (real — via admin_send_notification RPC,
+// resolves audience to real recipients and inserts one row per user)
 // ===============================
 
 function sendNotification(){
@@ -6570,34 +6705,52 @@ function sendNotification(){
 
     const message = document.getElementById("notificationMessage").value.trim();
 
+    const audience = document.getElementById("notificationAudience").value;
+
     if(title==="" || message===""){
         alert("Please complete all fields.");
         return;
     }
 
-    // user_id left NULL = broadcast to every user (per the
-    // notifications table's design)
-    sb.from("notifications")
-        .insert({ user_id: null, title: title, body: message })
+    const sendBtn = document.querySelector(".send-notif-btn");
 
-        .then(({ error }) => {
+    if(sendBtn){
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Sending...";
+    }
+
+    sb.rpc("admin_send_notification", {
+        p_title: title,
+        p_body: message,
+        p_audience: audience
+    })
+
+        .then(({ data, error }) => {
+
+            if(sendBtn){
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Send";
+            }
 
             if(error){
                 alert("Failed to send notification: " + error.message);
                 return;
             }
 
-            alert("Notification sent successfully.");
+            const count = Number(data || 0);
+
+            alert("Notification sent to " + count + (count === 1 ? " user." : " users."));
 
             document.getElementById("notificationTitle").value="";
             document.getElementById("notificationMessage").value="";
 
             closeSendNotificationModal();
 
+            loadNotifications();
+
         });
 
 }
-
 
 /* ===== js/activity-log.js ===== */
 // =========================================================

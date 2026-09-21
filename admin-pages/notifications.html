@@ -79,9 +79,9 @@
 
         <div class="modal-buttons">
 
-            <button class="mark-read-btn" onclick="markRead()">
-                Mark Read
-            </button>
+            <button class="mark-read-btn" onclick="markNotificationUnread()">
+    Mark Unread
+</button>
 
             <button class="delete-notif-btn" onclick="deleteNotification()">
                 Delete
@@ -116,16 +116,10 @@ id="sendNotificationModal">
         placeholder="Message"></textarea>
 
         <select id="notificationAudience">
-
-            <option>All Users</option>
-
-            <option>Verified Users</option>
-
-            <option>Active Investors</option>
-
-            <option>Specific User</option>
-
-        </select>
+    <option value="all">All Users</option>
+    <option value="verified">Verified</option>
+    <option value="not_verified">Not Verified</option>
+</select>
 
         <div class="modal-buttons">
 
