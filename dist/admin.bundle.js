@@ -6329,8 +6329,31 @@ function formatRelativeTime(dateString){
 
 }
 
+function formatFullTime(dateString){
+
+    const date = new Date(dateString);
+
+    return date.toLocaleString(undefined, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+}
+
+function escapeNotifHtml(value){
+
+    return String(value === null || value === undefined ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+}
+
 // ===============================
-// MESSAGE BUILDING
+// MESSAGE BUILDING (short summary shown in the list + top of modal)
 // ===============================
 
 function messageForEntry(row, name){
@@ -6384,6 +6407,87 @@ function messageForEntry(row, name){
 }
 
 // ===============================
+// DETAIL ROWS (full breakdown shown in the View modal)
+// ===============================
+
+function detailRowsForEntry(entry){
+
+    const meta = entry.metadata || {};
+    const rows = [];
+
+    if(entry.action === "notification_sent"){
+
+        rows.push({ label: "Sent by", value: "You (Admin)" });
+        rows.push({ label: "Audience", value: AUDIENCE_LABELS[meta.audience] || meta.audience || "—" });
+        rows.push({ label: "Recipients", value: String(meta.recipient_count || 0) });
+        rows.push({ label: "Title", value: meta.title || "—" });
+        rows.push({ label: "Message", value: meta.body || "—" });
+
+    } else {
+
+        rows.push({ label: "Requested by", value: entry.requesterName || "Unknown user" });
+
+        if(entry.action === "deposit_requested"){
+            rows.push({ label: "Amount", value: "R" + Number(meta.amount_zar || 0).toFixed(2) });
+            if(meta.method) rows.push({ label: "Method", value: labelForAction(meta.method) });
+        }
+
+        if(entry.action === "withdrawal_requested"){
+            rows.push({ label: "Amount", value: "R" + Number(meta.amount_zar || 0).toFixed(2) });
+        }
+
+        if(entry.action === "kyc_verification_requested" && meta.country){
+            rows.push({ label: "Country", value: meta.country });
+        }
+
+    }
+
+    rows.push({ label: "Submitted", value: entry.fullTime });
+
+    return rows;
+
+}
+
+function renderNotificationDetail(entry){
+
+    const container = document.getElementById("notificationDetails");
+
+    if(!entry){
+        container.innerHTML = "<p>This notification could not be found.</p>";
+        return;
+    }
+
+    const rowsHtml = detailRowsForEntry(entry)
+        .map(r =>
+            "<div class=\"notif-detail-row\">" +
+                "<span>" + escapeNotifHtml(r.label) + "</span>" +
+                "<strong>" + escapeNotifHtml(r.value) + "</strong>" +
+            "</div>"
+        )
+        .join("");
+
+    container.innerHTML =
+        "<div class=\"notif-detail\">" +
+
+            "<div class=\"notif-detail-head\">" +
+                "<div class=\"notif-detail-icon\"><i class=\"" + entry.icon + "\"></i></div>" +
+                "<div>" +
+                    "<h4>" + escapeNotifHtml(entry.title) + "</h4>" +
+                    "<span class=\"notif-status-badge " + entry.status + "\" id=\"notifDetailStatusBadge\">" +
+                        (entry.status === "unread" ? "Unread" : "Read") +
+                    "</span>" +
+                "</div>" +
+            "</div>" +
+
+            "<p class=\"notif-detail-message\">" + escapeNotifHtml(entry.message) + "</p>" +
+
+            "<div class=\"notif-detail-grid\">" + rowsHtml + "</div>" +
+
+        "</div>";
+
+}
+
+// ===============================
 // LOAD REQUEST-EVENT FEED FROM SUPABASE
 // ===============================
 
@@ -6404,12 +6508,12 @@ function loadNotifications(){
 
             const rows = data || [];
 
-            // notification_sent rows have no requesting user to name —
-            // only look up names for rows that reference one.
+            // notification_sent rows are logged against the admin, not a
+            // requesting user — only look up names for rows that have one.
             const userIds = [...new Set(
                 rows
-                    .filter(r => r.action !== "notification_sent" && r.target_id)
-                    .map(r => r.target_id)
+                    .filter(r => r.action !== "notification_sent" && r.actor_id)
+                    .map(r => r.actor_id)
             )];
 
             if(userIds.length === 0){
@@ -6443,14 +6547,24 @@ function loadNotifications(){
 
 function buildNotificationsData(rows, names){
 
-    notificationsData = rows.map(row => ({
-        id: row.id,
-        icon: NOTIFICATION_ICONS[row.action] || "fa-solid fa-bell",
-        title: labelForAction(row.action),
-        message: messageForEntry(row, names[row.target_id]),
-        time: formatRelativeTime(row.created_at),
-        status: row.is_read ? "read" : "unread"
-    }));
+    notificationsData = rows.map(row => {
+
+        const name = names[row.actor_id] || null;
+
+        return {
+            id: row.id,
+            action: row.action,
+            metadata: row.metadata || {},
+            icon: NOTIFICATION_ICONS[row.action] || "fa-solid fa-bell",
+            title: labelForAction(row.action),
+            message: messageForEntry(row, name),
+            requesterName: name,
+            time: formatRelativeTime(row.created_at),
+            fullTime: formatFullTime(row.created_at),
+            status: row.is_read ? "read" : "unread"
+        };
+
+    });
 
     renderNotifications();
 
@@ -6479,8 +6593,8 @@ function renderNotifications(){
         "</div>" +
 
         "<div class=\"notification-content\">" +
-            "<h4>" + entry.title + "</h4>" +
-            "<p>" + entry.message + "</p>" +
+            "<h4>" + escapeNotifHtml(entry.title) + "</h4>" +
+            "<p>" + escapeNotifHtml(entry.message) + "</p>" +
             "<small>" + entry.time + "</small>" +
         "</div>" +
 
@@ -6571,20 +6685,24 @@ function showNotificationTab(type,button){
 
 
 // ===============================
-// VIEW (marks read on open — real, updates activity_log.is_read)
+// VIEW (renders a full detail card, marks read on open —
+// real, updates activity_log.is_read)
 // ===============================
 
 function viewNotification(button){
 
-    selectedNotification = button.parentElement;
-    selectedNotificationId = selectedNotification.dataset.id;
+    const row = button.parentElement;
 
-    document.getElementById("notificationDetails").innerHTML =
-    selectedNotification.outerHTML;
+    selectedNotification = row;
+    selectedNotificationId = row.dataset.id;
+
+    const entry = notificationsData.find(e => String(e.id) === String(selectedNotificationId));
+
+    renderNotificationDetail(entry);
 
     document.getElementById("notificationModal").style.display="flex";
 
-    if(selectedNotification.classList.contains("unread")){
+    if(row.classList.contains("unread")){
 
         sb.from("activity_log")
             .update({ is_read: true })
@@ -6597,8 +6715,18 @@ function viewNotification(button){
                     return;
                 }
 
-                selectedNotification.classList.remove("unread");
-                selectedNotification.classList.add("read");
+                row.classList.remove("unread");
+                row.classList.add("read");
+
+                if(entry) entry.status = "read";
+
+                const badge = document.getElementById("notifDetailStatusBadge");
+
+                if(badge){
+                    badge.classList.remove("unread");
+                    badge.classList.add("read");
+                    badge.textContent = "Read";
+                }
 
                 updateNotificationStats();
 
