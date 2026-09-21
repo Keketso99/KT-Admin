@@ -6370,7 +6370,8 @@ function messageForEntry(row, name){
 
         case "withdrawal_requested":
             return who + " requested a withdrawal of R" +
-                Number(meta.amount_zar || 0).toFixed(2);
+                Number(meta.amount_zar || 0).toFixed(2) +
+                (meta.method ? " via " + labelForAction(meta.method) : "");
 
         case "notification_sent":
             return "Sent to " +
@@ -6434,6 +6435,7 @@ function detailRowsForEntry(entry){
 
         if(entry.action === "withdrawal_requested"){
             rows.push({ label: "Amount", value: "R" + Number(meta.amount_zar || 0).toFixed(2) });
+            if(meta.method) rows.push({ label: "Method", value: labelForAction(meta.method) });
         }
 
         if(entry.action === "kyc_verification_requested" && meta.country){
