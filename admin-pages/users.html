@@ -700,7 +700,55 @@
 
 </div>
 
+<!-- ========================= -->
+<!-- User Deposit / Withdrawal History Modal -->
+<!-- ========================= -->
 
+<div class="user-history-modal" id="userHistoryModal">
+
+    <div class="user-history-content">
+
+        <div class="user-history-header">
+
+            <div>
+                <h2 id="userHistoryTitle">Deposit History</h2>
+                <p id="userHistoryUser"></p>
+            </div>
+
+            <button
+                type="button"
+                class="user-history-close"
+                id="userHistoryClose"
+                aria-label="Close history"
+            >
+                &times;
+            </button>
+
+        </div>
+
+        <div class="user-history-toolbar">
+
+            <input
+                type="search"
+                id="userHistorySearch"
+                placeholder="Search record..."
+                autocomplete="off"
+            >
+
+        </div>
+
+        <div
+            class="user-history-body"
+            id="userHistoryBody"
+        >
+            <div class="user-history-loading">
+                Loading history...
+            </div>
+        </div>
+
+    </div>
+
+</div>
 
 <!-- Reset Withdrawal PIN -->
 

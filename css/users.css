@@ -1314,3 +1314,260 @@
     }
 
 }
+
+/* =========================================================
+   USER DEPOSIT / WITHDRAWAL HISTORY MODAL
+========================================================= */
+
+.user-history-modal{
+
+    display:none;
+
+    position:fixed;
+
+    top:65px;
+    right:40px;
+
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+
+    background:rgba(0,0,0,.55);
+
+    z-index:5100;
+
+    padding:15px;
+
+    overflow-y:auto;
+
+    align-items:flex-start;
+    justify-content:center;
+
+}
+
+
+.user-history-content{
+
+    width:min(900px,100%);
+
+    max-height:calc(100vh - 95px);
+
+    background:#fff;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    position:relative;
+
+    overflow:hidden;
+
+    box-shadow:0 8px 30px rgba(0,0,0,.18);
+
+}
+
+
+/* HEADER */
+
+.user-history-header{
+
+    display:flex;
+
+    align-items:flex-start;
+
+    justify-content:space-between;
+
+    gap:15px;
+
+    padding-right:5px;
+
+    margin-bottom:15px;
+
+}
+
+
+.user-history-header h2{
+
+    margin:0 0 5px;
+
+    color:#333;
+
+    font-size:20px;
+
+}
+
+
+.user-history-header p{
+
+    margin:0;
+
+    color:#777;
+
+    font-size:13px;
+
+}
+
+
+/* CLOSE BUTTON */
+
+.user-history-close{
+
+    width:36px;
+    height:36px;
+
+    border:none;
+
+    background:#f3f4f6;
+
+    color:#666;
+
+    border-radius:50%;
+
+    font-size:25px;
+
+    line-height:36px;
+
+    cursor:pointer;
+
+    flex:0 0 auto;
+
+}
+
+
+.user-history-close:hover{
+
+    background:#e5e7eb;
+
+    color:#222;
+
+}
+
+
+/* SEARCH */
+
+.user-history-toolbar{
+
+    margin-bottom:15px;
+
+}
+
+
+.user-history-toolbar input{
+
+    width:100%;
+
+    box-sizing:border-box;
+
+    padding:12px 14px;
+
+    border:1px solid #ddd;
+
+    border-radius:8px;
+
+    outline:none;
+
+    font-size:14px;
+
+    background:#fff;
+
+}
+
+
+.user-history-toolbar input:focus{
+
+    border-color:#1b8ef2;
+
+    box-shadow:0 0 0 2px rgba(27,142,242,.08);
+
+}
+
+
+/* HISTORY BODY */
+
+.user-history-body{
+
+    max-height:calc(100vh - 245px);
+
+    overflow:auto;
+
+    border:1px solid #eee;
+
+    border-radius:10px;
+
+}
+
+
+/* TABLE */
+
+.user-history-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    min-width:650px;
+
+}
+
+
+.user-history-table th,
+.user-history-table td{
+
+    padding:12px 10px;
+
+    border-bottom:1px solid #eee;
+
+    text-align:left;
+
+    font-size:13px;
+
+    white-space:nowrap;
+
+}
+
+
+.user-history-table th{
+
+    background:#f7f9fc;
+
+    color:#666;
+
+    font-weight:600;
+
+    position:sticky;
+
+    top:0;
+
+    z-index:1;
+
+}
+
+
+.user-history-table td{
+
+    color:#333;
+
+}
+
+
+.user-history-table tr:last-child td{
+
+    border-bottom:none;
+
+}
+
+
+/* EMPTY / LOADING / ERROR */
+
+.user-history-empty,
+.user-history-loading,
+.user-history-error{
+
+    padding:35px 20px;
+
+    text-align:center;
+
+    color:#777;
+
+    font-size:14px;
+
+}

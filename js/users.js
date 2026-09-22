@@ -1465,7 +1465,609 @@ const hiddenData =
         };
     }
 
-    
+
+// ======================================================
+// DEPOSIT / WITHDRAWAL HISTORY
+// ======================================================
+
+const userHistoryModal =
+    document.getElementById("userHistoryModal");
+
+const userHistoryTitle =
+    document.getElementById("userHistoryTitle");
+
+const userHistoryUser =
+    document.getElementById("userHistoryUser");
+
+const userHistorySearch =
+    document.getElementById("userHistorySearch");
+
+const userHistoryBody =
+    document.getElementById("userHistoryBody");
+
+const userHistoryClose =
+    document.getElementById("userHistoryClose");
+
+
+let userHistoryType = "deposit";
+
+let userHistoryRecords = [];
+
+
+// ======================================================
+// FORMAT VALUE
+// ======================================================
+
+function formatHistoryValue(value){
+
+    if(
+        value === null ||
+        value === undefined ||
+        value === ""
+    ){
+        return "—";
+    }
+
+    if(typeof value === "boolean"){
+
+        return value ? "Yes" : "No";
+
+    }
+
+    if(typeof value === "object"){
+
+        return JSON.stringify(value);
+
+    }
+
+    return String(value);
+
+}
+
+
+// ======================================================
+// FORMAT DATE
+// ======================================================
+
+function formatHistoryDate(value){
+
+    if(!value){
+
+        return "—";
+
+    }
+
+    const date = new Date(value);
+
+    if(Number.isNaN(date.getTime())){
+
+        return formatHistoryValue(value);
+
+    }
+
+    return date.toLocaleString();
+
+}
+
+
+// ======================================================
+// SEARCHABLE RECORD TEXT
+// ======================================================
+
+function getHistoryRecordText(record){
+
+    return Object.entries(record)
+
+        .map(([key, value]) =>
+            `${key} ${formatHistoryValue(value)}`
+        )
+
+        .join(" ")
+
+        .toLowerCase();
+
+}
+
+
+// ======================================================
+// ESCAPE HTML
+// ======================================================
+
+function escapeHistoryHtml(value){
+
+    return String(value)
+
+        .replace(/&/g, "&amp;")
+
+        .replace(/</g, "&lt;")
+
+        .replace(/>/g, "&gt;")
+
+        .replace(/"/g, "&quot;")
+
+        .replace(/'/g, "&#039;");
+
+}
+
+
+// ======================================================
+// DETERMINE TABLE COLUMNS
+// ======================================================
+
+function getHistoryColumns(records){
+
+    const preferred = [
+
+        "created_at",
+        "amount",
+        "method",
+        "status",
+        "account_details",
+        "transaction_id",
+        "reference",
+        "id"
+
+    ];
+
+
+    const available = [];
+
+
+    preferred.forEach(key => {
+
+        if(
+            records.some(record =>
+                Object.prototype.hasOwnProperty.call(
+                    record,
+                    key
+                )
+            )
+        ){
+
+            available.push(key);
+
+        }
+
+    });
+
+
+    const extras = [];
+
+
+    records.forEach(record => {
+
+        Object.keys(record).forEach(key => {
+
+            if(
+                key === "user_id" ||
+                available.includes(key) ||
+                extras.includes(key)
+            ){
+
+                return;
+
+            }
+
+            extras.push(key);
+
+        });
+
+    });
+
+
+    return [
+
+        ...available,
+        ...extras
+
+    ].slice(0, 8);
+
+}
+
+
+// ======================================================
+// RENDER HISTORY
+// ======================================================
+
+function renderHistoryRecords(){
+
+    const search =
+        (userHistorySearch.value || "")
+        .trim()
+        .toLowerCase();
+
+
+    const filtered =
+        userHistoryRecords.filter(record =>
+
+            !search ||
+            getHistoryRecordText(record)
+                .includes(search)
+
+        );
+
+
+    if(!filtered.length){
+
+        userHistoryBody.innerHTML = `
+
+            <div class="user-history-empty">
+
+                ${
+                    userHistoryRecords.length
+
+                    ? "No matching records found."
+
+                    : `No ${userHistoryType}
+                       history found for this user.`
+                }
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    const columns =
+        getHistoryColumns(filtered);
+
+
+    let html = `
+
+        <table class="user-history-table">
+
+            <thead>
+
+                <tr>
+
+    `;
+
+
+    columns.forEach(column => {
+
+        const label =
+            column
+
+                .replace(/_/g, " ")
+
+                .replace(/\b\w/g, char =>
+                    char.toUpperCase()
+                );
+
+
+        html += `
+
+            <th>
+                ${escapeHistoryHtml(label)}
+            </th>
+
+        `;
+
+    });
+
+
+    html += `
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+    `;
+
+
+    filtered.forEach(record => {
+
+        html += "<tr>";
+
+
+        columns.forEach(column => {
+
+            let value = record[column];
+
+
+            if(
+                column === "created_at" ||
+                column === "updated_at" ||
+                column.endsWith("_at")
+            ){
+
+                value =
+                    formatHistoryDate(value);
+
+            }else{
+
+                value =
+                    formatHistoryValue(value);
+
+            }
+
+
+            html += `
+
+                <td>
+                    ${escapeHistoryHtml(value)}
+                </td>
+
+            `;
+
+        });
+
+
+        html += "</tr>";
+
+    });
+
+
+    html += `
+
+            </tbody>
+
+        </table>
+
+    `;
+
+
+    userHistoryBody.innerHTML = html;
+
+}
+
+
+// ======================================================
+// OPEN USER HISTORY
+// ======================================================
+
+async function openUserHistory(type){
+
+    if(!currentRow){
+
+        return;
+
+    }
+
+
+    const userId =
+        currentRow.dataset.userid;
+
+
+    const userName =
+        currentRow.querySelector("h4")
+        ?.textContent || "User";
+
+
+    userHistoryType = type;
+
+    userHistoryRecords = [];
+
+
+    userHistorySearch.value = "";
+
+
+    userHistoryTitle.textContent =
+
+        type === "deposit"
+
+            ? "Deposit History"
+
+            : "Withdrawal History";
+
+
+    userHistoryUser.textContent =
+        userName;
+
+
+    userHistoryBody.innerHTML = `
+
+        <div class="user-history-loading">
+
+            Loading ${type} history...
+
+        </div>
+
+    `;
+
+
+    userModal.style.display = "none";
+
+    userHistoryModal.style.display = "flex";
+
+
+    const tableName =
+
+        type === "deposit"
+
+            ? "deposits"
+
+            : "withdrawals";
+
+
+    try{
+
+        const { data, error } =
+
+            await sb
+
+                .from(tableName)
+
+                .select("*")
+
+                .eq("user_id", userId)
+
+                .order(
+                    "created_at",
+                    {
+                        ascending:false
+                    }
+                );
+
+
+        if(error){
+
+            console.error(
+                `Failed to load ${type} history:`,
+                error
+            );
+
+
+            userHistoryBody.innerHTML = `
+
+                <div class="user-history-error">
+
+                    Failed to load ${type}
+                    history:
+                    ${escapeHistoryHtml(
+                        error.message
+                    )}
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        userHistoryRecords =
+            Array.isArray(data)
+                ? data
+                : [];
+
+
+        renderHistoryRecords();
+
+
+    }catch(error){
+
+        console.error(
+            `Failed to load ${type} history:`,
+            error
+        );
+
+
+        userHistoryBody.innerHTML = `
+
+            <div class="user-history-error">
+
+                Failed to load ${type}
+                history.
+
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+// ======================================================
+// CLOSE HISTORY
+// ======================================================
+
+function closeUserHistory(){
+
+    userHistoryModal.style.display =
+        "none";
+
+
+    userHistoryRecords = [];
+
+
+    userHistorySearch.value = "";
+
+}
+
+
+// ======================================================
+// SEARCH
+// ======================================================
+
+if(userHistorySearch){
+
+    userHistorySearch.addEventListener(
+        "input",
+        renderHistoryRecords
+    );
+
+}
+
+
+// ======================================================
+// CLOSE BUTTON
+// ======================================================
+
+if(userHistoryClose){
+
+    userHistoryClose.onclick =
+        closeUserHistory;
+
+}
+
+
+// ======================================================
+// CLOSE WHEN CLICKING OUTSIDE
+// ======================================================
+
+if(userHistoryModal){
+
+    userHistoryModal.addEventListener(
+        "click",
+        function(e){
+
+            if(e.target === userHistoryModal){
+
+                closeUserHistory();
+
+            }
+
+        }
+    );
+
+}
+
+
+// ======================================================
+// DEPOSIT HISTORY BUTTON
+// ======================================================
+
+const depositBtn =
+    document.querySelector(".deposit-btn");
+
+
+if(depositBtn){
+
+    depositBtn.onclick = function(){
+
+        openUserHistory("deposit");
+
+    };
+
+}
+
+
+// ======================================================
+// WITHDRAWAL HISTORY BUTTON
+// ======================================================
+
+const withdrawBtn =
+    document.querySelector(".withdraw-btn");
+
+
+if(withdrawBtn){
+
+    withdrawBtn.onclick = function(){
+
+        openUserHistory("withdrawal");
+
+    };
+
+}
+  
 
     // ===============================
     // REFERRAL LIST
