@@ -1649,6 +1649,7 @@ function getHistoryColumns(records){
 }
 
 
+
 // ======================================================
 // RENDER HISTORY
 // ======================================================
@@ -1662,13 +1663,27 @@ function renderHistoryRecords(){
 
 
     const filtered =
-        userHistoryRecords.filter(record =>
+        userHistoryRecords.filter(record => {
 
-            !search ||
-            getHistoryRecordText(record)
-                .includes(search)
+            const searchableText = [
 
-        );
+                record.method,
+                record.amount,
+                record.created_at,
+                record.status
+
+            ]
+            .map(value =>
+                formatHistoryValue(value)
+            )
+            .join(" ")
+            .toLowerCase();
+
+
+            return !search ||
+                   searchableText.includes(search);
+
+        });
 
 
     if(!filtered.length){
@@ -1695,10 +1710,6 @@ function renderHistoryRecords(){
     }
 
 
-    const columns =
-        getHistoryColumns(filtered);
-
-
     let html = `
 
         <table class="user-history-table">
@@ -1707,33 +1718,13 @@ function renderHistoryRecords(){
 
                 <tr>
 
-    `;
+                    <th>Method</th>
 
+                    <th>Amount</th>
 
-    columns.forEach(column => {
+                    <th>Date</th>
 
-        const label =
-            column
-
-                .replace(/_/g, " ")
-
-                .replace(/\b\w/g, char =>
-                    char.toUpperCase()
-                );
-
-
-        html += `
-
-            <th>
-                ${escapeHistoryHtml(label)}
-            </th>
-
-        `;
-
-    });
-
-
-    html += `
+                    <th>Status</th>
 
                 </tr>
 
@@ -1746,43 +1737,53 @@ function renderHistoryRecords(){
 
     filtered.forEach(record => {
 
-        html += "<tr>";
+        const method =
+            formatHistoryValue(
+                record.method
+            );
 
 
-        columns.forEach(column => {
-
-            let value = record[column];
-
-
-            if(
-                column === "created_at" ||
-                column === "updated_at" ||
-                column.endsWith("_at")
-            ){
-
-                value =
-                    formatHistoryDate(value);
-
-            }else{
-
-                value =
-                    formatHistoryValue(value);
-
-            }
+        const amount =
+            formatHistoryValue(
+                record.amount
+            );
 
 
-            html += `
+        const date =
+            formatHistoryDate(
+                record.created_at
+            );
+
+
+        const status =
+            formatHistoryValue(
+                record.status
+            );
+
+
+        html += `
+
+            <tr>
 
                 <td>
-                    ${escapeHistoryHtml(value)}
+                    ${escapeHistoryHtml(method)}
                 </td>
 
-            `;
+                <td>
+                    ${escapeHistoryHtml(amount)}
+                </td>
 
-        });
+                <td>
+                    ${escapeHistoryHtml(date)}
+                </td>
 
+                <td>
+                    ${escapeHistoryHtml(status)}
+                </td>
 
-        html += "</tr>";
+            </tr>
+
+        `;
 
     });
 
