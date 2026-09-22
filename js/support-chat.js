@@ -1,3559 +1,923 @@
 // ======================================================
-// SUPPORT CHAT SYSTEM
-// PART 1 — FOUNDATION
+// SUPPORT CHAT — real, Supabase-backed (individual chats only)
+// Rebuilt from the local-mock version to use real data end to
+// end: support_conversations / support_messages, real users
+// (profiles), real wallet/deposit/withdrawal/KYC/plan data for
+// the profile modal, and a real "support-chat" storage bucket
+// for photo/document/camera attachments and voice notes.
+//
+// Dropped (no real signal exists for these, so faking them
+// would be dishonest rather than "real"):
+//   - the fake typing-indicator bot reply (simulateTypingReply)
+//   - per-message blue "read" ticks (the real user app has no
+//     read-receipt concept at all — sent messages always show
+//     a single check, never a double check)
+//   - "online" presence dot (no presence system) — the chat
+//     header shows the user's phone number instead
+//   - chat mute (was already dead code — no button in the HTML
+//     called toggleChatMute)
+// Everything else (reply, edit own messages, delete any
+// message, pin/unpin, chat priority + pin-to-top, bulk
+// select/delete/priority, message search, new chat, clear
+// messages, delete chat, real attachments/voice) is real.
 // ======================================================
 
 
 // ======================================================
-// 1. GLOBAL STATE
-// ======================================================
-// ======================================================
-// LONG-PRESS CHAT SETTINGS
+// STATE
 // ======================================================
 
 const CHAT_LONG_PRESS_DURATION = 500;
-// milliseconds to hold before it counts as a long-press
-
 const CHAT_LONG_PRESS_MOVE_TOLERANCE = 10;
-// pixels of movement allowed before long-press is cancelled
-// ======================================================
-// INDIVIDUAL CHAT DELETE ACTION STATE
-// ======================================================
 
-
-
-
-// ======================================================
-// INDIVIDUAL CHAT PRIORITY ACTION STATE
-// ======================================================
-
-
-
-// ======================================================
-// INDIVIDUAL CHAT MULTI-SELECT STATE
-// =====================================================
-
-
-
-// ======================================================
-// INDIVIDUAL CHAT LONG-PRESS SETTINGS
-// ======================================================
-
-
-
-// =========================================================
-// PIN MESSAGE SELECTION STATE
-// =========================================================
-
-let pinMessageSelectionMode = false;
-
-let selectedPinMessageIds = [];
-
-// =========================================================
-// PINNED MESSAGE DISPLAY STATE
-// =========================================================
-
-let currentPinnedMessageIndex = 0;
-
-// ======================================================
-// STAGE 8 — MESSAGE SEARCH
-// MESSAGE SEARCH STATE
-// ======================================================
-
-let messageSearchActive = false;
-
-let messageSearchQuery = "";
-
-let messageSearchResults = [];
-
-let currentMessageSearchIndex = -1;
-
-// ------------------------------------------------------
-// Current active conversation
-// ------------------------------------------------------
+let supportChatUsers = [];
+let individualChats = [];
 
 let currentChat = null;
-
-
-// ------------------------------------------------------
-// Current chat type
-// ------------------------------------------------------
-
 let currentChatType = "individual";
-
-
-// ------------------------------------------------------
-// Current user
-// ------------------------------------------------------
-
 let currentUser = null;
 
-
-// ------------------------------------------------------
-// ------------------------------------------------------
-
-let currentGroup = null;
-
-
-// ------------------------------------------------------
-// Reply state
-// ------------------------------------------------------
-
 let replyingToMessage = null;
-
-
-// ------------------------------------------------------
-// Edit state
-// ------------------------------------------------------
-
 let editingMessage = null;
 
-
-// ------------------------------------------------------
-// Chat filters
-// ------------------------------------------------------
-
 let currentChatFilter = "all";
-
-// ------------------------------------------------------
-// Search state
-// ------------------------------------------------------
-
 let currentChatSearch = "";
 
-let currentMessageSearch = "";
-
-
-// ------------------------------------------------------
-// Chat menu state
-// ------------------------------------------------------
-
 let chatMenuOpen = false;
-
-
-// ------------------------------------------------------
-// Attachment menu state
-// ------------------------------------------------------
-
 let attachmentMenuOpen = false;
 
-
-// ------------------------------------------------------
-// Emoji picker state
-// ------------------------------------------------------
-
-
-
-
-// ------------------------------------------------------
-// Voice recording state
-// ------------------------------------------------------
-
 let isRecordingVoice = false;
-
-let voiceRecorder = null;
-
-let voiceChunks = [];
-
-
-// ------------------------------------------------------
-// Delete action state
-// ------------------------------------------------------
+let voiceMediaRecorder = null;
+let voiceRecordedChunks = [];
+let voiceStream = null;
 
 let deleteActionType = null;
-
 let deleteActionId = null;
-
 let deleteActionIds = [];
 
-let deleteActionChatType = null;
-
-
-// ------------------------------------------------------
-// Priority action state (mirrors delete action state,
-// used by the priority confirmation modal)
-// ------------------------------------------------------
-
-let priorityActionIds = [];
-
-let priorityActionValue = null;
-// true = adding to priority, false = removing from priority
-
-
-// ------------------------------------------------------
-// Chat selection state (press-and-hold multi-select)
-// ------------------------------------------------------
-
 let chatSelectionMode = false;
-
-let chatSelectionType = null;
-
 let selectedChatIds = [];
-
 let pendingBulkAction = null;
-// null | "delete" | "priority" — set once the person
-// picks one of the two options in the chat actions modal
-
 let pendingPriorityMode = null;
-// null | "add" | "remove" — while pendingBulkAction is
-// "priority", this narrows the individual chat list down
-// to only the chats eligible for that action
-// Note: per-item long-press timing/state lives inside
-// attachChatPressHandlers as closure-local variables —
-// not here — so that one chat's press gesture can never
-// interfere with another chat's click handling.
 
+let pinMessageSelectionMode = false;
+let selectedPinMessageIds = [];
+let currentPinnedMessageIndex = 0;
 
-// ------------------------------------------------------
-// Support chat initialized
-// ------------------------------------------------------
+let messageSearchActive = false;
+let messageSearchQuery = "";
+let messageSearchResults = [];
+let currentMessageSearchIndex = -1;
 
+let supportAdminId = null;
+let supportMsgChannel = null;
+let supportConvChannel = null;
 let supportChatInitialized = false;
 
 
 // ======================================================
-// 2. SAMPLE USERS
-// ======================================================
-
-const supportChatUsers = [
-
-    {
-        id: "USR-1024",
-        name: "John",
-        email: "john@example.com",
-        phone: "+26658001024",
-        avatar: "",
-        online: true,
-        status: "Active",
-        verification: "Verified",
-        joined: "12 Jun 2026",
-        balance: 5000,
-        deposited: 12000,
-        withdrawn: 7000,
-        plan: "Gold Plan"
-    },
-
-    {
-        id: "USR-1025",
-        name: "Mary",
-        email: "mary@example.com",
-        phone: "+26658001025",
-        avatar: "",
-        online: false,
-        status: "Active",
-        verification: "Verified",
-        joined: "18 Jun 2026",
-        balance: 2800,
-        deposited: 8000,
-        withdrawn: 5200,
-        plan: "Silver Plan"
-    },
-
-    {
-        id: "USR-1026",
-        name: "Thabo",
-        email: "thabo@example.com",
-        phone: "+26658001026",
-        avatar: "",
-        online: true,
-        status: "Active",
-        verification: "Pending",
-        joined: "21 Jun 2026",
-        balance: 1500,
-        deposited: 4000,
-        withdrawn: 2500,
-        plan: "Starter Plan"
-    },
-
-    {
-        id: "USR-1027",
-        name: "Lerato",
-        email: "lerato@example.com",
-        phone: "+27758001027",
-        avatar: "",
-        online: false,
-        status: "Blocked",
-        verification: "Verified",
-        joined: "25 Jun 2026",
-        balance: 750,
-        deposited: 3000,
-        withdrawn: 2250,
-        plan: "Starter Plan"
-    },
-
-    {
-        id: "USR-1028",
-        name: "Mpho",
-        email: "mpho@example.com",
-        phone: "+26658001028",
-        avatar: "",
-        online: true,
-        status: "Active",
-        verification: "Verified",
-        joined: "30 Jun 2026",
-        balance: 9200,
-        deposited: 15000,
-        withdrawn: 5800,
-        plan: "VIP Plan"
-    },
-        {
-        id: "USR-1029",
-        name: "Nna",
-        email: "Nna@example.com",
-        phone: "+26729001029",
-        avatar: "",
-        online: true,
-        status: "Active",
-        verification: "Verified",
-        joined: "30 Jun 2026",
-        balance: 9200,
-        deposited: 15000,
-        withdrawn: 5800,
-        plan: "VIP Plan"
-    }
-
-];
-
-
-// ======================================================
-// 3. INDIVIDUAL CHAT DATA
-// ======================================================
-
-let individualChats = [
-
-    {
-        id: "CHAT-001",
-        userId: "USR-1024",
-        name: "John",
-        avatar: "",
-        online: true,
-        lastMessage: "Hello admin, I need help with my withdrawal.",
-        lastMessageTime: "10:21",
-        unread: 2,
-        open: true,
-        priority: true,
-        muted: false,
-        pinned: false,
-        messages: [
-
-            {
-                id: "MSG-001",
-                senderId: "USR-1024",
-                senderName: "John",
-                text: "Hello admin, I need help with my withdrawal.",
-                time: "10:20",
-                date: "Today",
-                sent: false,
-                read: true,
-                edited: false,
-                replyTo: null
-            },
-
-            {
-                id: "MSG-002",
-                senderId: "ADMIN",
-                senderName: "Admin",
-                text: "Hello John, how can we help you?",
-                time: "10:21",
-                date: "Today",
-                sent: true,
-                read: true,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    },
-
-
-    {
-        id: "CHAT-002",
-        userId: "USR-1025",
-        name: "Mary",
-        avatar: "",
-        online: false,
-        lastMessage: "Thank you for your help.",
-        lastMessageTime: "09:45",
-        unread: 0,
-        open: true,
-        priority: false,
-        muted: false,
-        pinned: false,
-        messages: [
-
-            {
-                id: "MSG-003",
-                senderId: "USR-1025",
-                senderName: "Mary",
-                text: "Thank you for your help.",
-                time: "09:45",
-                date: "Today",
-                sent: false,
-                read: true,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    },
-
-
-    {
-        id: "CHAT-003",
-        userId: "USR-1026",
-        name: "Thabo",
-        avatar: "",
-        online: true,
-        lastMessage: "Can you check my deposit?",
-        lastMessageTime: "Yesterday",
-        unread: 1,
-        open: true,
-        priority: false,
-        muted: false,
-        pinned: false,
-        messages: [
-
-            {
-                id: "MSG-004",
-                senderId: "USR-1026",
-                senderName: "Thabo",
-                text: "Can you check my deposit?",
-                time: "16:30",
-                date: "Yesterday",
-                sent: false,
-                read: false,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    },
-
-
-    {
-        id: "CHAT-004",
-        userId: "USR-1027",
-        name: "Lerato",
-        avatar: "",
-        online: false,
-        lastMessage: "I cannot login to my account.",
-        lastMessageTime: "Yesterday",
-        unread: 0,
-        open: false,
-        priority: true,
-        muted: false,
-        pinned: false,
-        messages: [
-
-            {
-                id: "MSG-005",
-                senderId: "USR-1027",
-                senderName: "Lerato",
-                text: "I cannot login to my account.",
-                time: "14:15",
-                date: "Yesterday",
-                sent: false,
-                read: true,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    },
-
-
-    {
-        id: "CHAT-005",
-        userId: "USR-1028",
-        name: "Mpho",
-        avatar: "",
-        online: true,
-        lastMessage: "I would like to upgrade my plan.",
-        lastMessageTime: "08:10",
-        unread: 0,
-        open: true,
-        priority: false,
-        muted: false,
-        pinned: true,
-        messages: [
-
-            {
-                id: "MSG-006",
-                senderId: "USR-1028",
-                senderName: "Mpho",
-                text: "I would like to upgrade my plan.",
-                time: "08:10",
-                date: "Today",
-                sent: false,
-                read: true,
-                edited: false,
-                replyTo: null
-            }
-
-        ]
-    }
-
-];
-
-
-// ======================================================
-// 5. DOM HELPERS
+// DOM HELPER
 // ======================================================
 
 function supportChatElement(id) {
-
     return document.getElementById(id);
-
 }
 
+function getInitials(name) {
 
-// ======================================================
-// 6. SHOW INDIVIDUAL CHATS
-// ======================================================
+    if (!name) return "?";
 
-function showIndividualChats() {
+    const parts = name.trim().split(/\s+/);
 
-    if (currentChat) {
-        closeChat();
+    if (parts.length === 1) {
+        return parts[0].charAt(0).toUpperCase();
     }
 
-    const individualSection = supportChatElement("individualSection");
-    const individualSwitch = supportChatElement("individualSwitch");
-
-    if (individualSection) individualSection.classList.remove("hidden");
-    if (individualSwitch) individualSwitch.classList.add("active");
-
-    currentChatType = "individual";
-    renderIndividualChats();
-    updateUnreadCounts();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 
 }
 
+function supportEscapeHtml(value) {
 
+    return String(value === null || value === undefined ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
+}
 
+function fullNameOf(row) {
+    return (row.username + " " + (row.surname || "")).trim() || "Unknown user";
+}
 
+function formatMessageTime(dateString) {
 
+    const date = new Date(dateString);
 
-// ======================================================
-// 8. FIND INDIVIDUAL CHAT
-// ======================================================
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+}
+
+function formatChatListTime(dateString) {
+
+    const date = new Date(dateString);
+    const now = new Date();
+
+    if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    }
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    if (date.toDateString() === yesterday.toDateString()) {
+        return "Yesterday";
+    }
+
+    return date.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+
+}
 
 function findIndividualChat(chatId) {
-
-    return individualChats.find(
-        function(chat) {
-
-            return chat.id === chatId;
-
-        }
-    );
-
+    return individualChats.find(function (chat) { return chat.id === chatId; });
 }
-
-
-
-
-
-
-// ======================================================
-// 10. FIND USER
-// ======================================================
 
 function findSupportUser(userId) {
+    return supportChatUsers.find(function (u) { return u.id === userId; });
+}
 
-    return supportChatUsers.find(
-        function(user) {
 
-            return user.id === userId;
+// ======================================================
+// INIT
+// ======================================================
 
+function initSupportChatPage() {
+
+    if (supportChatInitialized) {
+        loadSupportConversations();
+        return;
+    }
+
+    supportChatInitialized = true;
+
+    sb.auth.getUser().then(function (res) {
+
+        supportAdminId = res.data && res.data.user ? res.data.user.id : null;
+
+        loadSupportConversations();
+        setupSupportRealtime();
+
+    });
+
+    setupComposerEvents();
+    setupAttachmentEvents();
+    setupMessageSearchEvents();
+    setupPinMessageInput();
+    setupChatMenuOutsideClick();
+    setupChatSelectionOutsideClick();
+    setupPinSelectionOutsideClick();
+    setupReplyPreviewEvents();
+
+    const chatSearchInput = supportChatElement("chatSearch");
+
+    if (chatSearchInput) {
+        chatSearchInput.addEventListener("input", function () {
+            searchChats(chatSearchInput.value);
+        });
+    }
+
+    const userSearchInput = supportChatElement("userSearchInput");
+
+    if (userSearchInput) {
+        userSearchInput.addEventListener("input", function () {
+            renderAvailableUsers(userSearchInput.value);
+        });
+    }
+
+}
+
+function showIndividualChats() {
+    // Only one section exists now (groups removed) — nothing to switch,
+    // kept only so the header button remains a harmless no-op.
+}
+
+
+// ======================================================
+// LOAD CONVERSATIONS
+// ======================================================
+
+function loadSupportConversations() {
+
+    sb.rpc("admin_list_support_conversations").then(function (res) {
+
+        if (res.error) {
+            console.error("Failed to load support conversations:", res.error);
+            return;
         }
-    );
+
+        const rows = res.data || [];
+
+        rows.forEach(function (row) {
+
+            const existing = findIndividualChat(row.id);
+
+            const chat = existing || { id: row.id, messages: [] };
+
+            chat.userId = row.user_id;
+            chat.name = fullNameOf(row);
+            chat.phone = row.phone;
+            chat.isBlocked = row.is_blocked;
+            chat.status = row.status;
+            chat.assignedAdmin = row.assigned_admin;
+            chat.priority = row.priority;
+            chat.pinned = row.pinned;
+            chat.lastMessage = row.last_message
+                ? (row.last_sender_type === "admin" ? "You: " : "") + row.last_message
+                : "No messages yet";
+            chat.lastMessageTime = formatChatListTime(row.last_message_at || row.created_at);
+            chat.unread = row.unread_count || 0;
+
+            if (!existing) {
+                individualChats.push(chat);
+            }
+
+        });
+
+        const validIds = rows.map(function (r) { return r.id; });
+
+        individualChats = individualChats.filter(function (c) { return validIds.indexOf(c.id) !== -1; });
+
+        if (!supportChatUsers.length) {
+            supportChatUsers = rows.map(function (row) {
+                return { id: row.user_id, name: fullNameOf(row), phone: row.phone };
+            });
+        }
+
+        renderIndividualChats();
+        updateUnreadCounts();
+
+        if (currentChat) {
+            const fresh = findIndividualChat(currentChat.id);
+            if (fresh) {
+                fresh.messages = currentChat.messages;
+                currentChat = fresh;
+                renderCurrentChat();
+            }
+        }
+
+    });
 
 }
 
 
 // ======================================================
-// 11. RENDER INDIVIDUAL CHATS
+// RENDER CHAT LIST
 // ======================================================
 
 function renderIndividualChats() {
 
-    const container =
-        supportChatElement(
-            "individualChats"
-        );
+    const container = supportChatElement("individualChats");
+    const emptyState = supportChatElement("noIndividualChats");
 
-    const emptyState =
-        supportChatElement(
-            "noIndividualChats"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
+    if (!container) return;
 
     container.innerHTML = "";
 
+    let chats = [...individualChats];
 
-    let chats =
-        [...individualChats];
-
-
-    if (
-        currentChatFilter ===
-        "unread"
-    ) {
-
-        chats =
-            chats.filter(
-                function(chat) {
-
-                    return chat.unread > 0;
-
-                }
-            );
-
+    if (currentChatFilter === "unread") {
+        chats = chats.filter(function (chat) { return chat.unread > 0; });
     }
 
-
-    if (
-        currentChatFilter ===
-        "open"
-    ) {
-
-        chats =
-            chats.filter(
-                function(chat) {
-
-                    return chat.open;
-
-                }
-            );
-
+    if (currentChatFilter === "priority") {
+        chats = chats.filter(function (chat) { return chat.priority; });
     }
 
-
-    if (
-        currentChatFilter ===
-        "priority"
-    ) {
-
-        chats =
-            chats.filter(
-                function(chat) {
-
-                    return chat.priority;
-
-                }
-            );
-
+    if (currentChatSearch.trim()) {
+        const search = currentChatSearch.toLowerCase().trim();
+        chats = chats.filter(function (chat) { return chat.name.toLowerCase().includes(search); });
     }
 
-
-    if (
-        currentChatSearch.trim()
-    ) {
-
-        const search =
-            currentChatSearch
-                .toLowerCase()
-                .trim();
-
-
-        chats =
-            chats.filter(
-                function(chat) {
-
-                    return (
-
-                        chat.name
-                            .toLowerCase()
-                            .includes(search) 
-                      
-
-                    );
-
-                }
-            );
-
-    }
-
-
-    /*
-     * While building a priority-add/remove selection,
-     * only show chats eligible for that action — chats
-     * already marked priority stay hidden while adding,
-     * and only priority chats show while removing.
-     */
-
-    if (
-        chatSelectionMode &&
-        chatSelectionType === "individual" &&
-        pendingBulkAction === "priority"
-    ) {
+    if (chatSelectionMode && pendingBulkAction === "priority") {
 
         if (pendingPriorityMode === "add") {
-
-            chats =
-                chats.filter(
-                    function(chat) {
-
-                        return !chat.priority;
-
-                    }
-                );
-
-        }
-        else if (pendingPriorityMode === "remove") {
-
-            chats =
-                chats.filter(
-                    function(chat) {
-
-                        return chat.priority;
-
-                    }
-                );
-
+            chats = chats.filter(function (chat) { return !chat.priority; });
+        } else if (pendingPriorityMode === "remove") {
+            chats = chats.filter(function (chat) { return chat.priority; });
         }
 
     }
 
+    chats.sort(function (a, b) {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return 0;
+    });
 
-    /*
-     * Pinned conversations first.
-     */
-
-    chats.sort(
-        function(a, b) {
-
-            if (
-                a.pinned &&
-                !b.pinned
-            ) {
-
-                return -1;
-
-            }
-
-            if (
-                !a.pinned &&
-                b.pinned
-            ) {
-
-                return 1;
-
-            }
-
-            return 0;
-
-        }
-    );
-
-
-    if (
-        chats.length === 0
-    ) {
-
-        if (emptyState) {
-
-            emptyState.style.display =
-                "flex";
-
-        }
-
-
-        updateIndividualChatCount(
-            0
-        );
-
-
+    if (chats.length === 0) {
+        if (emptyState) emptyState.style.display = "flex";
+        updateIndividualChatCount(0);
         return;
-
     }
 
+    if (emptyState) emptyState.style.display = "none";
 
-    if (emptyState) {
+    chats.forEach(function (chat) {
+        container.appendChild(createIndividualChatItem(chat));
+    });
 
-        emptyState.style.display =
-            "none";
-
-    }
-
-
-    chats.forEach(
-        function(chat) {
-
-            const item =
-                createIndividualChatItem(
-                    chat
-                );
-
-
-            container.appendChild(
-                item
-            );
-
-        }
-    );
-
-
-    updateIndividualChatCount(
-        chats.length
-    );
+    updateIndividualChatCount(chats.length);
 
 }
 
+function createIndividualChatItem(chat) {
 
-// ======================================================
-// 12. CREATE INDIVIDUAL CHAT ITEM
-// ======================================================
+    const item = document.createElement("div");
+    item.className = "chat-list-item";
 
-function createIndividualChatItem(
-    chat
-) {
-
-    const item =
-        document.createElement(
-            "div"
-        );
-
-
-    item.className =
-        "chat-list-item";
-
-
-    if (
-        currentChat &&
-        currentChat.id ===
-        chat.id &&
-        currentChatType ===
-        "individual"
-    ) {
-
-        item.classList.add(
-            "active"
-        );
-
+    if (currentChat && currentChat.id === chat.id) {
+        item.classList.add("active");
     }
 
-
-    if (
-        chat.unread > 0
-    ) {
-
-        item.classList.add(
-            "unread"
-        );
-
+    if (chat.unread > 0) {
+        item.classList.add("unread");
     }
 
-
-    if (
-        chatSelectionType === "individual" &&
-        selectedChatIds.includes(
-            chat.id
-        )
-    ) {
-
-        item.classList.add(
-            "chat-selected"
-        );
-
+    if (selectedChatIds.includes(chat.id)) {
+        item.classList.add("chat-selected");
     }
 
+    item.dataset.chatId = chat.id;
 
-    item.dataset.chatId =
-        chat.id;
+    const avatar = document.createElement("div");
+    avatar.className = "chat-list-avatar";
+    avatar.textContent = getInitials(chat.name);
 
+    const content = document.createElement("div");
+    content.className = "chat-list-content";
 
-    const avatar =
-        document.createElement(
-            "div"
-        );
+    const top = document.createElement("div");
+    top.className = "chat-list-top";
 
+    const name = document.createElement("h4");
+    name.textContent = chat.name;
 
-    avatar.className =
-        "chat-list-avatar";
+    const time = document.createElement("span");
+    time.textContent = chat.lastMessageTime;
 
+    top.appendChild(name);
+    top.appendChild(time);
 
-        avatar.textContent =
-        getInitials(
-            chat.name
-        );
+    const bottom = document.createElement("div");
+    bottom.className = "chat-list-bottom";
 
+    const message = document.createElement("p");
+    message.textContent = chat.lastMessage;
 
-    if (
-        chat.online
-    ) {
+    bottom.appendChild(message);
 
-        const online =
-            document.createElement(
-                "span"
-            );
-
-
-        online.className =
-            "online-dot";
-
-
-        avatar.appendChild(
-            online
-        );
-
+    if (chat.unread > 0) {
+        const unread = document.createElement("span");
+        unread.className = "chat-unread-badge";
+        unread.textContent = chat.unread;
+        bottom.appendChild(unread);
     }
 
-
-    const content =
-        document.createElement(
-            "div"
-        );
-
-
-    content.className =
-        "chat-list-content";
-
-
-    const top =
-        document.createElement(
-            "div"
-        );
-
-
-    top.className =
-        "chat-list-top";
-
-
-    const name =
-        document.createElement(
-            "h4"
-        );
-
-
-    name.textContent =
-        chat.name;
-
-
-    const time =
-        document.createElement(
-            "span"
-        );
-
-
-    time.textContent =
-        chat.lastMessageTime;
-
-
-    top.appendChild(
-        name
-    );
-
-
-    top.appendChild(
-        time
-    );
-
-
-    const bottom =
-        document.createElement(
-            "div"
-        );
-
-
-    bottom.className =
-        "chat-list-bottom";
-
-
-    const message =
-        document.createElement(
-            "p"
-        );
-
-
-    message.textContent =
-        chat.lastMessage;
-
-
-    bottom.appendChild(
-        message
-    );
-
-
-    if (
-        chat.unread > 0
-    ) {
-
-        const unread =
-            document.createElement(
-                "span"
-            );
-
-
-        unread.className =
-            "chat-unread-badge";
-
-
-        unread.textContent =
-            chat.unread;
-
-
-        bottom.appendChild(
-            unread
-        );
-
+    if (chat.priority) {
+        const priority = document.createElement("i");
+        priority.className = "fa-solid fa-star chat-priority";
+        bottom.appendChild(priority);
     }
 
+    content.appendChild(top);
+    content.appendChild(bottom);
 
-    if (
-        chat.priority
-    ) {
+    item.appendChild(avatar);
+    item.appendChild(content);
 
-        const priority =
-            document.createElement(
-                "i"
-            );
-
-
-        priority.className =
-            "fa-solid fa-star chat-priority";
-
-
-        bottom.appendChild(
-            priority
-        );
-
-    }
-
-
-    content.appendChild(
-        top
-    );
-
-
-    content.appendChild(
-        bottom
-    );
-
-
-    item.appendChild(
-        avatar
-    );
-
-
-    item.appendChild(
-        content
-    );
-
-
-    attachChatPressHandlers(
-        item,
-        chat.id,
-        "individual",
-        function() {
-
-            openIndividualChat(
-                chat.id
-            );
-
-        }
-    );
+    attachChatPressHandlers(item, chat.id, function () {
+        openIndividualChat(chat.id);
+    });
 
     return item;
 
 }
 
+function updateIndividualChatCount(count) {
 
-// ======================================================
-// 13. UPDATE INDIVIDUAL COUNT
-// ======================================================
+    const element = supportChatElement("individualChatCount");
+    if (!element) return;
 
-function updateIndividualChatCount(
-    count
-) {
-
-    const element =
-        supportChatElement(
-            "individualChatCount"
-        );
-
-
-    if (!element) {
-
-        return;
-
-    }
-
-
-    element.textContent =
-        count +
-        (
-            count === 1
-                ? " conversation"
-                : " conversations"
-        );
+    element.textContent = count + (count === 1 ? " conversation" : " conversations");
 
 }
 
+function filterChats(filter, button) {
 
-// ======================================================
-// 14. GET INITIALS
-// ======================================================
+    currentChatFilter = filter || "all";
 
-function getInitials(
-    name
-) {
+    document.querySelectorAll("#individualSection .chat-filter")
+        .forEach(function (item) { item.classList.remove("active"); });
 
-    if (
-        !name
-    ) {
-
-        return "?";
-
-    }
-
-
-    const parts =
-        name
-            .trim()
-            .split(
-                /\s+/
-            );
-
-
-    if (
-        parts.length === 1
-    ) {
-
-        return parts[0]
-            .charAt(0)
-            .toUpperCase();
-
-    }
-
-
-    return (
-        parts[0].charAt(0) +
-        parts[
-            parts.length - 1
-        ].charAt(0)
-    ).toUpperCase();
-
-}
-
-
-// ======================================================
-// 15. OPEN INDIVIDUAL CHAT
-// ======================================================
-
-function openIndividualChat(
-    chatId
-) {
-
-    cancelPinMessageSelection(); 
-
-    const chat =
-        findIndividualChat(
-            chatId
-        );
-        
-        
-
-
-    if (!chat) {
-
-        return;
-
-    }
-
-
-    currentChat =
-        chat;
-
-    currentChatType =
-        "individual";
-
-    currentGroup =
-        null;
-
-    currentUser =
-        findSupportUser(
-            chat.userId
-        );
-
-    updateChatMuteMenu();
-    currentPinnedMessageIndex = 0;
-
-
-    /*
-     * Mark messages as read.
-     */
-
-    chat.messages.forEach(
-        function(message) {
-
-            if (
-                !message.sent
-            ) {
-
-                message.read =
-                    true;
-
-            }
-
-        }
-    );
-
-
-    chat.unread =
-        0;
-
-
-    openChatWindow();
-
-
-    renderCurrentChat();
-
+    if (button) button.classList.add("active");
 
     renderIndividualChats();
 
+}
 
-    updateUnreadCounts();
+function searchChats(value) {
+
+    currentChatSearch = value || "";
+
+    renderIndividualChats();
+
+    const clearButton = supportChatElement("clearChatSearch");
+
+    if (clearButton) {
+        clearButton.style.display = currentChatSearch.length ? "block" : "none";
+    }
+
+}
+
+function clearChatSearch() {
+
+    const input = supportChatElement("chatSearch");
+    if (input) input.value = "";
+
+    currentChatSearch = "";
+
+    const clearButton = supportChatElement("clearChatSearch");
+    if (clearButton) clearButton.style.display = "none";
+
+    renderIndividualChats();
+
+}
+
+function updateUnreadCounts() {
+
+    const total = individualChats.reduce(function (sum, chat) {
+        return sum + (Number(chat.unread) || 0);
+    }, 0);
+
+    const element = supportChatElement("individualUnread");
+    if (element) element.textContent = total;
 
 }
 
 
-
-
-
-
 // ======================================================
-// 17. OPEN CHAT WINDOW
+// OPEN / CLOSE CHAT WINDOW
 // ======================================================
 
-// ======================================================
-// OPEN CHAT WINDOW
-// ======================================================
+function openIndividualChat(chatId) {
+
+    const chat = findIndividualChat(chatId);
+    if (!chat) return;
+
+    if (chatSelectionMode) exitChatSelectionMode();
+    closeMessageSearch();
+    cancelReply();
+    cancelEditMessage();
+
+    currentChat = chat;
+    currentChatType = "individual";
+    currentUser = { id: chat.userId, name: chat.name, phone: chat.phone };
+
+    openChatWindow();
+    renderCurrentChat();
+
+    if (!chat.messagesLoaded) {
+
+        sb.from("support_messages")
+            .select("*")
+            .eq("conversation_id", chatId)
+            .order("created_at", { ascending: true })
+            .then(function (res) {
+
+                if (res.error) {
+                    console.error("Failed to load messages:", res.error);
+                    return;
+                }
+
+                chat.messages = (res.data || []).map(mapSupportMessageRow);
+                chat.messagesLoaded = true;
+
+                if (currentChat && currentChat.id === chatId) {
+                    renderMessages();
+                    updatePinnedMessageBar();
+                    scrollMessagesToBottom();
+                }
+
+            });
+
+    } else {
+
+        renderMessages();
+        updatePinnedMessageBar();
+        scrollMessagesToBottom();
+
+    }
+
+    markConversationRead(chatId);
+
+}
+
+function mapSupportMessageRow(row) {
+
+    return {
+        id: row.id,
+        senderId: row.sender_id,
+        senderType: row.sender_type,
+        senderName: row.sender_type === "admin" ? "You" : (currentUser ? currentUser.name : "User"),
+        text: row.content,
+        createdAt: row.created_at,
+        time: formatMessageTime(row.created_at),
+        sent: row.sender_type === "admin",
+        edited: !!row.edited_at,
+        replyToId: row.reply_to_id,
+        isPinned: row.is_pinned,
+        type: row.message_type || "text",
+        fileUrl: row.attachment_url,
+        fileName: row.attachment_name,
+        fileMime: row.attachment_mime
+    };
+
+}
+
+function markConversationRead(chatId) {
+
+    sb.from("support_conversations")
+        .update({ admin_last_read_at: new Date().toISOString() })
+        .eq("id", chatId)
+        .then(function (res) {
+
+            if (res.error) {
+                console.error("Failed to mark conversation read:", res.error);
+                return;
+            }
+
+            const chat = findIndividualChat(chatId);
+            if (chat) chat.unread = 0;
+
+            renderIndividualChats();
+            updateUnreadCounts();
+
+        });
+
+}
 
 function openChatWindow() {
 
-    const emptyChat =
-        supportChatElement("emptyChat");
+    const emptyChat = supportChatElement("emptyChat");
+    const chatWindow = supportChatElement("chatWindow");
+    const chatMain = supportChatElement("chatMain");
 
-    const chatWindow =
-        supportChatElement("chatWindow");
-
-    const chatMain =
-        supportChatElement("chatMain");
-
-
-    if (emptyChat) {
-
-        emptyChat.classList.add("hidden");
-
-        emptyChat.hidden = true;
-
-    }
-
-
-    if (chatWindow) {
-
-        chatWindow.classList.remove("hidden");
-
-        chatWindow.hidden = false;
-
-        chatWindow.style.display = "";
-
-        chatWindow.style.visibility = "visible";
-
-        chatWindow.style.opacity = "1";
-
-    }
-
-
-    if (chatMain) {
-
-        chatMain.classList.add("chat-open");
-
-        chatMain.classList.remove("chat-closed");
-
-    }
-
-
-    // ==================================================
-    // DIAGNOSTIC
-    // ==================================================
-
-    console.log("========== CHAT OPEN TEST ==========");
-
-    console.log(
-        "chatWindow classes:",
-        chatWindow
-            ? chatWindow.className
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatWindow hidden:",
-        chatWindow
-            ? chatWindow.hidden
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatWindow display:",
-        chatWindow
-            ? getComputedStyle(chatWindow).display
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatWindow visibility:",
-        chatWindow
-            ? getComputedStyle(chatWindow).visibility
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatWindow opacity:",
-        chatWindow
-            ? getComputedStyle(chatWindow).opacity
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatWindow rect:",
-        chatWindow
-            ? chatWindow.getBoundingClientRect()
-            : "NOT FOUND"
-    );
-
-
-    console.log(
-        "chatMain classes:",
-        chatMain
-            ? chatMain.className
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatMain display:",
-        chatMain
-            ? getComputedStyle(chatMain).display
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatMain visibility:",
-        chatMain
-            ? getComputedStyle(chatMain).visibility
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "chatMain rect:",
-        chatMain
-            ? chatMain.getBoundingClientRect()
-            : "NOT FOUND"
-    );
-
-    console.log(
-        "==================================="
-    );
+    if (emptyChat) emptyChat.style.display = "none";
+    if (chatWindow) chatWindow.classList.remove("hidden");
+    if (chatMain) chatMain.classList.add("chat-open");
 
 }
-
-
-// ======================================================
-// 18. CLOSE CHAT
-// ======================================================
-
-// ======================================================
-// CLOSE CHAT
-// ======================================================
 
 function closeChat() {
 
+    const emptyChat = supportChatElement("emptyChat");
+    const chatWindow = supportChatElement("chatWindow");
+    const chatMain = supportChatElement("chatMain");
+
+    if (emptyChat) emptyChat.style.display = "flex";
+    if (chatWindow) chatWindow.classList.add("hidden");
+    if (chatMain) chatMain.classList.remove("chat-open");
+
     currentChat = null;
+    currentUser = null;
 
-    currentGroup = null;
-
-      hideTypingIndicator();
-
-
-    const chatWindow =
-        supportChatElement("chatWindow");
-
-    const emptyChat =
-        supportChatElement("emptyChat");
-
-    const chatMain =
-        supportChatElement("chatMain");
-
-
-    // --------------------------------------------------
-    // Hide chat window
-    // --------------------------------------------------
-
-    if (chatWindow) {
-
-        chatWindow.classList.add("hidden");
-
-        chatWindow.hidden = true;
-
-    }
-
-
-    // --------------------------------------------------
-    // Show empty state
-    // --------------------------------------------------
-
-    if (emptyChat) {
-
-        emptyChat.classList.remove("hidden");
-
-        emptyChat.hidden = false;
-
-    }
-
-
-    // --------------------------------------------------
-    // Close chat main
-    // --------------------------------------------------
-
-    if (chatMain) {
-
-        chatMain.classList.remove("chat-open");
-
-        chatMain.classList.add("chat-closed");
-
-    }
-
-
+    closeMessageSearch();
+    cancelReply();
+    cancelEditMessage();
     closeChatMenu();
 
-    cancelReply();
-
-    cancelEditMessage();
-  
-    cancelPinMessageSelection();
-
-    
-
 }
-
-
-// ======================================================
-// 19. RENDER CURRENT CHAT
-// ======================================================
 
 function renderCurrentChat() {
 
     if (!currentChat) return;
 
-    const nameElement = supportChatElement("chatName");
-    const statusElement = supportChatElement("chatStatus");
-    const avatarElement = supportChatElement("chatAvatar");
-    const onlineElement = supportChatElement("chatOnlineStatus");
+    const nameEl = supportChatElement("chatName");
+    const statusEl = supportChatElement("chatStatus");
+    const avatarImg = supportChatElement("chatAvatar");
+    const avatarInitials = supportChatElement("chatAvatarInitials");
+    const onlineDot = supportChatElement("chatOnlineStatus");
 
-    if (nameElement) nameElement.textContent = currentChat.name || "";
-    if (statusElement) statusElement.textContent = currentChat.online ? "Online" : "Offline";
+    if (nameEl) nameEl.textContent = currentChat.name;
+    if (statusEl) statusEl.textContent = currentChat.phone + (currentChat.isBlocked ? " · Blocked" : "");
 
-    if (avatarElement) {
-        avatarElement.removeAttribute("src");
-        avatarElement.style.display = "none";
+    if (avatarImg) avatarImg.style.display = "none";
+
+    if (avatarInitials) {
+        avatarInitials.classList.remove("hidden");
+        avatarInitials.textContent = getInitials(currentChat.name);
     }
 
-    const avatarInitialsElement = supportChatElement("chatAvatarInitials");
-    if (avatarInitialsElement) {
-        avatarInitialsElement.textContent = getInitials(currentChat.name || "");
-        avatarInitialsElement.classList.remove("hidden");
-    }
+    if (onlineDot) onlineDot.style.display = "none";
 
-    if (onlineElement) onlineElement.style.display = currentChat.online ? "block" : "none";
     renderMessages();
+    updatePinnedMessageBar();
 
 }
-
-
-// =========================================================
-// CHAT MENU
-// =========================================================
 
 function toggleChatMenu() {
 
-    const menu =
-        document.getElementById(
-            "chatMenu"
-        );
+    const menu = supportChatElement("chatMenu");
+    const moreBtn = supportChatElement("chatMoreButton");
+    const closeBtn = supportChatElement("chatMenuCloseButton");
 
+    chatMenuOpen = !chatMenuOpen;
 
-    const moreButton =
-        document.getElementById(
-            "chatMoreButton"
-        );
-
-
-    const closeButton =
-        document.getElementById(
-            "chatMenuCloseButton"
-        );
-
-
-    if (!menu) {
-
-        console.error(
-            "chatMenu element not found"
-        );
-
-        return;
-
-    }
-
-
-    const isOpening =
-        menu.classList.contains(
-            "hidden"
-        );
-
-
-    if (isOpening) {
-
-        /*
-         * Open menu.
-         */
-
-        menu.classList.remove(
-            "hidden"
-        );
-
-        closeMessagePreviewsOnUiOpen();
-
-      
-    const deleteLabel =
-            document.getElementById(
-                "deleteChatMenuLabel"
-            );
-
-
-        if (deleteLabel) {
-
-            deleteLabel.textContent =
-                currentChatType === "group"
-                    ? "Delete Group"
-                    : "Delete Chat";
-
-        }
-
-        /*
-         * Hide 3 dots.
-         */
-
-        if (moreButton) {
-
-            moreButton.style.display =
-                "none";
-
-        }
-
-
-        /*
-         * Show X.
-         */
-
-        if (closeButton) {
-
-            closeButton.style.display =
-                "flex";
-
-        }
-
-
-        /*
-         * Start outside-click listener.
-         */
-
-        setupChatMenuOutsideClick();
-
-    }
-    else {
-
-        /*
-         * Close menu.
-         */
-
-        closeChatMenu();
-
-    }
+    if (menu) menu.classList.toggle("hidden", !chatMenuOpen);
+    if (moreBtn) moreBtn.style.display = chatMenuOpen ? "none" : "";
+    if (closeBtn) closeBtn.style.display = chatMenuOpen ? "" : "none";
 
 }
-
-
-// =========================================================
-// CHAT MENU OUTSIDE CLICK
-// =========================================================
-
-function setupChatMenuOutsideClick() {
-
-    /*
-     * Remove any previous listener first.
-     *
-     * This prevents duplicate listeners
-     * if the menu is opened many times.
-     */
-
-    document.removeEventListener(
-        "click",
-        handleChatMenuOutsideClick
-    );
-
-
-    /*
-     * Add the listener.
-     */
-
-    setTimeout(
-        function() {
-
-            document.addEventListener(
-                "click",
-                handleChatMenuOutsideClick
-            );
-
-        },
-        0
-    );
-
-}
-
-
-// =========================================================
-// HANDLE CHAT MENU OUTSIDE CLICK
-// =========================================================
-
-function handleChatMenuOutsideClick(
-    event
-) {
-
-    const menu =
-        document.getElementById(
-            "chatMenu"
-        );
-
-
-    if (!menu) {
-
-        return;
-
-    }
-
-
-    /*
-     * If the menu is already closed,
-     * there is nothing to do.
-     */
-
-    if (
-        menu.classList.contains(
-            "hidden"
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * If the click happened inside
-     * the menu, do nothing.
-     */
-
-    if (
-        menu.contains(
-            event.target
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * If the click was on the More
-     * button, do nothing.
-     *
-     * toggleChatMenu() already handles
-     * opening/closing the menu.
-     */
-
-    const moreButton =
-        event.target.closest(
-            '[onclick="toggleChatMenu()"]'
-        );
-
-
-    if (moreButton) {
-
-        return;
-
-    }
-
-
-    /*
-     * Otherwise the click happened
-     * outside the menu.
-     */
-
-    closeChatMenu();
-
-}
-
-
-// =========================================================
-// CLOSE CHAT MENU
-// =========================================================
 
 function closeChatMenu() {
 
-    const menu =
-        document.getElementById(
-            "chatMenu"
-        );
+    chatMenuOpen = false;
 
+    const menu = supportChatElement("chatMenu");
+    const moreBtn = supportChatElement("chatMoreButton");
+    const closeBtn = supportChatElement("chatMenuCloseButton");
 
-    const moreButton =
-        document.getElementById(
-            "chatMoreButton"
-        );
+    if (menu) menu.classList.add("hidden");
+    if (moreBtn) moreBtn.style.display = "";
+    if (closeBtn) closeBtn.style.display = "none";
 
+}
 
-    const closeButton =
-        document.getElementById(
-            "chatMenuCloseButton"
-        );
+function setupChatMenuOutsideClick() {
 
+    document.addEventListener("click", function (event) {
 
-    /*
-     * Close menu.
-     */
+        if (!chatMenuOpen) return;
 
-    if (menu) {
+        const menu = supportChatElement("chatMenu");
+        const moreBtn = supportChatElement("chatMoreButton");
 
-        menu.classList.add(
-            "hidden"
-        );
+        if (menu && (menu.contains(event.target) || (moreBtn && moreBtn.contains(event.target)))) {
+            return;
+        }
 
-    }
+        closeChatMenu();
 
-
-    /*
-     * Show 3 dots again.
-     */
-
-    if (moreButton) {
-
-        moreButton.style.display =
-            "flex";
-
-    }
-
-
-    /*
-     * Hide X.
-     */
-
-    if (closeButton) {
-
-        closeButton.style.display =
-            "none";
-      
-
-    }
-
-
-    /*
-     * Remove outside-click listener.
-     */
-
-    document.removeEventListener(
-        "click",
-        handleChatMenuOutsideClick
-    );
+    });
 
 }
 
 
-
-
-
-
-
 // ======================================================
-// 21. RENDER MESSAGES
+// RENDER MESSAGES
 // ======================================================
 
 function renderMessages() {
 
-    const container =
-        supportChatElement(
-            "messages"
-        );
+    const container = supportChatElement("messages");
+    if (!container || !currentChat) return;
 
+    container.innerHTML = "";
 
-    if (
-        !container ||
-        !currentChat
-    ) {
+    (currentChat.messages || []).forEach(function (message) {
+        container.appendChild(createMessageElement(message));
+    });
 
-        return;
-
+    if (messageSearchActive) {
+        performMessageSearch();
     }
-
-
-    container.innerHTML =
-        "";
-
-
-    const messages =
-        currentChat.messages ||
-        [];
-
-
-    messages.forEach(
-        function(message) {
-
-            const element =
-                createMessageElement(
-                    message
-                );
-
-
-            container.appendChild(
-                element
-            );
-
-        }
-    );
-
-    if (
-          !pinMessageSelectionMode
-            ) {
-
-         scrollMessagesToBottom();
-
-       }
-
-
-      updatePinMessageSelectionBar();
-      updatePinnedMessageBar();
 
 }
 
+function createMessageElement(message) {
 
-// ======================================================
-// 22. CREATE MESSAGE ELEMENT
-// ======================================================
+    const wrapper = document.createElement("div");
+    wrapper.className = "message " + (message.sent ? "sent" : "received");
+    wrapper.dataset.messageId = message.id;
 
-function createMessageElement(
-    message
-) {
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        "message " +
-        (
-            message.sent
-                ? "sent"
-                : "received"
-        );
-
-
-    wrapper.dataset.messageId =
-        message.id;
-
-     /*
- * Pin message selection mode.
- */
-
-if (
-    pinMessageSelectionMode
-) {
-
-    wrapper.classList.add(
-        "pin-selection-mode"
-    );
-
-
-    if (
-        selectedPinMessageIds.includes(
-            message.id
-        )
-    ) {
-
-        wrapper.classList.add(
-            "pin-message-selected"
-        );
-
+    if (message.isPinned) {
+        wrapper.classList.add("message-pinned");
     }
 
+    if (pinMessageSelectionMode) {
 
-    wrapper.addEventListener(
-        "click",
-        function(event) {
+        wrapper.classList.add("pin-selection-mode");
 
-            /*
-             * Do not treat clicks on
-             * message action controls
-             * as message selection.
-             */
+        if (selectedPinMessageIds.includes(message.id)) {
+            wrapper.classList.add("pin-message-selected");
+        }
 
-            if (
-                event.target.closest(
-                    ".message-actions"
-                ) ||
-                event.target.closest(
-                    ".message-action-menu"
-                )
-            ) {
+        wrapper.addEventListener("click", function (event) {
 
+            if (event.target.closest(".message-actions") || event.target.closest(".message-action-menu")) {
                 return;
-
             }
 
-
             event.stopPropagation();
+            togglePinMessageSelection(message.id);
 
-
-            togglePinMessageSelection(
-                message.id
-            );
-
-        }
-    );
-
-}
-
-
-    const content =
-        document.createElement(
-            "div"
-        );
-
-
-    content.className =
-        "message-content";
-
-
-    /*
-     * Reply preview.
-     */
-
-    /*
- * Reply preview.
- */
-
-if (
-    message.replyTo
-) {
-
-    const reply =
-        document.createElement(
-            "div"
-        );
-
-
-    reply.className =
-        "message-reply";
-
-
-    /*
-     * Make the reply clickable so
-     * the original message can be
-     * located in the conversation.
-     */
-
-    reply.dataset.replyMessageId =
-        message.replyTo.id || "";
-
-
-    /*
-     * Reply sender.
-     */
-
-    const replySender =
-        document.createElement(
-            "strong"
-        );
-
-
-    replySender.className =
-        "message-reply-sender";
-
-
-    replySender.textContent =
-        message.replyTo.senderName ||
-        (
-            message.replyTo.senderId ===
-            "ADMIN"
-                ? "You"
-                : "User"
-        );
-
-
-    /*
-     * Original message text.
-     */
-
-    const replyText =
-        document.createElement(
-            "span"
-        );
-
-
-    replyText.className =
-        "message-reply-text";
-
-
-    replyText.textContent =
-        message.replyTo.text ||
-        "";
-
-
-    /*
-     * Add sender and original
-     * message to the reply box.
-     */
-
-    reply.appendChild(
-        replySender
-    );
-
-
-    reply.appendChild(
-        replyText
-    );
-
-
-    /*
-     * Clicking the quoted message
-     * jumps to the original message.
-     */
-
-    reply.addEventListener(
-        "click",
-        function(event) {
-
-            event.stopPropagation();
-
-
-            if (
-                message.replyTo.id
-            ) {
-
-                openRepliedMessage(
-                    message.replyTo.id
-                );
-
-            }
-
-        }
-    );
-
-
-    content.appendChild(
-        reply
-    );
-
-}
-
-
-    /*
-     * Sender name for groups.
-     */
-
-    if (
-        currentChatType ===
-        "group" &&
-        !message.sent
-    ) {
-
-        const sender =
-            document.createElement(
-                "strong"
-            );
-
-
-        sender.className =
-            "message-sender";
-
-
-        sender.textContent =
-            message.senderName ||
-            "User";
-
-
-        content.appendChild(
-            sender
-        );
+        });
 
     }
 
+    const content = document.createElement("div");
+    content.className = "message-content";
 
-   if (
-        message.type === "voice" &&
-        message.fileUrl
-    ) {
+    if (message.replyToId) {
 
-        const audio =
-            document.createElement(
-                "audio"
-            );
+        const replied = currentChat.messages.find(function (m) { return m.id === message.replyToId; });
 
-        audio.className =
-            "message-voice-player";
+        const reply = document.createElement("div");
+        reply.className = "message-reply";
+        reply.dataset.replyMessageId = message.replyToId;
 
+        const replySender = document.createElement("strong");
+        replySender.className = "message-reply-sender";
+        replySender.textContent = replied ? (replied.sent ? "You" : replied.senderName) : "Message";
+
+        const replyText = document.createElement("span");
+        replyText.className = "message-reply-text";
+        replyText.textContent = replied ? replied.text : "Original message not available";
+
+        reply.appendChild(replySender);
+        reply.appendChild(replyText);
+
+        reply.addEventListener("click", function (event) {
+            event.stopPropagation();
+            openRepliedMessage(message.replyToId);
+        });
+
+        content.appendChild(reply);
+
+    }
+
+    if (message.type === "voice" && message.fileUrl) {
+
+        const audio = document.createElement("audio");
+        audio.className = "message-voice-player";
         audio.controls = true;
+        audio.src = message.fileUrl;
 
-        audio.src =
-            message.fileUrl;
+        content.appendChild(audio);
 
-        content.appendChild(
-            audio
-        );
+    } else if (message.type !== "text" && message.fileUrl) {
 
-    }
-    else if (
-        message.type === "attachment" &&
-        message.fileUrl
-    ) {
-
-        const isImage =
-            message.fileMime &&
-            message.fileMime.indexOf("image/") === 0;
-
+        const isImage = message.fileMime && message.fileMime.indexOf("image/") === 0;
 
         if (isImage) {
 
-            const link =
-                document.createElement(
-                    "a"
-                );
+            const link = document.createElement("a");
+            link.href = message.fileUrl;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.className = "message-attachment-image-link";
 
-            link.href =
-                message.fileUrl;
+            const img = document.createElement("img");
+            img.className = "message-attachment-image";
+            img.src = message.fileUrl;
+            img.alt = message.fileName || "Image";
 
-            link.target =
-                "_blank";
+            link.appendChild(img);
+            content.appendChild(link);
 
-            link.rel =
-                "noopener";
+        } else {
 
-            link.className =
-                "message-attachment-image-link";
-
-
-            const img =
-                document.createElement(
-                    "img"
-                );
-
-            img.className =
-                "message-attachment-image";
-
-            img.src =
-                message.fileUrl;
-
-            img.alt =
-                message.fileName ||
-                "Image";
-
-
-            link.appendChild(
-                img
-            );
-
-            content.appendChild(
-                link
-            );
-
-        }
-        else {
-
-            const fileCard =
-                document.createElement(
-                    "a"
-                );
-
-            fileCard.href =
-                message.fileUrl;
-
-            fileCard.download =
-                message.fileName ||
-                "file";
-
-            fileCard.className =
-                "message-attachment-file";
-
+            const fileCard = document.createElement("a");
+            fileCard.href = message.fileUrl;
+            fileCard.target = "_blank";
+            fileCard.rel = "noopener";
+            fileCard.className = "message-attachment-file";
             fileCard.innerHTML =
-                '<i class="fa-solid fa-file"></i>' +
-                '<span>' +
-                (
-                    message.fileName ||
-                    message.text ||
-                    "File"
-                ) +
-                '</span>';
+                '<i class="fa-solid fa-file"></i><span>' +
+                supportEscapeHtml(message.fileName || message.text || "File") +
+                "</span>";
 
-            content.appendChild(
-                fileCard
-            );
+            content.appendChild(fileCard);
 
         }
 
+        const caption = document.createElement("p");
+        caption.className = "message-text";
+        caption.textContent = message.text || "";
+        content.appendChild(caption);
 
-        const caption =
-            document.createElement(
-                "p"
-            );
+    } else {
 
-        caption.className =
-            "message-text";
-
-        caption.textContent =
-            message.text ||
-            "";
-
-        content.appendChild(
-            caption
-        );
-
-    }
-    else {
-
-        const text =
-            document.createElement(
-                "p"
-            );
-
-        text.className =
-            "message-text";
-
-        text.textContent =
-            message.text ||
-            "";
-
-        content.appendChild(
-            text
-        );
+        const text = document.createElement("p");
+        text.className = "message-text";
+        text.textContent = message.text || "";
+        content.appendChild(text);
 
     }
 
+    const meta = document.createElement("div");
+    meta.className = "message-meta";
 
-    const meta =
-        document.createElement(
-            "div"
-        );
+    const time = document.createElement("span");
+    time.textContent = message.time || "";
+    meta.appendChild(time);
 
-
-    meta.className =
-        "message-meta";
-
-
-    const time =
-        document.createElement(
-            "span"
-        );
-
-
-    time.textContent =
-        message.time ||
-        "";
-
-
-    meta.appendChild(
-        time
-    );
-
-
-    if (
-        message.edited
-    ) {
-
-        const edited =
-            document.createElement(
-                "span"
-            );
-
-
-        edited.textContent =
-            " edited";
-
-
-        meta.appendChild(
-            edited
-        );
-
+    if (message.edited) {
+        const edited = document.createElement("span");
+        edited.textContent = " edited";
+        meta.appendChild(edited);
     }
 
-
-    if (
-        message.sent
-    ) {
-
-        const status =
-            document.createElement(
-                "i"
-            );
-
-
-        status.className =
-            message.read
-                ? "fa-solid fa-check-double"
-                : "fa-solid fa-check";
-
-
-        meta.appendChild(
-            status
-        );
-
+    if (message.isPinned) {
+        const pin = document.createElement("i");
+        pin.className = "fa-solid fa-thumbtack message-pin-indicator";
+        meta.appendChild(pin);
     }
 
+    if (message.sent) {
+        const status = document.createElement("i");
+        status.className = "fa-solid fa-check";
+        meta.appendChild(status);
+    }
 
-    content.appendChild(
-        meta
-    );
+    content.appendChild(meta);
+    wrapper.appendChild(content);
 
-
-    wrapper.appendChild(
-        content
-    );
-
-
-    /*
-     * Message actions.
-     */
-
-    setupMessageActionEvents(
-    wrapper,
-    message.id
-);
-
+    setupMessageActionEvents(wrapper, message.id);
 
     return wrapper;
 
 }
 
-
-// ======================================================
-// 23. SCROLL MESSAGES
-// ======================================================
-
 function scrollMessagesToBottom() {
 
-    const container =
-        supportChatElement(
-            "messages"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    requestAnimationFrame(
-        function() {
-
-            container.scrollTop =
-                container.scrollHeight;
-
-        }
-    );
+    const container = supportChatElement("messages");
+    if (container) container.scrollTop = container.scrollHeight;
 
 }
 
 
 // ======================================================
-// 24. FILTER CHATS
-// ======================================================
-
-function filterChats(
-    filter,
-    button
-) {
-
-    currentChatFilter =
-        filter ||
-        "all";
-
-
-    document
-        .querySelectorAll(
-            "#individualSection .chat-filter"
-        )
-        .forEach(
-            function(item) {
-
-                item.classList.remove(
-                    "active"
-                );
-
-            }
-        );
-
-
-    if (button) {
-
-        button.classList.add(
-            "active"
-        );
-
-    }
-
-
-    renderIndividualChats();
-
-}
-
-
-
-
-
-
-// ======================================================
-// 26. SEARCH CHATS
-// ======================================================
-
-function searchChats(
-    value
-) {
-
-    currentChatSearch =
-        value ||
-        "";
-
-
-    renderIndividualChats();
-
-
-    const clearButton =
-        supportChatElement(
-            "clearChatSearch"
-        );
-
-
-    if (clearButton) {
-
-        clearButton.style.display =
-            currentChatSearch.length
-                ? "block"
-                : "none";
-
-    }
-
-}
-
-
-// ======================================================
-// 27. CLEAR CHAT SEARCH
-// ======================================================
-
-function clearChatSearch() {
-
-    const input =
-        supportChatElement(
-            "chatSearch"
-        );
-
-
-    if (input) {
-
-        input.value =
-            "";
-
-    }
-
-
-    currentChatSearch =
-        "";
-
-
-    const clearButton =
-        supportChatElement(
-            "clearChatSearch"
-        );
-
-
-    if (clearButton) {
-
-        clearButton.style.display =
-            "none";
-
-    }
-
-
-    renderIndividualChats();
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ======================================================
-// 32. UPDATE UNREAD COUNTS
-// ======================================================
-
-function updateUnreadCounts() {
-
-    const individualUnread = individualChats.reduce(function(total, chat) {
-        return total + (Number(chat.unread) || 0);
-    }, 0);
-
-    const individualElement = supportChatElement("individualUnread");
-    if (individualElement) individualElement.textContent = individualUnread;
-
-}
-
-
-
-// ======================================================
-// 33. INITIALIZE CHAT DATA
-// ======================================================
-
-function initializeChatData() {
-    updateUnreadCounts();
-    renderIndividualChats();
-}
-
-
-
-// ======================================================
-// 34. INITIALIZE INDIVIDUAL CHATS
-// ======================================================
-
-function initializeIndividualChats() {
-
-    renderIndividualChats();
-
-}
-
-
-
-
-
-
-// ======================================================
-// 36. OPEN NEW CHAT MODAL
-// ======================================================
-
-function openNewChatModal() {
-
-    const modal =
-        supportChatElement(
-            "newChatModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-
-    renderAvailableUsers();
-
-
-    const searchInput =
-        supportChatElement(
-            "userSearchInput"
-        );
-
-
-    if (searchInput) {
-
-        searchInput.value =
-            "";
-
-    if (!searchInput.dataset.wired) {
-
-            searchInput.addEventListener(
-                "input",
-                function() {
-
-                    renderAvailableUsers(
-                        searchInput.value
-                    );
-
-                }
-            );
-
-
-            searchInput.dataset.wired =
-                "true";
-    }
-
-        setTimeout(
-            function() {
-
-                searchInput.focus();
-
-            },
-            50
-        );
-
-    }
-
-}
-
-
-// ======================================================
-// 37. CLOSE NEW CHAT MODAL
-// ======================================================
-
-function closeNewChatModal() {
-
-    const modal =
-        supportChatElement(
-            "newChatModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
-
-
-// ======================================================
-// 38. RENDER AVAILABLE USERS
-// ======================================================
-
-function renderAvailableUsers(
-    searchValue = ""
-) {
-
-    const container =
-        supportChatElement(
-            "availableUsers"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML =
-        "";
-
-
-    const search =
-        String(
-            searchValue
-        )
-            .toLowerCase()
-            .trim();
-
-
-    let users =
-        [...supportChatUsers];
-
-
-    if (search) {
-
-        users =
-            users.filter(
-                function(user) {
-
-                    return (
-
-                        user.name
-                            .toLowerCase()
-                            .includes(search)
-
-                        ||
-
-                        user.email
-                            .toLowerCase()
-                            .includes(search)
-
-                        ||
-
-                        user.phone
-                            .toLowerCase()
-                            .includes(search)
-
-                    );
-
-                }
-            );
-
-    }
-
-
-    users.forEach(
-        function(user) {
-
-            const item =
-                document.createElement(
-                    "button"
-                );
-
-
-            item.type =
-                "button";
-
-
-            item.className =
-                "available-user";
-
-
-            const avatar =
-                document.createElement(
-                    "div"
-                );
-
-
-            avatar.className =
-                "available-user-avatar";
-
-
-            avatar.textContent =
-                getInitials(
-                    user.name
-                );
-
-
-            const info =
-                document.createElement(
-                    "div"
-                );
-
-
-            info.className =
-                "available-user-info";
-
-
-            const name =
-                document.createElement(
-                    "strong"
-                );
-
-
-            name.textContent =
-                user.name;
-
-
-            const phone =
-                document.createElement(
-                    "span"
-                );
-
-
-            phone.textContent =
-                user.phone;
-
-
-            info.appendChild(
-                name
-            );
-
-
-            info.appendChild(
-                phone
-            );
-
-
-            item.appendChild(
-                avatar
-            );
-
-
-            item.appendChild(
-                info
-            );
-
-
-            item.addEventListener(
-                "click",
-                function() {
-
-                    startNewConversation(
-                        user.id
-                    );
-
-                }
-            );
-
-
-            container.appendChild(
-                item
-            );
-
-        }
-    );
-
-
-    if (
-        users.length === 0
-    ) {
-
-        const empty =
-            document.createElement(
-                "div"
-            );
-
-
-        empty.className =
-            "available-users-empty";
-
-
-        empty.textContent =
-            "No users found.";
-
-
-        container.appendChild(
-            empty
-        );
-
-    }
-
-}
-
-
-// ======================================================
-// 39. START NEW CONVERSATION
-// ======================================================
-
-function startNewConversation(
-    userId
-) {
-
-    const user =
-        findSupportUser(
-            userId
-        );
-
-
-    if (!user) {
-
-        return;
-
-    }
-
-
-    let chat =
-        individualChats.find(
-            function(item) {
-
-                return item.userId ===
-                    userId;
-
-            }
-        );
-
-
-    if (!chat) {
-
-        chat = {
-
-            id:
-                "CHAT-" +
-                Date.now(),
-
-            userId:
-                user.id,
-
-            name:
-                user.name,
-
-            avatar:
-                user.avatar,
-
-            online:
-                user.online,
-
-            lastMessage:
-                "",
-
-            lastMessageTime:
-                "",
-
-            unread:
-                0,
-
-            open:
-                true,
-
-            priority:
-                false,
-
-            muted:
-                false,
-
-            pinned:
-                false,
-
-            messages:
-                []
-
-        };
-
-
-        individualChats.unshift(
-            chat
-        );
-
-    }
-
-
-    closeNewChatModal();
-
-
-    showIndividualChats();
-
-
-    openIndividualChat(
-        chat.id
-    );
-
-}
-
-
-// ======================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 1 — INITIALIZATION
-// ======================================================
-
-
-// ======================================================
-// 40. GLOBAL FUNCTION ACCESS
-// ======================================================
-
-window.showIndividualChats =
-    showIndividualChats;
-
-
-window.openIndividualChat =
-    openIndividualChat;
-
-
-window.closeChat =
-    closeChat;
-
-
-window.filterChats =
-    filterChats;
-
-
-window.searchChats =
-    searchChats;
-
-
-window.clearChatSearch =
-    clearChatSearch;
-
-
-window.openNewChatModal =
-    openNewChatModal;
-
-
-window.closeNewChatModal =
-    closeNewChatModal;
-
-
-window.startNewConversation =
-    startNewConversation;
-
-
-// ======================================================
-// 41. SETUP STAGE 1 EVENTS
-// ======================================================
-
-function setupSupportChatStage1() {
-    const chatSearch = supportChatElement("chatSearch");
-    if (chatSearch && !chatSearch.dataset.stage1Ready) {
-        chatSearch.addEventListener("input", function(event) {
-            searchChats(event.target.value);
-        });
-        chatSearch.dataset.stage1Ready = "true";
-    }
-}
-
-
-
-// ======================================================
-// 42. INITIALIZE SUPPORT CHAT PAGE
-// ======================================================
-
-function initSupportChatPage() {
-
-    const supportChat = document.querySelector(".support-chat");
-    if (!supportChat) return;
-    if (supportChat.dataset.initialized === "true") return;
-
-    supportChat.dataset.initialized = "true";
-    currentChat = null;
-    currentGroup = null;
-    currentUser = null;
-    currentChatType = "individual";
-    currentChatFilter = "all";
-    currentChatSearch = "";
-    currentMessageSearch = "";
-
-    updateUnreadCounts();
-    renderIndividualChats();
-    setupSupportChatStage1();
-    initializeMessageSearch();
-    initStage6MessageActions();
-    setupPinMessageInput();
-    setupAttachmentEvents();
-    setupChatSelectionOutsideClick();
-    setupPinSelectionOutsideClick();
-    showIndividualChats();
-
-}
-
-
-
-// ======================================================
-// 43. GLOBAL INITIALIZATION ACCESS
-// ======================================================
-
-window.initSupportChatPage =
-    initSupportChatPage;
-    
-
-
-// ======================================================
-// SUPPORT CHAT SYSTEM
-// ======================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ======================================================
-// OPEN ADD MEMBERS MODAL (used by openAddMembers)
-// ======================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ======================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 3 — MESSAGE ENGINE
-// ======================================================
-
-
-// ======================================================
-// 51. GET MESSAGE INPUT
+// COMPOSER — SEND / REPLY / EDIT
 // ======================================================
 
 function getMessageInput() {
-
-    /*
-     * Try the main message input first.
-     */
-
-    let input =
-        supportChatElement(
-            "messageInput"
-        );
-
-
-    /*
-     * If the main input does not exist,
-     * try common textarea/input IDs.
-     */
-
-    if (!input) {
-
-        input =
-            supportChatElement(
-                "chatMessageInput"
-            );
-
-    }
-
-
-    if (!input) {
-
-        input =
-            supportChatElement(
-                "messageText"
-            );
-
-    }
-
-
-    return input;
-
+    return supportChatElement("messageInput");
 }
-
-
-// ======================================================
-// 52. GENERATE MESSAGE ID
-// ======================================================
-
-function generateMessageId() {
-
-    return (
-        "MSG-" +
-        Date.now() +
-        "-" +
-        Math.random()
-            .toString(36)
-            .substring(2, 8)
-    );
-
-}
-
-
-// ======================================================
-// 53. GET CURRENT MESSAGE TEXT
-// ======================================================
 
 function getMessageText() {
 
-    const input =
-        getMessageInput();
+    const input = getMessageInput();
+    if (!input) return "";
 
-
-    if (!input) {
-
-        return "";
-
-    }
-
-
-    return String(
-        input.value || ""
-    ).trim();
+    return String(input.value || "").trim();
 
 }
 
-
-// ======================================================
-// 54. CLEAR MESSAGE INPUT
-// ======================================================
-
 function clearMessageInput() {
 
-    const input =
-        getMessageInput();
+    const input = getMessageInput();
+    if (!input) return;
 
-
-    if (!input) {
-
-        return;
-
-    }
-
-
-    input.value =
-        "";
-
-
-    /*
-     * Trigger input event so that
-     * any send-button UI updates.
-     */
-
-    input.dispatchEvent(
-        new Event(
-            "input",
-            {
-                bubbles: true
-            }
-        )
-    );
-
-
+    input.value = "";
+    input.dataset.editing = "false";
+    delete input.dataset.editingMessageId;
     input.focus();
 
 }
 
+function messageInputHasText() {
+    return getMessageText().length > 0;
+}
 
-// ======================================================
-// 55. GET CURRENT TIME
-// ======================================================
+function setupComposerEvents() {
 
-function getCurrentMessageTime() {
+    const input = getMessageInput();
+    if (!input) return;
 
-    const now =
-        new Date();
+    input.addEventListener("keydown", handleMessageInputKeydown);
 
+    input.addEventListener("input", function () {
 
-    let hours =
-        now.getHours();
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 120) + "px";
 
-
-    const minutes =
-        now.getMinutes();
-
-
-    const period =
-        hours >= 12
-            ? "PM"
-            : "AM";
-
-
-    hours =
-        hours % 12 ||
-        12;
-
-
-    return (
-        String(hours) +
-        ":" +
-        String(minutes)
-            .padStart(2, "0") +
-        " " +
-        period
-    );
+    });
 
 }
 
+function handleMessageInputKeydown(event) {
 
-// ======================================================
-// 56. GET CURRENT MESSAGE DATE
-// ======================================================
-
-function getCurrentMessageDate() {
-
-    const now =
-        new Date();
-
-
-    return "Today";
-
-}
-
-
-// ======================================================
-// 57. CREATE MESSAGE OBJECT
-// ======================================================
-
-function createNewMessage(
-    text,
-    type,
-    fileData
-) {
-
-    const message = {
-
-        id:
-            generateMessageId(),
-
-        senderId:
-            "ADMIN",
-
-        senderName:
-            "Admin",
-
-        text:
-            text,
-
-        type:
-            type || "text",
-      
-        time:
-            getCurrentMessageTime(),
-
-        date:
-            getCurrentMessageDate(),
-
-        sent:
-            true,
-
-        read:
-            true,
-
-        edited:
-            false,
-
-        replyTo:
-            null
-
-       };
-  
-   if (fileData) {
-
-        message.fileUrl =
-            fileData.fileUrl;
-
-        message.fileName =
-            fileData.fileName;
-
-        message.fileMime =
-            fileData.fileMime;
-
-         }
-
-
-    return message;
-
-}
-  
-
-
-// ======================================================
-// 58. ADD MESSAGE TO CURRENT CHAT
-// ======================================================
-
-function addMessageToCurrentChat(
-    message
-) {
-
-    if (
-        !currentChat
-    ) {
-
-        return false;
-
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
     }
 
-
-    /*
-     * Make sure the messages array exists.
-     */
-
-    if (
-        !Array.isArray(
-            currentChat.messages
-        )
-    ) {
-
-        currentChat.messages =
-            [];
-
-    }
-
-
-    /*
-     * Add the message.
-     */
-
-    currentChat.messages.push(
-        message
-    );
-
-
-    return true;
-
 }
 
-
-// ======================================================
-// 59. UPDATE INDIVIDUAL CHAT PREVIEW
-// ======================================================
-
-function updateIndividualChatPreview(
-    chat,
-    message
-) {
-
-    if (
-        !chat ||
-        !message
-    ) {
-
-        return;
-
-    }
-
-
-    chat.lastMessage =
-        message.text;
-
-
-    chat.lastMessageTime =
-        message.time;
-
-
-    /*
-     * An outgoing admin message does not
-     * create an unread count.
-     */
-
-    chat.unread =
-        Number(
-            chat.unread
-        ) || 0;
-
-
+function isEditingMessage() {
+    return !!editingMessage;
 }
-
-
-
-
-
-
-
-
-
-// ======================================================
-// 61. MOVE INDIVIDUAL CHAT TO TOP
-// ======================================================
-
-function moveIndividualChatToTop(
-    chat
-) {
-
-    if (
-        !chat
-    ) {
-
-        return;
-
-    }
-
-
-    const index =
-        individualChats.indexOf(
-            chat
-        );
-
-
-    if (
-        index === -1
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Remove the chat from its current
-     * position.
-     */
-
-    individualChats.splice(
-        index,
-        1
-    );
-
-
-    /*
-     * Put the conversation at the top.
-     */
-
-    individualChats.unshift(
-        chat
-    );
-
-}
-
-
-// ======================================================
-// 62. SEND MESSAGE
-// ======================================================
-
-// ======================================================
-// 62. SEND MESSAGE
-// ======================================================
 
 function sendMessage() {
 
@@ -3567,7076 +931,650 @@ function sendMessage() {
     const text = getMessageText();
     if (!text) return;
 
-    const message = prepareMessageForSend(text);
-    if (!addMessageToCurrentChat(message)) return;
-
-    updateIndividualChatPreview(currentChat, message);
-    moveIndividualChatToTop(currentChat);
-
-    if (currentUser) {
-        simulateTypingReply(currentChat.id, currentUser.name);
-    }
-
-    if (replyingToMessage) {
-        replyingToMessage = null;
-        closeReplyPreview();
-    }
+    const replyToId = replyingToMessage ? replyingToMessage.id : null;
 
     clearMessageInput();
-    renderMessages();
-    renderIndividualChats();
-    updateUnreadCounts();
-    scrollMessagesToBottom();
-
-}
-
-
-
-// ======================================================
-// 63. SEND MESSAGE WITH ENTER
-// ======================================================
-
-function handleMessageInputKeydown(
-    event
-) {
-
-    if (!event) {
-
-        return;
-
-    }
-
-
-    /*
-     * Enter sends the message.
-     *
-     * Shift + Enter creates a new line.
-     */
-
-    if (
-        event.key ===
-        "Enter" &&
-        !event.shiftKey
-    ) {
-
-        event.preventDefault();
-
-
-        sendMessage();
-
-    }
-
-}
-
-
-// ======================================================
-// 64. UPDATE MESSAGE AFTER SEND
-// =======
-
-
-// ======================================================
-// 65. GET LAST MESSAGE
-// ======================================================
-
-function getLastMessage(
-    chat
-) {
-
-    if (
-        !chat ||
-        !Array.isArray(
-            chat.messages
-        )
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        chat.messages.length === 0
-    ) {
-
-        return null;
-
-    }
-
-
-    return chat.messages[
-        chat.messages.length - 1
-    ];
-
-}
-
-
-// ======================================================
-// 66. UPDATE LAST MESSAGE PREVIEW
-// ======================================================
-
-
-
-
-// ======================================================
-// 66. UPDATE LAST MESSAGE PREVIEW
-// ======================================================
-
-function updateLastMessagePreview(
-    chat
-) {
-
-    if (
-        !chat
-    ) {
-
-        return;
-
-    }
-
-
-    const lastMessage =
-        getLastMessage(
-            chat
-        );
-
-
-    /*
-     * If there are no messages,
-     * clear the preview.
-     */
-
-    if (!lastMessage) {
-
-        chat.lastMessage =
-            "";
-
-        chat.lastMessageTime =
-            "";
-
-        return;
-
-    }
-
-
-    /*
-     * Update preview for both
-     * individual chats and groups.
-     */
-
-    chat.lastMessage =
-        lastMessage.text ||
-        "";
-
-
-    chat.lastMessageTime =
-        lastMessage.time ||
-        "";
-
-}
-
-
-// ======================================================
-// 67. CHECK MESSAGE INPUT
-// ======================================================
-
-function messageInputHasText() {
-
-    const text =
-        getMessageText();
-
-
-    return (
-        text.length > 0
-    );
-
-}
-
-
-// ======================================================
-// 68. INITIALIZE MESSAGE ENGINE
-// ======================================================
-
-function initializeMessageEngine() {
-
-    const input =
-        getMessageInput();
-
-
-    if (
-        !input
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Prevent duplicate event listeners.
-     */
-
-    if (
-        input.dataset.messageEngineReady ===
-        "true"
-    ) {
-
-        return;
-
-    }
-
-
-    input.addEventListener(
-        "keydown",
-        handleMessageInputKeydown
-    );
-
-
-    input.dataset.messageEngineReady =
-        "true";
-
-}
-
-
-// ======================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 4 — REPLY
-// ======================================================
-
-
-// ======================================================
-// 70. START REPLY
-// ======================================================
-
-function replyToMessage(
-    messageId
-) {
-
-    if (
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    const message =
-        currentChat.messages.find(
-            function(item) {
-
-                return item.id ===
-                    messageId;
-
+    cancelReply();
+
+    sb.from("support_messages")
+        .insert({
+            conversation_id: currentChat.id,
+            sender_type: "admin",
+            sender_id: supportAdminId,
+            content: text,
+            reply_to_id: replyToId
+        })
+        .select("*")
+        .single()
+        .then(function (res) {
+
+            if (res.error) {
+                alert("Failed to send message: " + res.error.message);
+                return;
             }
-        );
 
+            if (!currentChat.messages.some(function (m) { return m.id === res.data.id; })) {
+                currentChat.messages.push(mapSupportMessageRow(res.data));
+                renderMessages();
+                scrollMessagesToBottom();
+            }
 
-    if (!message) {
+            loadSupportConversations();
 
-        return;
-
-    }
-
-     /*
- * Reply and edit cannot be active
- * at the same time.
- */
-
-if (
-    editingMessage
-) {
-
-    cancelEditMessage();
-
-}
- 
-    /*
-     * Store the message currently
-     * being replied to.
-     */
-
-    replyingToMessage =
-        message;
-
-
-    /*
-     * Show the reply preview.
-     */
-
-    showReplyPreview(
-        message
-    );
-
-
-    /*
-     * Focus the message input.
-     */
-
-    const input =
-        getMessageInput();
-
-
-    if (input) {
-
-        input.focus();
-
-    }
+        });
 
 }
 
 
 // ======================================================
-// 71. SHOW REPLY PREVIEW
+// REPLY
 // ======================================================
 
-function showReplyPreview(
-    message
-) {
+function replyToMessage(messageId) {
 
-    if (!message) {
+    if (!currentChat) return;
 
-        return;
+    const message = currentChat.messages.find(function (item) { return item.id === messageId; });
+    if (!message) return;
 
-    }
+    if (editingMessage) cancelEditMessage();
 
+    replyingToMessage = message;
+    showReplyPreview(message);
 
-    /*
-     * Try the main reply preview ID.
-     */
-
-    let preview =
-        supportChatElement(
-            "replyPreview"
-        );
-
-
-    /*
-     * If the existing HTML uses another
-     * common ID, support it as well.
-     */
-
-    if (!preview) {
-
-        preview =
-            supportChatElement(
-                "messageReplyPreview"
-            );
-
-    }
-
-
-    if (!preview) {
-
-        return;
-
-    }
-
-
-    /*
-     * Find the reply text element.
-     */
-
-    let textElement =
-        supportChatElement(
-            "replyMessage"
-        );
-
-
-    if (!textElement) {
-
-        textElement =
-            preview.querySelector(
-                ".reply-preview-text"
-            );
-
-    }
-
-
-    if (!textElement) {
-
-        textElement =
-            preview.querySelector(
-               (".reply-text")
-            );
-
-    }
-
-
-    /*
-     * Find the sender element.
-     */
-
-    let senderElement =
-        supportChatElement(
-            "replyUser"
-        );
-
-
-    if (!senderElement) {
-
-        senderElement =
-            preview.querySelector(
-                ".reply-preview-sender"
-            );
-
-    }
-
-
-    /*
-     * Display sender name.
-     */
-
-    if (senderElement) {
-
-        senderElement.textContent =
-            message.sent
-                ? "You"
-                : (
-                    message.senderName ||
-                    "User"
-                );
-
-    }
-
-
-    /*
-     * Display message text.
-     */
-
-    if (textElement) {
-
-        textElement.textContent =
-            message.text ||
-            "";
-
-    }
-
-
-    /*
-     * Store the original message ID
-     * on the preview itself.
-     */
-
-    preview.dataset.messageId =
-        message.id;
-
-
-    /*
-     * Make preview visible.
-     */
-
-    preview.classList.remove(
-        "hidden"
-    );
-
-
-    preview.hidden =
-        false;
-
-
-    preview.style.display =
-        "";
-
+    const input = getMessageInput();
+    if (input) input.focus();
 
 }
 
+function showReplyPreview(message) {
 
-// ======================================================
-// 72. CLOSE REPLY PREVIEW
-// ======================================================
+    const preview = supportChatElement("replyPreview");
+    if (!preview) return;
+
+    const textElement = supportChatElement("replyMessage");
+    const senderElement = supportChatElement("replyUser");
+
+    if (senderElement) senderElement.textContent = message.sent ? "You" : (message.senderName || "User");
+    if (textElement) textElement.textContent = message.text || "";
+
+    preview.dataset.messageId = message.id;
+    preview.classList.remove("hidden");
+
+}
 
 function closeReplyPreview() {
 
-    let preview =
-        supportChatElement(
-            "replyPreview"
-        );
+    const preview = supportChatElement("replyPreview");
+    if (!preview) return;
 
-
-    if (!preview) {
-
-        preview =
-            supportChatElement(
-                "messageReplyPreview"
-            );
-
-    }
-
-
-    if (!preview) {
-
-        return;
-
-    }
-
-
-    preview.classList.add(
-        "hidden"
-    );
-
-
-    preview.hidden =
-        true;
-
-
-    preview.style.display =
-        "none";
-
-
+    preview.classList.add("hidden");
     delete preview.dataset.messageId;
 
 }
 
-
-// ======================================================
-// 73. CANCEL REPLY
-// ======================================================
-
 function cancelReply() {
 
-    replyingToMessage =
-        null;
-
-
+    replyingToMessage = null;
     closeReplyPreview();
 
-
-    /*
-     * Return focus to the message input.
-     */
-
-    const input =
-        getMessageInput();
-
-
-    if (input) {
-
-        input.focus();
-
-    }
-
 }
-
-
-// ======================================================
-// 74. GET REPLY DATA
-// ======================================================
-
-function getReplyData() {
-
-    if (
-        !replyingToMessage
-    ) {
-
-        return null;
-
-    }
-
-
-    return {
-
-        id:
-            replyingToMessage.id,
-
-        senderId:
-            replyingToMessage.senderId,
-
-        senderName:
-            replyingToMessage.senderName,
-
-        text:
-            replyingToMessage.text,
-
-        time:
-            replyingToMessage.time
-
-    };
-
-}
-
-
-// ======================================================
-// 75. CREATE MESSAGE WITH REPLY
-// ======================================================
-
-function createMessageWithReply(
-    text,
-    type,
-    fileData
-) {
-
-    const message =
-        createNewMessage(
-            text,
-            type,
-            fileData
-        );
-
-
-    const replyData =
-        getReplyData();
-
-
-    if (
-        replyData
-    ) {
-
-        message.replyTo =
-            replyData;
-
-    }
-
-
-    return message;
-
-}
-
-
-// ======================================================
-// 76. SEND REPLY MESSAGE
-// ======================================================
-
-function sendReplyMessage(
-    text
-) {
-
-    if (
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    const messageText =
-        String(
-            text ||
-            ""
-        ).trim();
-
-
-    if (
-        !messageText
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Create message with reply information.
-     */
-
-    const message =
-        createMessageWithReply(
-            messageText
-        );
-
-
-    /*
-     * Add to current conversation.
-     */
-
-    const added =
-        addMessageToCurrentChat(
-            message
-        );
-
-
-    if (!added) {
-
-        return;
-
-    }
-
-
-    /*
-     * Update individual chat preview.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        updateIndividualChatPreview(
-            currentChat,
-            message
-        );
-
-
-        moveIndividualChatToTop(
-            currentChat
-        );
-
-    }
-
-
-    /*
-     * Group message.
-     */
-
-    if (
-        currentChatType ===
-        "group"
-    ) {
-
-        updateIndividualChatPreview(
-            currentChat,
-            message
-        );
-
-    }
-
-
-    /*
-     * Clear reply state.
-     */
-
-    replyingToMessage =
-        null;
-
-
-    closeReplyPreview();
-
-
-    /*
-     * Clear message input if this
-     * function was called from the input.
-     */
-
-    clearMessageInput();
-
-
-    /*
-     * Render conversation again.
-     */
-
-    renderMessages();
-
-
-    /*
-     * Render conversation list.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderIndividualChats();
-
-    }
-
-
-    updateUnreadCounts();
-
-
-    scrollMessagesToBottom();
-
-}
-
-
-// ======================================================
-// 77. REPLY FROM CURRENT INPUT
-// ======================================================
-
-function sendCurrentReply() {
-
-    if (
-        !replyingToMessage
-    ) {
-
-        return false;
-
-    }
-
-
-    const text =
-        getMessageText();
-
-
-    if (
-        !text
-    ) {
-
-        return false;
-
-    }
-
-
-    sendReplyMessage(
-        text
-    );
-
-
-    return true;
-
-}
-
-
-// ======================================================
-// 78. REPLY BUTTON HANDLER
-// ======================================================
-
-function handleReplyAction(
-    messageId
-) {
-
-    replyToMessage(
-        messageId
-    );
-
-}
-
-
-// ======================================================
-// 79. FIND MESSAGE ELEMENT
-// ======================================================
-
-function findMessageElement(
-    messageId
-) {
-
-    const container =
-        supportChatElement(
-            "messages"
-        );
-
-
-    if (!container) {
-
-        return null;
-
-    }
-
-
-    return container.querySelector(
-        '[data-message-id="' +
-        messageId +
-        '"]'
-    );
-
-}
-
-
-// ======================================================
-// 80. SCROLL TO REPLIED MESSAGE
-// ======================================================
-
-// ------------------------------------------------------
-// Message highlight state (scrollToMessage) — tracks
-// the currently-highlighted message and its pending
-// timeout, so jumping to a new replied message cancels
-// any highlight still in progress
-// ------------------------------------------------------
-
-let messageHighlightTimeout = null;
-
-let highlightedMessageElement = null;
-
-
-function scrollToMessage(
-    messageId
-) {
-
-    const element =
-        findMessageElement(
-            messageId
-        );
-
-
-    if (!element) {
-
-        return;
-
-    }
-
-
-    element.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-    });
-
-
-    /*
-     * Cancel any highlight still in progress from a
-     * previous call, so only one message is ever
-     * highlighted at a time.
-     */
-
-    if (messageHighlightTimeout) {
-
-        clearTimeout(
-            messageHighlightTimeout
-        );
-
-        messageHighlightTimeout =
-            null;
-
-    }
-
-
-    if (
-        highlightedMessageElement &&
-        highlightedMessageElement !== element
-    ) {
-
-        highlightedMessageElement.classList.remove(
-            "message-highlight"
-        );
-
-    }
-
-
-    /*
-     * Temporarily highlight the message.
-     */
-
-    element.classList.add(
-        "message-highlight"
-    );
-
-    highlightedMessageElement =
-        element;
-
-
-    messageHighlightTimeout =
-        setTimeout(
-            function() {
-
-                element.classList.remove(
-                    "message-highlight"
-                );
-
-
-                if (
-                    highlightedMessageElement ===
-                    element
-                ) {
-
-                    highlightedMessageElement =
-                        null;
-
-                }
-
-
-                messageHighlightTimeout =
-                    null;
-
-            },
-            4500
-        );
-
-}
-
-
-
-
-// ======================================================
-// 81. OPEN REPLIED MESSAGE
-// ======================================================
-
-function openRepliedMessage(
-    messageId
-) {
-
-    if (
-        !messageId
-    ) {
-
-        return;
-
-    }
-
-
-    scrollToMessage(
-        messageId
-    );
-
-}
-
-
-// ======================================================
-// 82. SETUP REPLY PREVIEW EVENTS
-// ======================================================
 
 function setupReplyPreviewEvents() {
+    // Reply-preview cancel button already wired via onclick="cancelReply()" in HTML.
+}
 
-    let preview =
-        supportChatElement(
-            "replyPreview"
-        );
+function findMessageElement(messageId) {
+    return document.querySelector('.message[data-message-id="' + messageId + '"]');
+}
 
+let messageHighlightTimeout = null;
+let highlightedMessageElement = null;
 
-    if (!preview) {
+function scrollToMessage(messageId) {
 
-        preview =
-            supportChatElement(
-                "messageReplyPreview"
-            );
+    const element = findMessageElement(messageId);
+    if (!element) return;
 
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    if (highlightedMessageElement) {
+        highlightedMessageElement.classList.remove("message-highlight");
     }
 
+    element.classList.add("message-highlight");
+    highlightedMessageElement = element;
 
-    if (
-        !preview
-    ) {
+    if (messageHighlightTimeout) clearTimeout(messageHighlightTimeout);
 
-        return;
+    messageHighlightTimeout = setTimeout(function () {
+        element.classList.remove("message-highlight");
+    }, 1600);
 
-    }
+}
 
-
-    /*
-     * Prevent duplicate listeners.
-     */
-
-    if (
-        preview.dataset.replyReady ===
-        "true"
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Look for a cancel button.
-     */
-
-    const cancelButton =
-        preview.querySelector(
-            "[data-action='cancel-reply']"
-        ) ||
-        preview.querySelector(
-            ".cancel-reply"
-        ) ||
-        preview.querySelector(
-            ".reply-preview-close"
-        );
-
-
-    if (cancelButton) {
-
-        cancelButton.addEventListener(
-            "click",
-            function(event) {
-
-                event.preventDefault();
-
-                cancelReply();
-
-            }
-        );
-
-    }
-
-
-    preview.dataset.replyReady =
-        "true";
-
+function openRepliedMessage(messageId) {
+    scrollToMessage(messageId);
 }
 
 
 // ======================================================
-// 83. UPDATE MESSAGE CREATION FOR REPLY
+// EDIT (admin's own sent messages only — enforced for
+// real by a DB trigger too, not just this UI check)
 // ======================================================
 
-function prepareMessageForSend(
-    text,
-    type,
-    fileData
-) {
+function startEditMessage(messageId) {
 
-    if (
-        replyingToMessage
-    ) {
+    if (!currentChat) return;
 
-        return createMessageWithReply(
-            text,
-            type,
-            fileData
-        );
+    const message = currentChat.messages.find(function (item) { return item.id === messageId; });
+    if (!message) return;
 
-    }
+    if (!message.sent) return;
+    if (message.type === "voice") return;
 
+    if (replyingToMessage) cancelReply();
 
-    return createNewMessage(
-        text,
-        type,
-        fileData
-    );
+    editingMessage = message;
 
-}
+    const input = supportChatElement("messageInput");
+    if (!input) return;
 
+    input.value = message.text || "";
+    input.dataset.editing = "true";
+    input.dataset.editingMessageId = message.id;
 
-// ======================================================
-// 84. REPLY STATE CHECK
-// ======================================================
+    showEditPreview(message);
 
-function isReplying() {
+    setTimeout(function () {
+        input.focus();
+        const length = input.value.length;
+        if (typeof input.setSelectionRange === "function") {
+            input.setSelectionRange(length, length);
+        }
+    }, 50);
 
-    return (
-        replyingToMessage !==
-        null
-    );
-
-}
-
-
-// ======================================================
-// 85. GET REPLYING MESSAGE
-// ======================================================
-
-function getReplyingMessage() {
-
-    return replyingToMessage;
-
-}
-
-
-// ======================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 5 — EDIT MESSAGE
-// ======================================================
-
-
-// ======================================================
-// 51. START EDIT MESSAGE
-// ======================================================
-
-function startEditMessage(
-    messageId
-) {
-
-    if (
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    const message =
-        currentChat.messages.find(
-            function(item) {
-
-                return item.id ===
-                    messageId;
-
-            }
-        );
-
-
-    if (!message) {
-
-        return;
-
-    }
-
-
-    /*
-     * Only sent messages can be edited.
-     */
-
-    if (
-        !message.sent
-    ) {
-
-        return;
-
-    }
-
-     /*
-     * Voice messages cannot be edited.
-     */
-
-    if (
-        message.type === "voice"
-    ) {
-
-        return;
-
-    }
-
- /*
- * Edit and reply cannot be active
- * at the same time.
- */
-
-if (
-    replyingToMessage
-) {
-
-    cancelReply();
-
-}
-
-    /*
-     * Save the message currently
-     * being edited.
-     */
-
-    editingMessage =
-        message;
-
-
-    /*
-     * Find the message input.
-     */
-
-    const input =
-        supportChatElement(
-            "messageInput"
-        );
-
-
-    if (!input) {
-
-        return;
-
-    }
-
-
-    /*
-     * Put the original message
-     * inside the input.
-     */
-
-    input.value =
-        message.text ||
-        "";
-
-
-    /*
-     * Change input state.
-     */
-
-    input.dataset.editing =
-        "true";
-
-
-    input.dataset.editingMessageId =
-        message.id;
-
-
-    /*
-     * Show edit preview.
-     */
-
-    showEditPreview(
-        message
-    );
-
-
-    /*
-     * Focus the input.
-     */
-
-    setTimeout(
-        function() {
-
-            input.focus();
-
-
-            /*
-             * Put cursor at the end
-             * of the message.
-             */
-
-            const length =
-                input.value.length;
-
-
-            if (
-                typeof input.setSelectionRange ===
-                "function"
-            ) {
-
-                input.setSelectionRange(
-                    length,
-                    length
-                );
-
-            }
-
-        },
-        50
-    );
-
-
-    /*
-     * Close any open message
-     * action menu.
-     */
-
-    /*
- * Close any open message
- * action menu.
- */
-
-closeMessageActionMenu();
-
-
-    /*
-     * Close chat menu if open.
-     */
-
+    closeMessageActionMenu();
     closeChatMenu();
 
 }
 
+function showEditPreview(message) {
 
-// ======================================================
-// 52. SHOW EDIT PREVIEW
-// ======================================================
+    const preview = supportChatElement("editPreview");
+    if (!preview) return;
 
-function showEditPreview(
-    message
-) {
+    const textElement = supportChatElement("editMessage");
+    if (textElement) textElement.textContent = message.text || "";
 
-    const preview =
-        supportChatElement(
-            "editPreview"
-        );
-
-
-    if (!preview) {
-
-        return;
-
-    }
-
-
-    /*
-     * Find the text element.
-     */
-
-    let textElement =
-        supportChatElement(
-            "editMessage"
-        );
-
-
-    if (!textElement) {
-
-        textElement =
-            preview.querySelector(
-                ".edit-preview-text"
-            );
-
-    }
-
-
-    if (!textElement) {
-
-        textElement =
-            preview.querySelector(
-                ".edit-text"
-            );
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            message.text ||
-            "";
-
-    }
-
-
-    /*
-     * Show the preview.
-     */
-
-    preview.classList.remove(
-        "hidden"
-    );
-
-
-    preview.hidden =
-        false;
-
-
-    preview.style.display =
-        "";
-
+    preview.classList.remove("hidden");
 
 }
-
-
-// ======================================================
-// 53. CANCEL EDIT MESSAGE
-// ======================================================
 
 function cancelEditMessage() {
 
-    editingMessage =
-        null;
+    editingMessage = null;
 
-
-    const input =
-        supportChatElement(
-            "messageInput"
-        );
-
+    const input = supportChatElement("messageInput");
 
     if (input) {
-
-        input.dataset.editing =
-            "false";
-
-
-        delete input.dataset
-            .editingMessageId;
-
+        input.dataset.editing = "false";
+        delete input.dataset.editingMessageId;
+        input.value = "";
     }
 
+    const editPreview = supportChatElement("editPreview");
 
-    /*
-     * Hide edit preview.
-     */
-
-    /*
- * Hide edit preview.
- */
-
-const editPreview =
-    supportChatElement(
-        "editPreview"
-    );
-
-
-if (editPreview) {
-
-    editPreview.classList.add(
-        "hidden"
-    );
-
-
-    editPreview.hidden =
-        true;
-
-
-    editPreview.style.display =
-        "none";
-
-}
-
-
-    /*
-     * Clear input only when
-     * we were editing.
-     */
-
-    if (input) {
-
-        input.value =
-            "";
-
-    }
-
-
-    /*
-     * Restore normal input state.
-     */
-
-    updateMessageInputState();
-
-}
-
-// ======================================================
-// CLOSE MESSAGE PREVIEWS WHEN OPENING OTHER CHAT UI
-// (reply/edit previews should only stay open while the
-// user is interacting with the chat footer itself —
-// not when opening the chat menu, profile, or search)
-// ======================================================
-
-function closeMessagePreviewsOnUiOpen() {
-
-    if (
-        replyingToMessage
-    ) {
-
-        cancelReply();
-
-    }
-
-    if (
-        editingMessage
-    ) {
-
-        cancelEditMessage();
-
+    if (editPreview) {
+        editPreview.classList.add("hidden");
     }
 
 }
-
-
-// ======================================================
-// 54. SAVE EDITED MESSAGE
-// ======================================================
 
 function saveEditedMessage() {
 
-    if (
-        !editingMessage
-    ) {
+    if (!editingMessage) return false;
 
-        return false;
+    const input = supportChatElement("messageInput");
+    if (!input) return false;
 
-    }
+    const newText = input.value.trim();
+    if (!newText) return false;
 
-
-    const input =
-        supportChatElement(
-            "messageInput"
-        );
-
-
-    if (!input) {
-
-        return false;
-
-    }
-
-
-    const newText =
-        input.value.trim();
-
-
-    /*
-     * Do not allow an empty
-     * edited message.
-     */
-
-    if (!newText) {
-
-        return false;
-
-    }
-
-
-    /*
-     * Do not save if nothing
-     * actually changed.
-     */
-
-    if (
-        newText ===
-        editingMessage.text
-    ) {
-
+    if (newText === editingMessage.text) {
         cancelEditMessage();
-
         return false;
-
     }
 
+    const messageId = editingMessage.id;
 
-    /*
-     * Update the message.
-     */
+    sb.from("support_messages")
+        .update({ content: newText })
+        .eq("id", messageId)
+        .select("*")
+        .single()
+        .then(function (res) {
 
-    editingMessage.text =
-        newText;
+            if (res.error) {
+                alert("Failed to save edit: " + res.error.message);
+                return;
+            }
 
+            const target = currentChat && currentChat.messages.find(function (m) { return m.id === messageId; });
 
-    editingMessage.edited =
-        true;
+            if (target) {
+                target.text = res.data.content;
+                target.edited = !!res.data.edited_at;
+                renderMessages();
+            }
 
+            loadSupportConversations();
 
-    /*
-     * Update time.
+        });
 
-     * The helper below uses the
-     * current browser time.
-     */
+    editingMessage = null;
+    input.value = "";
+    input.dataset.editing = "false";
+    delete input.dataset.editingMessageId;
 
-    editingMessage.time =
-        getCurrentMessageTime();
-
-
-    /*
-     * Update the chat preview.
-     */
-
-    /*
- * Update the chat preview.
- */
-
-updateLastMessagePreview(
-    currentChat
-);
-
-
-    /*
-     * Re-render messages.
-     */
-
-    renderMessages();
-
- if (
-    currentChatType ===
-    "individual"
-) {
-
-    renderIndividualChats();
-
-}
-else if (
-    currentChatType ===
-    "group"
-) {
-
-    renderIndividualChats();
-
-}
-
-
-    /*
-     * Clear edit state.
-     */
-
-    editingMessage =
-        null;
-
-
-    input.value =
-        "";
-
-
-    input.dataset.editing =
-        "false";
-
-
-    delete input.dataset
-        .editingMessageId;
-
-
-    /*
-     * Hide edit preview.
-     */
-
-/*
- * Hide edit preview.
- */
-
-const preview =
-    supportChatElement(
-        "editPreview"
-    );
-
-
-if (preview) {
-
-    preview.classList.add(
-        "hidden"
-    );
-
-    preview.hidden =
-        true;
-
-    preview.style.display =
-        "none";
-
-}
-
-
-    /*
-     * Restore normal input state.
-     */
-
-    updateMessageInputState();
-
+    const preview = supportChatElement("editPreview");
+    if (preview) preview.classList.add("hidden");
 
     return true;
 
 }
 
 
-
-
 // ======================================================
-// 56. UPDATE CHAT LAST MESSAGE
-// ======================================================
-
-// ======================================================
-// UPDATE CHAT LAST MESSAGE
-// ======================================================
-
-function updateChatLastMessage(
-    chat
-) {
-
-    if (
-        !chat
-    ) {
-
-        return;
-
-    }
-
-
-    const messages =
-        Array.isArray(
-            chat.messages
-        )
-            ? chat.messages
-            : [];
-
-
-    /*
-     * No messages.
-     */
-
-    if (
-        messages.length === 0
-    ) {
-
-        chat.lastMessage =
-            "";
-
-        chat.lastMessageTime =
-            "";
-
-
-        return;
-
-    }
-
-
-    /*
-     * Get the newest message.
-     */
-
-    const lastMessage =
-        messages[
-            messages.length - 1
-        ];
-
-
-    if (!lastMessage) {
-
-        return;
-
-    }
-
-
-    /*
-     * Update the preview text.
-     */
-
-    chat.lastMessage =
-        lastMessage.text ||
-        "";
-
-
-    /*
-     * Update the preview time.
-     */
-
-    chat.lastMessageTime =
-        lastMessage.time ||
-        "";
-
-}
-
-
-// ======================================================
-// 57. UPDATE MESSAGE INPUT STATE
-// ======================================================
-
-function updateMessageInputState() {
-
-    const input =
-        supportChatElement(
-            "messageInput"
-        );
-
-
-    if (!input) {
-
-        return;
-
-    }
-
-
-    const isEditing =
-        editingMessage !==
-        null;
-
-
-    input.dataset.editing =
-        isEditing
-            ? "true"
-            : "false";
-
-
-    /*
-     * Update placeholder.
-     */
-
-    if (isEditing) {
-
-        input.placeholder =
-            "Edit message...";
-
-    }
-    else {
-
-        input.placeholder =
-            "Type a message...";
-
-    }
-
-
-    /*
-     * Update edit/send button
-     * when the HTML provides one.
-     */
-
-    const sendButton =
-        supportChatElement(
-            "sendMessageBtn"
-        );
-
-
-    if (
-        sendButton
-    ) {
-
-        if (isEditing) {
-
-            sendButton.title =
-                "Save changes";
-
-        }
-        else {
-
-            sendButton.title =
-                "Send message";
-
-        }
-
-    }
-
-}
-
-
-// ======================================================
-// 58. CHECK WHETHER INPUT IS EDITING
-// ======================================================
-
-function isEditingMessage() {
-
-    return (
-        editingMessage !==
-        null
-    );
-
-}
-
-
-// ======================================================
-// STAGE 6 — MESSAGE ACTIONS
-// ANDROID / Acode
-// ======================================================
-
-
-// ======================================================
-// VARIABLES
+// MESSAGE ACTION MENU (long-press / right-click on a message)
 // ======================================================
 
 let messageLongPressTimer = null;
-
 let activeMessageActionMenu = null;
-
 let activeActionMessageId = null;
 
+function setupMessageActionEvents(wrapper, messageId) {
 
-// ======================================================
-// GET MESSAGE ELEMENT
-// ======================================================
+    let startX = 0;
+    let startY = 0;
+
+    function startTimer(x, y) {
+        startX = x;
+        startY = y;
+        clearTimeout(messageLongPressTimer);
+        messageLongPressTimer = setTimeout(function () {
+            showMessageActionMenu(wrapper, messageId);
+        }, CHAT_LONG_PRESS_DURATION);
+    }
+
+    function cancelTimer() {
+        clearTimeout(messageLongPressTimer);
+    }
+
+    wrapper.addEventListener("mousedown", function (e) { startTimer(e.clientX, e.clientY); });
+    wrapper.addEventListener("mouseup", cancelTimer);
+    wrapper.addEventListener("mouseleave", cancelTimer);
+
+    wrapper.addEventListener("touchstart", function (e) {
+        const t = e.touches[0];
+        startTimer(t.clientX, t.clientY);
+    }, { passive: true });
+
+    wrapper.addEventListener("touchmove", function (e) {
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - startX) > CHAT_LONG_PRESS_MOVE_TOLERANCE ||
+            Math.abs(t.clientY - startY) > CHAT_LONG_PRESS_MOVE_TOLERANCE) {
+            cancelTimer();
+        }
+    }, { passive: true });
+
+    wrapper.addEventListener("touchend", cancelTimer);
+    wrapper.addEventListener("touchcancel", cancelTimer);
+
+    wrapper.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        showMessageActionMenu(wrapper, messageId);
+    });
+
+}
 
 function getMessageElement(target) {
-
-    if (!target) {
-        return null;
-    }
-
-    if (
-        target.classList &&
-        target.classList.contains("message")
-    ) {
-
-        return target;
-
-    }
-
-    if (target.closest) {
-
-        return target.closest(".message");
-
-    }
-
-    return null;
+    return target.closest(".message");
 }
-
-
-// ======================================================
-// GET MESSAGE ID
-// ======================================================
 
 function getMessageId(messageElement) {
-
-    if (!messageElement) {
-        return null;
-    }
-
-    return (
-        messageElement.dataset.messageId ||
-        messageElement.getAttribute(
-            "data-message-id"
-        ) ||
-        messageElement.id ||
-        null
-    );
-
+    return messageElement ? messageElement.dataset.messageId : null;
 }
-
-
-// ======================================================
-// CLOSE ACTION MENU
-// ======================================================
 
 function closeMessageActionMenu() {
 
     if (activeMessageActionMenu) {
-
         activeMessageActionMenu.remove();
-
         activeMessageActionMenu = null;
-
     }
 
     activeActionMessageId = null;
 
+    document.removeEventListener("click", closeMessageActionMenuOnOutsideClick);
+
 }
 
-
-// ======================================================
-// SHOW MESSAGE ACTION MENU
-// ======================================================
-
-function showMessageActionMenu(
-    messageElement,
-    messageId
-) {
+function showMessageActionMenu(messageElement, messageId) {
 
     closeMessageActionMenu();
 
+    if (!messageElement || !messageId) return;
+    if (pinMessageSelectionMode) return;
 
-    if (
-        !messageElement ||
-        !messageId
-    ) {
+    activeActionMessageId = messageId;
 
-        return;
+    const targetMessage = currentChat
+        ? currentChat.messages.find(function (item) { return item.id === messageId; })
+        : null;
 
-    }
+    if (!targetMessage) return;
 
+    const canEdit = targetMessage.sent && targetMessage.type !== "voice";
 
-    activeActionMessageId =
-        messageId;
+    const editButtonMarkup = canEdit
+        ? '<button type="button" data-action="edit"><i class="fa-solid fa-pen"></i><span>Edit</span></button>'
+        : "";
 
+    const pinLabel = targetMessage.isPinned ? "Unpin" : "Pin";
+    const pinIcon = targetMessage.isPinned ? "fa-solid fa-thumbtack-slash" : "fa-solid fa-thumbtack";
 
-    const targetMessage =
-        currentChat &&
-        Array.isArray(currentChat.messages)
-            ? currentChat.messages.find(
-                  function(item) {
-
-                      return item.id === messageId;
-
-                  }
-              )
-            : null;
-
-
-    const canEditMessage =
-        !targetMessage ||
-        targetMessage.type !== "voice";
-
-
-    const editButtonMarkup =
-        canEditMessage
-            ? '<button type="button" data-action="edit">' +
-                  '<i class="fa-solid fa-pen"></i>' +
-                  '<span>Edit</span>' +
-              '</button>'
-            : '';
-
-
-    const menu =
-        document.createElement(
-            "div"
-        );
-
-
-    menu.className =
-        "message-action-menu";
-
+    const menu = document.createElement("div");
+    menu.className = "message-action-menu";
 
     menu.innerHTML =
-
-        '<button type="button" data-action="reply">' +
-            '<i class="fa-solid fa-reply"></i>' +
-            '<span>Reply</span>' +
-        '</button>' +
-
+        '<button type="button" data-action="reply"><i class="fa-solid fa-reply"></i><span>Reply</span></button>' +
         editButtonMarkup +
+        '<button type="button" data-action="pin"><i class="' + pinIcon + '"></i><span>' + pinLabel + '</span></button>' +
+        '<button type="button" data-action="copy"><i class="fa-solid fa-copy"></i><span>Copy</span></button>' +
+        '<button type="button" data-action="delete"><i class="fa-solid fa-trash"></i><span>Delete</span></button>' +
+        '<button type="button" data-action="close"><i class="fa-solid fa-xmark"></i><span>Close</span></button>';
 
-        '<button type="button" data-action="copy">' +
-            '<i class="fa-solid fa-copy"></i>' +
-            '<span>Copy</span>' +
-        '</button>' +
+    document.body.appendChild(menu);
+    activeMessageActionMenu = menu;
 
-        '<button type="button" data-action="delete">' +
-            '<i class="fa-solid fa-trash"></i>' +
-            '<span>Delete</span>' +
-        '</button>' +
+    const rect = messageElement.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
 
-        '<button type="button" data-action="close">' +
-            '<i class="fa-solid fa-xmark"></i>' +
-            '<span>Close</span>' +
-        '</button>';
+    let top = rect.top - menuRect.height - 8;
+    let left = rect.left;
 
+    if (top < 10) top = rect.bottom + 8;
+    if (left + menuRect.width > window.innerWidth - 10) left = window.innerWidth - menuRect.width - 10;
+    if (left < 10) left = 10;
+    if (top + menuRect.height > window.innerHeight - 10) top = window.innerHeight - menuRect.height - 10;
+    if (top < 10) top = 10;
 
-    document.body.appendChild(
-        menu
-    );
+    menu.style.position = "fixed";
+    menu.style.top = top + "px";
+    menu.style.left = left + "px";
+    menu.style.zIndex = "999999";
 
+    menu.addEventListener("click", function (event) {
 
-    activeMessageActionMenu =
-        menu;
+        const button = event.target.closest("button");
+        if (!button) return;
 
+        const action = button.dataset.action;
 
-    // ==================================================
-    // POSITION MENU
-    // ==================================================
-
-    const rect =
-        messageElement.getBoundingClientRect();
-
-
-    const menuRect =
-        menu.getBoundingClientRect();
-
-
-    let top =
-        rect.top -
-        menuRect.height -
-        8;
-
-
-    let left =
-        rect.left;
-
-
-    /*
-     * If there is not enough room above
-     * the message, show the menu below it.
-     */
-
-    if (
-        top < 10
-    ) {
-
-        top =
-            rect.bottom + 8;
-
-    }
-
-
-    /*
-     * Keep menu inside right edge.
-     */
-
-    if (
-        left +
-        menuRect.width >
-        window.innerWidth - 10
-    ) {
-
-        left =
-            window.innerWidth -
-            menuRect.width -
-            10;
-
-    }
-
-
-    /*
-     * Keep menu inside left edge.
-     */
-
-    if (
-        left < 10
-    ) {
-
-        left =
-            10;
-
-    }
-
-
-    /*
-     * Keep menu inside bottom edge.
-     */
-
-    if (
-        top +
-        menuRect.height >
-        window.innerHeight - 10
-    ) {
-
-        top =
-            window.innerHeight -
-            menuRect.height -
-            10;
-
-    }
-
-
-    /*
-     * Keep menu inside top edge.
-     */
-
-    if (
-        top < 10
-    ) {
-
-        top =
-            10;
-
-    }
-
-
-    menu.style.position =
-        "fixed";
-
-
-    menu.style.top =
-        top + "px";
-
-
-    menu.style.left =
-        left + "px";
-
-
-    menu.style.zIndex =
-        "999999";
-
-
-    // ==================================================
-    // ACTION BUTTONS
-    // ==================================================
-
-    menu.addEventListener(
-        "click",
-        function(event) {
-
-            const button =
-                event.target.closest(
-                    "button"
-                );
-
-
-            if (!button) {
-
-                return;
-
-            }
-
-
-            const action =
-                button.dataset.action;
-
-
-            /*
-             * Close button.
-             */
-
-            if (
-                action ===
-                "close"
-            ) {
-
-                closeMessageActionMenu();
-
-                return;
-
-            }
-
-
-            /*
-             * Close the menu before
-             * performing the action.
-             */
-
+        if (action === "close") {
             closeMessageActionMenu();
-
-
-            // ==========================================
-            // REPLY
-            // ==========================================
-
-            if (
-                action ===
-                "reply"
-            ) {
-
-                replyToMessage(
-                    messageId
-                );
-
-                return;
-
-            }
-
-
-            // ==========================================
-            // EDIT
-            // ==========================================
-
-            if (
-                action ===
-                "edit"
-            ) {
-
-                startEditMessage(
-                    messageId
-                );
-
-                return;
-
-            }
-
-
-            // ==========================================
-            // COPY
-            // ==========================================
-
-            if (
-                action ===
-                "copy"
-            ) {
-
-                copyMessage(
-                    messageId
-                );
-
-                return;
-
-            }
-
-
-            // ==========================================
-            // DELETE
-            // ==========================================
-
-            if (
-                action ===
-                "delete"
-            ) {
-
-                deleteMessage(
-                    messageId
-                );
-
-                return;
-
-            }
-
+            return;
         }
-    );
+
+        closeMessageActionMenu();
+
+        if (action === "reply") { replyToMessage(messageId); return; }
+        if (action === "edit") { startEditMessage(messageId); return; }
+        if (action === "pin") { toggleSingleMessagePin(messageId, !targetMessage.isPinned); return; }
+        if (action === "copy") { copyMessage(messageId); return; }
+        if (action === "delete") { deleteMessage(messageId); return; }
+
+    });
+
+    setTimeout(function () {
+        document.addEventListener("click", closeMessageActionMenuOnOutsideClick);
+    }, 0);
 
 }
 
+function closeMessageActionMenuOnOutsideClick(event) {
 
-// ======================================================
-// COPY MESSAGE
-// ======================================================
-
-function copyMessage(
-    messageId
-) {
-
-    if (
-        !currentChat ||
-        !Array.isArray(
-            currentChat.messages
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    const message =
-        currentChat.messages.find(
-            function(item) {
-
-                return (
-                    item.id ===
-                    messageId
-                );
-
-            }
-        );
-
-
-    if (!message) {
-
-        return;
-
-    }
-
-
-    const text =
-        String(
-            message.text ||
-            ""
-        );
-
-
-    if (!text) {
-
-        return;
-
-    }
-
-
-    /*
-     * Use the modern Clipboard API
-     * when available.
-     */
-
-    if (
-        navigator.clipboard &&
-        typeof navigator.clipboard.writeText ===
-        "function"
-    ) {
-
-        navigator.clipboard.writeText(
-            text
-        )
-        .then(
-            function() {
-
-                console.log(
-                    "Message copied."
-                );
-
-            }
-        )
-        .catch(
-            function(error) {
-
-                console.error(
-                    "Copy failed:",
-                    error
-                );
-
-                fallbackCopyMessage(
-                    text
-                );
-
-            }
-        );
-
-    }
-    else {
-
-        fallbackCopyMessage(
-            text
-        );
-
+    if (activeMessageActionMenu && !activeMessageActionMenu.contains(event.target)) {
+        closeMessageActionMenu();
+        document.removeEventListener("click", closeMessageActionMenuOnOutsideClick);
     }
 
 }
 
+function copyMessage(messageId) {
 
-// ======================================================
-// FALLBACK COPY MESSAGE
-// ======================================================
+    const message = currentChat && currentChat.messages.find(function (m) { return m.id === messageId; });
+    if (!message) return;
 
-function fallbackCopyMessage(
-    text
-) {
+    const text = message.text || "";
 
-    const textarea =
-        document.createElement(
-            "textarea"
-        );
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function () { fallbackCopyMessage(text); });
+    } else {
+        fallbackCopyMessage(text);
+    }
 
+}
 
-    textarea.value =
-        text;
+function fallbackCopyMessage(text) {
 
-
-    textarea.style.position =
-        "fixed";
-
-
-    textarea.style.left =
-        "-9999px";
-
-
-    textarea.style.top =
-        "0";
-
-
-    document.body.appendChild(
-        textarea
-    );
-
-
-    textarea.focus();
-
-
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
     textarea.select();
 
+    try { document.execCommand("copy"); } catch (e) { /* no-op */ }
 
-    try {
-
-        document.execCommand(
-            "copy"
-        );
-
-
-        console.log(
-            "Message copied."
-        );
-
-    }
-    catch (error) {
-
-        console.error(
-            "Fallback copy failed:",
-            error
-        );
-
-    }
-
-
-    document.body.removeChild(
-        textarea
-    );
+    document.body.removeChild(textarea);
 
 }
 
 
 // ======================================================
-// DELETE MESSAGE
+// DELETE MESSAGE (shared confirm modal)
 // ======================================================
 
-function deleteMessage(
-    messageId
-) {
-
-    if (
-        !currentChat ||
-        !Array.isArray(
-            currentChat.messages
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    const messageIndex =
-        currentChat.messages.findIndex(
-            function(item) {
-
-                return (
-                    item.id ===
-                    messageId
-                );
-
-            }
-        );
-
-
-    if (
-        messageIndex ===
-        -1
-    ) {
-
-        return;
-
-    }
-
-
-    deleteActionType =
-        "message";
-
-    deleteActionId =
-        messageId;
-
-
-    const titleElement =
-        supportChatElement(
-            "deleteConfirmTitle"
-        );
-
-    const textElement =
-        supportChatElement(
-            "deleteConfirmText"
-        );
-
-    const confirmBtn =
-        supportChatElement(
-            "confirmDeleteBtn"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            "Delete Message?";
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            "This will permanently delete this message. This action cannot be undone.";
-
-    }
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            "Delete";
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
-
-}
-
-
-
-// ======================================================
-// SETUP MESSAGE ACTIONS
-// ======================================================
-
-function setupMessageActionEvents() {
-
-    const messagesContainer =
-        document.getElementById(
-            "messages"
-        );
-
-
-    if (!messagesContainer) {
-
-        console.warn(
-            "Stage 6: #messages not found."
-        );
-
-        return;
-
-    }
-
-
-    // Prevent duplicate listeners.
-
-    if (
-        messagesContainer.dataset
-            .stage6Ready === "true"
-    ) {
-
-        return;
-
-    }
-
-
-    messagesContainer.dataset
-        .stage6Ready = "true";
-
-
-    // ==========================================
-    // CLOSE ACTION MENU ON OUTSIDE CLICK
-    // (the menu is appended straight to
-    // document.body, so any click that doesn't
-    // land inside it should close it)
-    // ==========================================
-
-    document.addEventListener(
-        "click",
-        function(event) {
-
-            if (!activeMessageActionMenu) {
-
-                return;
-
-            }
-
-
-            const isInsideMenu =
-                event.target.closest(
-                    ".message-action-menu"
-                );
-
-
-            if (isInsideMenu) {
-
-                return;
-
-            }
-
-
-            closeMessageActionMenu();
-
-        },
-        true
-    );
-
-
-  
-    // ==========================================
-    // TOUCH START
-    // ==========================================
-
-    messagesContainer.addEventListener(
-        "touchstart",
-        function(event) {
-
-            const messageElement =
-                getMessageElement(
-                    event.target
-                );
-
-
-            if (!messageElement) {
-                return;
-            }
-
-
-            const messageId =
-                getMessageId(
-                    messageElement
-                );
-
-
-            if (!messageId) {
-
-                console.warn(
-                    "Stage 6: message has no ID."
-                );
-
-                return;
-
-            }
-
-
-            messageLongPressTimer =
-                setTimeout(
-                    function() {
-
-                        showMessageActionMenu(
-                            messageElement,
-                            messageId
-                        );
-
-                    },
-                    600
-                );
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    // ==========================================
-    // TOUCH END
-    // ==========================================
-
-    messagesContainer.addEventListener(
-        "touchend",
-        function() {
-
-            clearTimeout(
-                messageLongPressTimer
-            );
-
-            messageLongPressTimer =
-                null;
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    // ==========================================
-    // TOUCH CANCEL
-    // ==========================================
-
-    messagesContainer.addEventListener(
-        "touchcancel",
-        function() {
-
-            clearTimeout(
-                messageLongPressTimer
-            );
-
-            messageLongPressTimer =
-                null;
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    // ==========================================
-    // TOUCH MOVE
-    // ==========================================
-
-    messagesContainer.addEventListener(
-        "touchmove",
-        function() {
-
-            clearTimeout(
-                messageLongPressTimer
-            );
-
-            messageLongPressTimer =
-                null;
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    console.log(
-        "Stage 6 message actions ready."
-    );
-
-}
-
-
-
-
-// ======================================================
-// INITIALIZE STAGE 6
-// ======================================================
-
-function initStage6MessageActions() {
-
-    setupMessageActionEvents();
-
-}
-
-// ======================================================
-// STAGE 8 — Chat actions
-// 
-// ======================================================
-
-// =========================================================
-// part 1:: MESSAGE SEARCH
-// =========================================================
-
-
-
-
-// =========================================================
-// OPEN MESSAGE SEARCH
-// =========================================================
-
-function searchMessages() {
-
-    const searchBar =
-        document.getElementById(
-            "messageSearchBar"
-        );
-
-    const searchInput =
-        document.getElementById(
-            "messageSearchInput"
-        );
-
-    if (!searchBar || !searchInput) {
-
-        return;
-
-    }
-
-
-    /*
-     * Close the chat menu if it is open.
-     */
-
-    closeChatMenu();
-
-    closeMessagePreviewsOnUiOpen();
-
-    /*
-     * Open search bar.
-     */
-
-    searchBar.classList.remove(
-        "hidden"
-    );
-
-
-    /*
-     * Clear previous search.
-     */
-
-    searchInput.value = "";
-
-    messageSearchResults = [];
-
-    currentMessageSearchIndex = -1;
-
-
-    /*
-     * Focus search input.
-     */
-
-    setTimeout(
-        function() {
-
-            searchInput.focus();
-
-        },
-        50
-    );
-
-}
-
-
-// =========================================================
-// CLOSE MESSAGE SEARCH
-// =========================================================
-
-function closeMessageSearch() {
-
-    const searchBar =
-        document.getElementById(
-            "messageSearchBar"
-        );
-
-    const searchInput =
-        document.getElementById(
-            "messageSearchInput"
-        );
-
-
-    if (searchBar) {
-
-        searchBar.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (searchInput) {
-
-        searchInput.value = "";
-
-    }
-
-
-    /*
-     * Reset search state.
-     */
-
-    messageSearchResults = [];
-
-    currentMessageSearchIndex = -1;
-
-
-    /*
-     * Render normal messages again.
-     */
-
-    renderMessages();
-
-}
-
-
-// =========================================================
-// PERFORM MESSAGE SEARCH
-// =========================================================
-
-function performMessageSearch(
-    searchTerm
-) {
-
-    messageSearchResults = [];
-
-    currentMessageSearchIndex = -1;
-
-
-    if (
-        !currentChat ||
-        !Array.isArray(
-            currentChat.messages
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    const term =
-        String(
-            searchTerm || ""
-        )
-        .trim()
-        .toLowerCase();
-
-
-    /*
-     * Empty search.
-     */
-
-    if (!term) {
-
-        renderMessages();
-
-        return;
-
-    }
-
-
-    /*
-     * Find matching messages.
-     */
-
-    currentChat.messages.forEach(
-        function(message) {
-
-            const text =
-                String(
-                    message.text || ""
-                );
-
-
-            if (
-                text
-                .toLowerCase()
-                .includes(term)
-            ) {
-
-                messageSearchResults.push(
-                    message.id
-                );
-
-            }
-
-        }
-    );
-
-
-    /*
-     * No results.
-     */
-
-    if (
-        messageSearchResults.length ===
-        0
-    ) {
-
-        renderMessages();
-
-        return;
-
-    }
-
-
-    /*
-     * Start at the first result.
-     */
-
-    currentMessageSearchIndex = 0;
-
-
-    /*
-     * Render messages with
-     * search highlighting.
-     */
-
-    renderMessagesWithSearch(
-        term
-    );
-
-
-    /*
-     * Scroll to first result.
-     */
-
-    scrollToMessageSearchResult();
-
-}
-
-
-// =========================================================
-// RENDER MESSAGES WITH SEARCH
-// =========================================================
-
-function renderMessagesWithSearch(
-    searchTerm
-) {
-
-    const container =
-        supportChatElement(
-            "messages"
-        );
-
-
-    if (
-        !container ||
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    container.innerHTML =
-        "";
-
-
-    const messages =
-        currentChat.messages ||
-        [];
-
-
-    messages.forEach(
-        function(message) {
-
-            const element =
-                createMessageElement(
-                    message
-                );
-
-
-            /*
-             * Check whether this message
-             * is a search result.
-             */
-
-            const isResult =
-                messageSearchResults.includes(
-                    message.id
-                );
-
-
-            if (isResult) {
-
-                element.classList.add(
-                    "message-search-result"
-                );
-
-
-                /*
-                 * Highlight matching text.
-                 */
-
-                const textElement =
-                    element.querySelector(
-                        ".message-text"
-                    );
-
-
-                if (textElement) {
-
-                    highlightMessageText(
-                        textElement,
-                        searchTerm
-                    );
-
-                }
-
-
-                /*
-                 * Mark the currently
-                 * selected result.
-                 */
-
-                if (
-                    messageSearchResults[
-                        currentMessageSearchIndex
-                    ] === message.id
-                ) {
-
-                    element.classList.add(
-                        "message-search-current"
-                    );
-
-                }
-
-            }
-
-
-            container.appendChild(
-                element
-            );
-
-        }
-    );
-
-}
-
-
-// =========================================================
-// HIGHLIGHT SEARCH TEXT
-// =========================================================
-
-function highlightMessageText(
-    element,
-    searchTerm
-) {
-
-    if (
-        !element ||
-        !searchTerm
-    ) {
-
-        return;
-
-    }
-
-
-    const text =
-        element.textContent;
-
-
-    const escapedTerm =
-        searchTerm.replace(
-            /[.*+?^${}()|[\]\\]/g,
-            "\\$&"
-        );
-
-
-    const regex =
-        new RegExp(
-            "(" +
-            escapedTerm +
-            ")",
-            "gi"
-        );
-
-
-    /*
-     * Replace the text with
-     * highlighted HTML.
-     */
-
-    element.innerHTML =
-        text.replace(
-            regex,
-            "<mark>$1</mark>"
-        );
-
-}
-
-
-// =========================================================
-// SCROLL TO CURRENT SEARCH RESULT
-// =========================================================
-
-function scrollToMessageSearchResult() {
-
-    if (
-        currentMessageSearchIndex <
-        0
-    ) {
-
-        return;
-
-    }
-
-
-    const messageId =
-        messageSearchResults[
-            currentMessageSearchIndex
-        ];
-
-
-    if (
-        messageId === undefined
-    ) {
-
-        return;
-
-    }
-
-
-    const container =
-        supportChatElement(
-            "messages"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    const element =
-        container.querySelector(
-            '[data-message-id="' +
-            messageId +
-            '"]'
-        );
-
-
-    if (!element) {
-
-        return;
-
-    }
-
-
-    element.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-    });
-
-}
-
-
-// =========================================================
-// NEXT SEARCH RESULT
-// =========================================================
-
-function nextMessageSearchResult() {
-
-    if (
-        messageSearchResults.length ===
-        0
-    ) {
-
-        return;
-
-    }
-
-
-    currentMessageSearchIndex++;
-
-
-    if (
-        currentMessageSearchIndex >=
-        messageSearchResults.length
-    ) {
-
-        currentMessageSearchIndex = 0;
-
-    }
-
-
-    const searchInput =
-        document.getElementById(
-            "messageSearchInput"
-        );
-
-
-    const term =
-        searchInput
-            ? searchInput.value.trim()
-            : "";
-
-
-    renderMessagesWithSearch(
-        term
-    );
-
-
-    scrollToMessageSearchResult();
-
-}
-
-
-// =========================================================
-// PREVIOUS SEARCH RESULT
-// =========================================================
-
-function previousMessageSearchResult() {
-
-    if (
-        messageSearchResults.length ===
-        0
-    ) {
-
-        return;
-
-    }
-
-
-    currentMessageSearchIndex--;
-
-
-    if (
-        currentMessageSearchIndex <
-        0
-    ) {
-
-        currentMessageSearchIndex =
-            messageSearchResults.length - 1;
-
-    }
-
-
-    const searchInput =
-        document.getElementById(
-            "messageSearchInput"
-        );
-
-
-    const term =
-        searchInput
-            ? searchInput.value.trim()
-            : "";
-
-
-    renderMessagesWithSearch(
-        term
-    );
-
-
-    scrollToMessageSearchResult();
-
-}
-
-// =========================================================
-// MESSAGE SEARCH INPUT EVENTS
-// =========================================================
-
-function setupMessageSearchEvents() {
-
-    const searchInput =
-        document.getElementById(
-            "messageSearchInput"
-        );
-
-
-    if (!searchInput) {
-
-        return;
-
-    }
-
-
-    /*
-     * Prevent duplicate listeners.
-     */
-
-    if (
-        searchInput.dataset.searchReady ===
-        "true"
-    ) {
-
-        return;
-
-    }
-
-
-    searchInput.dataset.searchReady =
-        "true";
-
-
-    searchInput.addEventListener(
-        "input",
-        function() {
-
-            performMessageSearch(
-                this.value
-            );
-
-        }
-    );
-
-
-    /*
-     * Enter = next result.
-     */
-
-    searchInput.addEventListener(
-        "keydown",
-        function(event) {
-
-            if (
-                event.key ===
-                "Enter"
-            ) {
-
-                event.preventDefault();
-
-                nextMessageSearchResult();
-
-            }
-
-        }
-    );
-
-
-    /*
-     * Escape = close search.
-
-     */
-
-    searchInput.addEventListener(
-        "keydown",
-        function(event) {
-
-            if (
-                event.key ===
-                "Escape"
-            ) {
-
-                closeMessageSearch();
-
-            }
-
-        }
-    );
-
-}
-
-
-// ======================================================
-// INITIALIZE MESSAGE SEARCH
-// ======================================================
-
-function initializeMessageSearch() {
-
-    setupMessageSearchEvents();
-
-}
-
-// =========================================================
-// part 2::  TOGGLE CHAT MUTE
-// =========================================================
-
-function toggleChatMute() {
-
-    /*
-     * Make sure a chat is currently open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Toggle mute state.
-     */
-
-    currentChat.muted =
-        !currentChat.muted;
-
-
-    /*
-     * Close the chat menu.
-     */
-
-    closeChatMenu();
-
-
-    /*
-     * Update the chat list.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderIndividualChats();
-
-    }
-
-
-    /*
-     * Update the menu text/icon.
-     */
-
-    updateChatMuteMenu();
-
-
-}
-
-// =========================================================
-// UPDATE CHAT MUTE MENU
-// =========================================================
-
-function updateChatMuteMenu() {
-
-    const icon =
-        document.getElementById(
-            "chatMuteIcon"
-        );
-
-    const text =
-        document.getElementById(
-            "chatMuteText"
-        );
-
-
-    if (
-        !icon ||
-        !text ||
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    if (
-        currentChat.muted
-    ) {
-
-        icon.className =
-            "fa-solid fa-bell";
-
-        text.textContent =
-            "Unmute Notifications";
-
-    }
-    else {
-
-        icon.className =
-            "fa-solid fa-bell-slash";
-
-        text.textContent =
-            "Mute Notifications";
-
-    }
-
-}
-
-// ======================================================
-// TYPING INDICATOR
-// ======================================================
-
-let typingIndicatorTimeout = null;
-let typingIndicatorChatId = null;
-
-
-function showTypingIndicator(chatId, userName) {
-
-    const typingElement =
-        supportChatElement("typing");
-
-    const typingTextElement =
-        supportChatElement("typingText");
-
-    if (!typingElement) {
-
-        return;
-
-    }
-
-    if (typingTextElement) {
-
-        typingTextElement.textContent =
-            (userName || "User") + " is typing...";
-
-    }
-
-    typingIndicatorChatId = chatId;
-
-    typingElement.classList.remove("hidden");
-
-    scrollMessagesToBottom();
-
-}
-
-
-function hideTypingIndicator() {
-
-    const typingElement =
-        supportChatElement("typing");
-
-    if (typingElement) {
-
-        typingElement.classList.add("hidden");
-
-    }
-
-    typingIndicatorChatId = null;
-
-    if (typingIndicatorTimeout) {
-
-        clearTimeout(typingIndicatorTimeout);
-
-        typingIndicatorTimeout = null;
-
-    }
-
-}
-
-
-function simulateTypingReply(chatId, userName) {
-
-    if (typingIndicatorTimeout) {
-
-        clearTimeout(typingIndicatorTimeout);
-
-    }
-
-    const delay =
-        1200 + Math.floor(Math.random() * 1500);
-
-    typingIndicatorTimeout =
-        setTimeout(
-            function() {
-
-                if (
-                    currentChat &&
-                    currentChat.id === chatId &&
-                    currentChatType === "individual"
-                ) {
-
-                    showTypingIndicator(chatId, userName);
-
-                    typingIndicatorTimeout =
-                        setTimeout(
-                            function() {
-
-                                hideTypingIndicator();
-
-                            },
-                            2000 + Math.floor(Math.random() * 1500)
-                        );
-
-                }
-
-            },
-            delay
-        );
-
-}
-
-
-
-// =========================================================
-// part 3::  PIN MESSAGES
-// =========================================================
-
-// =========================================================
-// Open PIN MESSAGES
-// =========================================================
-
-function openPinMessages() {
-
-    /*
-     * Make sure a chat is currently open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Close the chat menu.
-     */
-
-    closeChatMenu();
-
-
-    /*
-     * Get the modal.
-     */
-
-    const modal =
-        document.getElementById(
-            "pinMessagesModal"
-        );
-
-
-    if (!modal) {
-
-        console.error(
-            "pinMessagesModal element not found"
-        );
-
-        return;
-
-    }
-
-
-    /*
-     * Open the modal.
-     */
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-}
-
-
-// =========================================================
-// CLOSE PIN MESSAGES
-// =========================================================
-
-function closePinMessages() {
-
-    const modal =
-        document.getElementById(
-            "pinMessagesModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    modal.classList.add(
-        "hidden"
-    );
-
-}
-
-// =========================================================
-// WRITE PIN MESSAGE
-// =========================================================
-
-// =========================================================
-// OPEN WRITE PIN MESSAGE
-// =========================================================
-
-function openWritePinMessage() {
-
-    /*
-     * Make sure a chat is open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Close the options modal.
-     */
-
-    closePinMessages();
-
-
-    /*
-     * Get the write modal.
-     */
-
-    const modal =
-        document.getElementById(
-            "writePinMessageModal"
-        );
-
-
-    const input =
-        document.getElementById(
-            "pinMessageInput"
-        );
-
-
-    if (!modal || !input) {
-
-        console.error(
-            "Write pin message elements not found"
-        );
-
-        return;
-
-    }
-
-
-    /*
-     * Clear previous message.
-     */
-
-    input.value = "";
-
-
-    /*
-     * Reset character count.
-     */
-
-    updatePinMessageCharacterCount();
-
-
-    /*
-     * Open modal.
-     */
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-
-    /*
-     * Focus input.
-     */
-
-    setTimeout(
-        function() {
-
-            input.focus();
-
-        },
-        50
-    );
-
-}
-
-// =========================================================
-// CLOSE WRITE PIN MESSAGE
-// =========================================================
-
-function closeWritePinMessage() {
-
-    const modal =
-        document.getElementById(
-            "writePinMessageModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    modal.classList.add(
-        "hidden"
-    );
-
-
-    const input =
-        document.getElementById(
-            "pinMessageInput"
-        );
-
-
-    if (input) {
-
-        input.value = "";
-
-    }
-
-
-    updatePinMessageCharacterCount();
-
-}
-
-// =========================================================
-// UPDATE PIN MESSAGE CHARACTER COUNT
-// =========================================================
-
-function updatePinMessageCharacterCount() {
-
-    const input =
-        document.getElementById(
-            "pinMessageInput"
-        );
-
-
-    const counter =
-        document.getElementById(
-            "pinMessageCharacterCount"
-        );
-
-
-    if (!input || !counter) {
-
-        return;
-
-    }
-
-
-    counter.textContent =
-        input.value.length;
-
-}
-
-// =========================================================
-// SETUP PIN MESSAGE INPUT
-// =========================================================
-
-function setupPinMessageInput() {
-
-    const input =
-        document.getElementById(
-            "pinMessageInput"
-        );
-
-
-    if (!input) {
-
-        return;
-
-    }
-
-
-    /*
-     * Prevent duplicate listener.
-     */
-
-    if (
-        input.dataset.pinInputReady ===
-        "true"
-    ) {
-
-        return;
-
-    }
-
-
-    input.dataset.pinInputReady =
-        "true";
-
-
-    input.addEventListener(
-        "input",
-        function() {
-
-            updatePinMessageCharacterCount();
-
-        }
-    );
-
-}
-
-// =========================================================
-// CREATE PINNED MESSAGE
-// =========================================================
-
-function createPinnedMessage() {
-
-    /*
-     * Make sure a chat is open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Get input.
-     */
-
-    const input =
-        document.getElementById(
-            "pinMessageInput"
-        );
-
-
-    if (!input) {
-
-        return;
-
-    }
-
-
-    /*
-     * Get message text.
-     */
-
-    const text =
-        input.value.trim();
-
-
-    /*
-     * Do not allow empty messages.
-     */
-
-    if (!text) {
-
-        input.focus();
-
-        return;
-
-    }
-
-
-    /*
-     * Make sure messages exists.
-     */
-
-    if (
-        !Array.isArray(
-            currentChat.messages
-        )
-    ) {
-
-        currentChat.messages = [];
-
-    }
-
-
-    /*
-     * Make sure pinned messages
-     * exists for this chat.
-     */
-
-    if (
-        !Array.isArray(
-            currentChat.pinnedMessages
-        )
-    ) {
-
-        currentChat.pinnedMessages = [];
-
-    }
-
-
-    /*
-     * Create a new message.
-     */
-
-    const message = {
-
-        id:
-            "MSG-" +
-            Date.now() +
-            "-" +
-            Math.random()
-                .toString(36)
-                .substring(2, 8),
-
-        text:
-            text,
-
-        sent:
-            true,
-
-        read:
-            true,
-
-        edited:
-            false,
-
-        time:
-            getCurrentMessageTime(),
-
-        senderName:
-            "Admin",
-
-        pinned:
-            true
-
-    };
-
-
-    /*
-     * Add message to chat.
-     */
-
-    currentChat.messages.push(
-        message
-    );
-
-
-    /*
-     * Add message to pinned messages.
-     */
-
-    currentChat.pinnedMessages.push(
-        message.id
-    );
-
-
-    /*
-     * Close modal.
-     */
-
-    closeWritePinMessage();
-
-
-    /*
-     * Update chat preview.
-     */
-
-    updateChatLastMessage(
-        currentChat
-    );
-
-
-    /*
-     * Render messages.
-     */
-
-    renderMessages();
-
-
-    /*
-     * Update chat list.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderIndividualChats();
-
-    }
-
-
-    /*
-     * Scroll to the new message.
-     */
-
-    scrollMessagesToBottom();
-
-}
-
-
-
-// =========================================================
-// SELECT EXISTING PINNED MESSAGES
-// =========================================================
-
-// =========================================================
-// START SELECT PINNED MESSAGES
-// =========================================================
-
-function startSelectPinnedMessages() {
-
-    /*
-     * Make sure a chat is open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Close the Pin Messages options.
-     */
-
-    closePinMessages();
-
-
-    /*
-     * Start selection mode.
-     */
-
-    pinMessageSelectionMode = true;
-
-
-    /*
-     * Clear previous selections.
-     */
-
-    selectedPinMessageIds = [];
-
-
-    /*
-     * Render messages in selection mode.
-     */
-
-    renderMessages();
-
-}
-
-// =========================================================
-// CANCEL PIN MESSAGE SELECTION
-// =========================================================
-
-function cancelPinMessageSelection() {
-
-    pinMessageSelectionMode = false;
-
-    selectedPinMessageIds = [];
-
-    updatePinMessageSelectionBar();
-
-
-    renderMessages();
-
-}
-
-// ======================================================
-// CANCEL PIN MESSAGE SELECTION ON OUTSIDE CLICK
-// ======================================================
-
-function setupPinSelectionOutsideClick() {
-
-    document.addEventListener(
-        "click",
-        function(event) {
-
-            if (!pinMessageSelectionMode) {
-
-                return;
-
-            }
-
-
-            const isInsideSelectionUI =
-                event.target.closest(
-                    "#pinMessageSelectionBar, .message"
-                );
-
-
-            if (isInsideSelectionUI) {
-
-                return;
-
-            }
-
-
-            cancelPinMessageSelection();
-
-        },
-        true
-    );
-
-}
-
-// =========================================================
-// TOGGLE PIN MESSAGE SELECTION
-// =========================================================
-
-function togglePinMessageSelection(
-    messageId
-) {
-
-    if (
-        !pinMessageSelectionMode
-    ) {
-
-        return;
-
-    }
-
-
-    const index =
-        selectedPinMessageIds.indexOf(
-            messageId
-        );
-
-
-    /*
-     * Already selected.
-     * Remove it.
-     */
-
-    if (
-        index !== -1
-    ) {
-
-        selectedPinMessageIds.splice(
-            index,
-            1
-        );
-
-    }
-
-    /*
-     * Not selected.
-     * Add it.
-     */
-
-    else {
-
-        selectedPinMessageIds.push(
-            messageId
-        );
-
-    }
-
-
-    /*
-     * Re-render the messages
-     * to update the selection UI.
-     */
-
-    renderMessages();
-
-}
-
-// =========================================================
-// UPDATE PIN MESSAGE SELECTION BAR
-// =========================================================
-
-function updatePinMessageSelectionBar() {
-
-    const bar =
-        document.getElementById(
-            "pinMessageSelectionBar"
-        );
-
-
-    const count =
-        document.getElementById(
-            "selectedPinMessageCount"
-        );
-
-
-    if (!bar || !count) {
-
-        return;
-
-    }
-
-
-    /*
-     * Not in selection mode.
-     */
-
-    if (
-        !pinMessageSelectionMode
-    ) {
-
-        bar.classList.add(
-            "hidden"
-        );
-
-        return;
-
-    }
-
-
-    /*
-     * Show selection bar.
-     */
-
-    bar.classList.remove(
-        "hidden"
-    );
-
-
-    count.textContent =
-        selectedPinMessageIds.length;
-
-}
-
-// =========================================================
-// PIN SELECTED MESSAGES
-// =========================================================
-
-function pinSelectedMessages() {
-
-    if (
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Nothing selected.
-     */
-
-    if (
-        selectedPinMessageIds.length ===
-        0
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Make sure pinnedMessages exists.
-     */
-
-    if (
-        !Array.isArray(
-            currentChat.pinnedMessages
-        )
-    ) {
-
-        currentChat.pinnedMessages = [];
-
-    }
-
-
-    /*
-     * Add each selected message.
-     */
-
-    selectedPinMessageIds.forEach(
-        function(messageId) {
-
-            /*
-             * Don't add the same message twice.
-             */
-
-            if (
-                !currentChat.pinnedMessages.includes(
-                    messageId
-                )
-            ) {
-
-                currentChat.pinnedMessages.push(
-                    messageId
-                );
-
-            }
-
-
-            /*
-             * Find the actual message.
-             */
-
-            const message =
-                currentChat.messages.find(
-                    function(item) {
-
-                        return (
-                            item.id ===
-                            messageId
-                        );
-
-                    }
-                );
-
-
-            /*
-             * Mark it as pinned.
-             */
-
-            if (message) {
-
-                message.pinned = true;
-
-            }
-
-        }
-    );
-
-
-    /*
-     * Exit selection mode.
-     */
-
-    pinMessageSelectionMode =
-        false;
-
-
-    selectedPinMessageIds = [];
-
-
-    /*
-     * Render normal messages.
-     */
-
-    renderMessages();
-
-}
-
-// =========================================================
-// GET CURRENT CHAT PINNED MESSAGES
-// =========================================================
-
-function getPinnedMessages() {
-
-    if (
-        !currentChat ||
-        !Array.isArray(
-            currentChat.pinnedMessages
-        ) ||
-        !Array.isArray(
-            currentChat.messages
-        )
-    ) {
-
-        return [];
-
-    }
-
-
-    return currentChat.pinnedMessages
-        .map(
-            function(messageId) {
-
-                return currentChat.messages.find(
-                    function(message) {
-
-                        return (
-                            message.id ===
-                            messageId
-                        );
-
-                    }
-                );
-
-            }
-        )
-        .filter(
-            function(message) {
-
-                return !!message;
-
-            }
-        );
-
-}
-
-// =========================================================
-// UPDATE PINNED MESSAGE BAR
-// =========================================================
-
-function updatePinnedMessageBar() {
-
-    const bar =
-        document.getElementById(
-            "pinnedMessageBar"
-        );
-
-
-    console.log(
-        "PIN BAR 1: bar =",
-        bar
-    );
-
-
-    const textElement =
-        document.getElementById(
-            "pinnedMessageText"
-        );
-
-
-    console.log(
-        "PIN BAR 2: textElement =",
-        textElement
-    );
-
-
-    const counter =
-        document.getElementById(
-            "pinnedMessageCounter"
-        );
-
-
-    console.log(
-    "PIN BAR 3: counter =",
-    counter
-);
-
-
-console.log(
-    "PIN BAR CHECK: pinnedMessageBar exists =",
-    !!bar
-);
-
-
-console.log(
-    "PIN BAR CHECK: pinnedMessageText exists =",
-    !!textElement
-);
-
-
-console.log(
-    "PIN BAR CHECK: pinnedMessageCounter exists =",
-    !!counter
-);
-
-
-    if (
-        !bar ||
-        !textElement ||
-        !counter
-    ) {
-
-        console.log(
-            "PIN BAR ERROR: Missing pinned message bar element"
-        );
-
-        return;
-
-    }
-
-
-    console.log(
-        "PIN BAR 3A: About to call getPinnedMessages()"
-    );
-
-
-    const pinnedMessages =
-        getPinnedMessages();
-
-
-    console.log(
-        "PIN BAR 3B: getPinnedMessages() returned"
-    );
-
-
-    console.log(
-        "PIN BAR 3C: pinnedMessages =",
-        pinnedMessages
-    );
-
-console.log(
-    "PIN BAR 3D: pinnedMessages.length =",
-    pinnedMessages.length
-);
-    /*
-     * No pinned messages.
-     */
-
-    if (
-        pinnedMessages.length ===
-        0
-    ) {
-
-        bar.classList.add(
-            "hidden"
-        );
-
-        currentPinnedMessageIndex =
-            0;
-
-        return;
-
-    }
-
-
-    /*
-     * Make sure the index
-     * is valid.
-     */
-
-    if (
-        currentPinnedMessageIndex >=
-        pinnedMessages.length
-    ) {
-
-        currentPinnedMessageIndex =
-            pinnedMessages.length - 1;
-
-    }
-
-
-    if (
-        currentPinnedMessageIndex < 0
-    ) {
-
-        currentPinnedMessageIndex =
-            0;
-
-    }
-
-
-    const message =
-        pinnedMessages[
-            currentPinnedMessageIndex
-        ];
-
-
-    /*
-     * Display message.
-     */
-
-    textElement.textContent =
-        message.text ||
-        "";
-
-
-    /*
-     * Display counter.
-     */
-
-    counter.textContent =
-        (
-            currentPinnedMessageIndex +
-            1
-        ) +
-        " of " +
-        pinnedMessages.length;
-
-
-    /*
-     * Show bar.
-     */
-
-    bar.classList.remove(
-        "hidden"
-    );
-
-	  // =====================================================
-// CREATE PINNED MESSAGE MENU BUTTON
-// =====================================================
-
-let menuButton =
-    document.getElementById(
-        "pinnedMessageMenu"
-    );
-
-
-if (!menuButton) {
-
-    menuButton =
-        document.createElement(
-            "button"
-        );
-
-
-    menuButton.type =
-        "button";
-
-
-    menuButton.id =
-        "pinnedMessageMenu";
-
-
-    menuButton.className =
-        "pinned-message-menu";
-
-
-    menuButton.innerHTML =
-        '<i class="fa-solid fa-ellipsis-vertical"></i>';
-
-
-    menuButton.addEventListener(
-        "click",
-        function(event) {
-
-            openPinnedMessageMenu(
-                event
-            );
-
-        }
-    );
-
-
-    bar.appendChild(
-        menuButton
-    );
-
-}
-
-    /*
-     * Update navigation buttons.
-     */
-
-    updatePinnedMessageNavigation(
-        pinnedMessages.length
-    );
-
-}
-
-// =========================================================
-// UPDATE PINNED MESSAGE NAVIGATION
-// =========================================================
-
-function updatePinnedMessageNavigation(
-    total
-) {
-
-    const previousButton =
-        document.getElementById(
-            "previousPinnedMessage"
-        );
-
-
-    const nextButton =
-        document.getElementById(
-            "nextPinnedMessage"
-        );
-
-
-    if (
-        !previousButton ||
-        !nextButton
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Hide navigation when
-     * there is only one message.
-     */
-
-    if (
-        total <= 1
-    ) {
-
-        previousButton.style.display =
-            "none";
-
-        nextButton.style.display =
-            "none";
-
-        return;
-
-    }
-
-
-    previousButton.style.display =
-        "flex";
-
-    nextButton.style.display =
-        "flex";
-
-}
-
-// =========================================================
-// NEXT PINNED MESSAGE
-// =========================================================
-
-function nextPinnedMessage() {
-
-    const pinnedMessages =
-        getPinnedMessages();
-
-
-    if (
-        pinnedMessages.length <= 1
-    ) {
-
-        return;
-
-    }
-
-
-    currentPinnedMessageIndex++;
-
-
-    if (
-        currentPinnedMessageIndex >=
-        pinnedMessages.length
-    ) {
-
-        currentPinnedMessageIndex =
-            0;
-
-    }
-
-
-    updatePinnedMessageBar();
-
-}
-
-// =========================================================
-// PREVIOUS PINNED MESSAGE
-// =========================================================
-
-function previousPinnedMessage() {
-
-    const pinnedMessages =
-        getPinnedMessages();
-
-
-    if (
-        pinnedMessages.length <= 1
-    ) {
-
-        return;
-
-    }
-
-
-    currentPinnedMessageIndex--;
-
-
-    if (
-        currentPinnedMessageIndex <
-        0
-    ) {
-
-        currentPinnedMessageIndex =
-            pinnedMessages.length - 1;
-
-    }
-
-
-    updatePinnedMessageBar();
-
-}
-
-// =========================================================
-// VIEW PINNED MESSAGE
-// =========================================================
-
-
-
-// =========================================================
-// OPEN PINNED MESSAGE MENU
-// =========================================================
-
-// =========================================================
-// OPEN PINNED MESSAGE MENU
-// =========================================================
-
-function openPinnedMessageMenu(
-    event
-) {
-
-    if (event) {
-
-        event.stopPropagation();
-
-    }
-
-
-    /*
-     * Make sure a chat is open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Get pinned messages.
-     */
-
-    const pinnedMessages =
-        getPinnedMessages();
-
-
-    if (
-        pinnedMessages.length ===
-        0
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Remove any existing menu.
-     */
-
-    const existingMenu =
-        document.getElementById(
-            "pinnedMessageActionMenu"
-        );
-
-
-    if (existingMenu) {
-
-        existingMenu.remove();
-
-        return;
-
-    }
-
-
-    /*
-     * Create the menu.
-     */
-
-    const menu =
-        document.createElement(
-            "div"
-        );
-
-
-    menu.id =
-        "pinnedMessageActionMenu";
-
-
-    menu.className =
-        "pinned-message-action-menu";
-
-
-    /*
-     * Create Unpin button.
-     */
-
-    const unpinButton =
-        document.createElement(
-            "button"
-        );
-
-
-    unpinButton.type =
-        "button";
-
-
-    unpinButton.innerHTML =
-        '<i class="fa-solid fa-thumbtack"></i>' +
-        '<span>Unpin message</span>';
-
-
-    /*
-     * Unpin action.
-     */
-
-    unpinButton.addEventListener(
-        "click",
-        function(event) {
-
-            event.stopPropagation();
-
-
-            /*
-             * Remove the menu.
-             */
-
-            menu.remove();
-
-
-            /*
-             * Unpin the current
-             * pinned message.
-             */
-
-            unpinCurrentPinnedMessage();
-
-        }
-    );
-
-
-    /*
-     * Add button to menu.
-     */
-
-    menu.appendChild(
-        unpinButton
-    );
-
-
-    /*
-     * Add menu to page.
-     */
-
-    document.body.appendChild(
-        menu
-    );
-
-
-    /*
-     * Position menu near
-     * the three-dot button.
-     */
-
-    if (event && event.currentTarget) {
-
-        const button =
-            event.currentTarget;
-
-
-        const rect =
-            button.getBoundingClientRect();
-
-
-        menu.style.position =
-            "fixed";
-
-
-        menu.style.top =
-            (
-                rect.bottom +
-                5
-            ) +
-            "px";
-
-
-        menu.style.right =
-            (
-                window.innerWidth -
-                rect.right
-            ) +
-            "px";
-
-    }
-
-
-    /*
-     * Close menu when clicking
-     * somewhere else.
-     */
-
-    setTimeout(
-        function() {
-
-            document.addEventListener(
-                "click",
-                closePinnedMessageActionMenu,
-                {
-                    once: true
-                }
-            );
-
-        },
-        0
-    );
-
-}
-
-
-// =========================================================
-// CLOSE PINNED MESSAGE ACTION MENU
-// =========================================================
-
-function closePinnedMessageActionMenu() {
-
-    const menu =
-        document.getElementById(
-            "pinnedMessageActionMenu"
-        );
-
-
-    if (menu) {
-
-        menu.remove();
-
-    }
-
-}
-
-
-// =========================================================
-// SCROLL TO CURRENT PINNED MESSAGE
-// =========================================================
-
-// =========================================================
-// SCROLL TO CURRENT PINNED MESSAGE
-// =========================================================
-
-function scrollToCurrentPinnedMessage() {
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    const pinnedMessages =
-        getPinnedMessages();
-
-
-    if (
-        pinnedMessages.length === 0
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-     * Make sure the current index
-     * is valid.
-     */
-
-    if (
-        currentPinnedMessageIndex < 0
-    ) {
-
-        currentPinnedMessageIndex = 0;
-
-    }
-
-
-    if (
-        currentPinnedMessageIndex >=
-        pinnedMessages.length
-    ) {
-
-        currentPinnedMessageIndex =
-            pinnedMessages.length - 1;
-
-    }
-
-
-    /*
-     * Get the current pinned message.
-     */
-
-    const message =
-        pinnedMessages[
-            currentPinnedMessageIndex
-        ];
-
-
-    if (!message) {
-
-        return;
-
-    }
-
-
-    /*
-     * Get messages container.
-     */
-
-    const messagesContainer =
-        supportChatElement(
-            "messages"
-        );
-
-
-    if (!messagesContainer) {
-
-        return;
-
-    }
-
-
-    /*
-     * Find the actual message
-     * element.
-     */
-
-    const messageElement =
-        messagesContainer.querySelector(
-            '[data-message-id="' +
-            message.id +
-            '"]'
-        );
-
-
-    if (!messageElement) {
-
-        return;
-
-    }
-
-
-    /*
-     * Remove previous pinned
-     * highlight if one exists.
-     */
-
-    const oldHighlight =
-        messagesContainer.querySelector(
-            ".pinned-message-highlight"
-        );
-
-
-    if (oldHighlight) {
-
-        oldHighlight.classList.remove(
-            "pinned-message-highlight"
-        );
-
-    }
-
-
-    /*
-     * Scroll to the pinned message.
-     */
-
-    messageElement.scrollIntoView({
-
-        behavior:
-            "smooth",
-
-        block:
-            "center"
-
-    });
-
-
-    /*
-     * Highlight the message.
-     */
-
-    messageElement.classList.add(
-        "pinned-message-highlight"
-    );
-
-
-    /*
-     * Remove highlight after
-     * 1.5 seconds.
-     */
-
-    setTimeout(
-        function() {
-
-            messageElement.classList.remove(
-                "pinned-message-highlight"
-            );
-
-        },
-        3500
-    );
-
-}
-
-// =========================================================
-// UNPIN CURRENT PINNED MESSAGE
-// =========================================================
-
-function unpinCurrentPinnedMessage() {
-
-    if (
-        !currentChat
-    ) {
-
-        return;
-
-    }
-
-
-    if (
-        !Array.isArray(
-            currentChat.pinnedMessages
-        )
-    ) {
-
-        return;
-
-    }
-
-
-    const pinnedMessages =
-        getPinnedMessages();
-
-
-    if (
-        pinnedMessages.length ===
-        0
-    ) {
-
-        return;
-
-    }
-
-
-    const message =
-        pinnedMessages[
-            currentPinnedMessageIndex
-        ];
-
-
-    if (!message) {
-
-        return;
-
-    }
-
-
-    /*
-     * Remove the ID from
-     * pinnedMessages.
-     */
-
-    currentChat.pinnedMessages =
-        currentChat.pinnedMessages.filter(
-            function(messageId) {
-
-                return (
-                    messageId !==
-                    message.id
-                );
-
-            }
-        );
-
-
-    /*
-     * Mark the message
-     * as no longer pinned.
-     */
-
-    message.pinned =
-        false;
-
-
-    /*
-     * Correct the index.
-     */
-
-    const remaining =
-        currentChat.pinnedMessages.length;
-
-
-    if (
-        currentPinnedMessageIndex >=
-        remaining
-    ) {
-
-        currentPinnedMessageIndex =
-            Math.max(
-                remaining - 1,
-                0
-            );
-
-    }
-
-	  /*
- * Re-render messages.
- */
-
-renderMessages();
-
-
-/*
- * Update pinned message bar.
- */
-
-updatePinnedMessageBar();
-
-
-}
-
-
-// =========================================================
-// Part 4:: MARK CURRENT CHAT AS UNREAD
-// =========================================================
-
-function markChatUnread() {
-
-    /*
-     * Make sure a chat is currently open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Mark the chat as unread.
-     */
-
-    currentChat.unread = 1;
-
-
-    /*
-     * Make sure the chat has messages.
-     */
-
-    if (
-        Array.isArray(
-            currentChat.messages
-        ) &&
-        currentChat.messages.length > 0
-    ) {
-
-        /*
-         * Find the latest message.
-         */
-
-        const lastMessage =
-            currentChat.messages[
-                currentChat.messages.length - 1
-            ];
-
-
-        /*
-         * Mark the latest message
-         * as unread.
-         */
-
-        if (lastMessage) {
-
-            lastMessage.read =
-                false;
-
-        }
-
-    }
-
-
-    /*
-     * Update the chat list.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else if (
-        currentChatType ===
-        "group"
-    ) {
-
-        renderIndividualChats();
-
-    }
-
-
-    /*
-     * Update global unread counts.
-     */
-
-    updateUnreadCounts();
-
-
-    /*
-     * Close the chat menu.
-     */
-
-    closeChatMenu();
-
-}
-
-
-// =========================================================
-// Part 6:: CLEAR MESSAGES
-// =========================================================
-
-// =========================================================
-// CLEAR CURRENT CHAT MESSAGES
-// =========================================================
-
-function clearChatMessages() {
-
-    /*
-     * Make sure a chat is currently open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Close the chat menu.
-     */
-
-    closeChatMenu();
-
-
-    /*
-     * Open the clear messages
-     * confirmation dialog.
-     */
-
-    openClearMessagesConfirmation();
-
-}
-
-// =========================================================
-// OPEN CLEAR MESSAGES CONFIRMATION
-// =========================================================
-
-function openClearMessagesConfirmation() {
-
-    /*
-     * Make sure a chat is open.
-     */
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    /*
-     * Create the confirmation
-     * container.
-     */
-
-    const overlay =
-        document.createElement(
-            "div"
-        );
-
-
-    overlay.id =
-        "clearMessagesConfirmation";
-
-
-    overlay.className =
-        "clear-messages-confirmation";
-
-
-    /*
-     * Create the dialog.
-     */
-
-    overlay.innerHTML =
-
-        '<div class="clear-messages-dialog">' +
-
-            '<div class="clear-messages-dialog-icon">' +
-                '<i class="fa-solid fa-trash"></i>' +
-            '</div>' +
-
-            '<h3>Clear messages?</h3>' +
-
-            '<p>' +
-                'All messages in this chat will be removed.' +
-            '</p>' +
-
-            '<div class="clear-messages-dialog-actions">' +
-
-                '<button ' +
-                    'type="button" ' +
-                    'class="clear-messages-cancel" ' +
-                    'id="cancelClearMessages">' +
-                    'Cancel' +
-                '</button>' +
-
-                '<button ' +
-                    'type="button" ' +
-                    'class="clear-messages-confirm" ' +
-                    'id="confirmClearMessages">' +
-                    'Clear messages' +
-                '</button>' +
-
-            '</div>' +
-
-        '</div>';
-
-
-    /*
-     * Add confirmation to page.
-     */
-
-    document.body.appendChild(
-        overlay
-    );
-
-
-    /*
-     * Cancel button.
-     */
-
-    const cancelButton =
-        document.getElementById(
-            "cancelClearMessages"
-        );
-
-
-    if (cancelButton) {
-
-        cancelButton.addEventListener(
-            "click",
-            function() {
-
-                closeClearMessagesConfirmation();
-
-            }
-        );
-
-    }
-
-
-    /*
-     * Confirm button.
-     */
-
-    const confirmButton =
-        document.getElementById(
-            "confirmClearMessages"
-        );
-
-
-    if (confirmButton) {
-
-        confirmButton.addEventListener(
-            "click",
-            function() {
-
-                confirmClearChatMessages();
-
-            }
-        );
-
-    }
-
-
-    /*
-     * Close when clicking
-     * the dark background.
-     */
-
-    overlay.addEventListener(
-        "click",
-        function(event) {
-
-            if (
-                event.target ===
-                overlay
-            ) {
-
-                closeClearMessagesConfirmation();
-
-            }
-
-        }
-    );
-
-}
-
-// =========================================================
-// CONFIRM CLEAR CHAT MESSAGES
-// =========================================================
-
-function confirmClearChatMessages() {
-
-    /*
-     * Make sure a chat is open.
-     */
-
-    if (!currentChat) {
-
-        closeClearMessagesConfirmation();
-
-        return;
-
-    }
-
-
-    /*
-     * Clear all messages.
-     */
-
-    currentChat.messages = [];
-     currentChat.unread = 0;
-
-    /*
-     * Clear pinned messages too.
-     */
-
-    currentChat.pinnedMessages = [];
-
-
-    /*
-     * Reset pinned message index.
-     */
-
-    currentPinnedMessageIndex =
-        0;
-
-
-    /*
-     * Exit pin selection mode.
-     */
-
-    pinMessageSelectionMode =
-        false;
-
-
-    selectedPinMessageIds =
-        [];
-
-
-    /*
-     * Render the empty chat.
-     */
-
-    renderMessages();
-
-
-    /*
-     * Update pinned message bar.
-     */
-
-    updatePinnedMessageBar();
-
-
-    /*
-     * Update pin selection bar.
-     */
-
-    updatePinMessageSelectionBar();
-
-
-    /*
-     * Update chat preview.
-     */
-
-    updateChatLastMessage(
-        currentChat
-    );
-
-
-    /*
-     * Refresh chat list.
-     */
-
-    if (
-        currentChatType ===
-        "individual"
-    ) {
-
-        renderIndividualChats();
-
-    }
-    else {
-
-        renderIndividualChats();
-
-    }
-
-
-    /*
-     * Update unread counts.
-     */
-
-    updateUnreadCounts();
-
-
-    /*
-     * Close confirmation.
-
-     */
-
-    closeClearMessagesConfirmation();
-
-}
-
-// =========================================================
-// CLOSE CLEAR MESSAGES CONFIRMATION
-// =========================================================
-
-function closeClearMessagesConfirmation() {
-
-    const overlay =
-        document.getElementById(
-            "clearMessagesConfirmation"
-        );
-
-
-    if (!overlay) {
-
-        return;
-
-    }
-
-
-    overlay.remove();
-
-}
-
-
-// =========================================================
-// Part 7:: DELETE CURRENT CHAT
-// =========================================================
-
-
-
-// ======================================================
-// GLOBAL ACCESS
-// ======================================================
-
-window.setupMessageActionEvents =
-    setupMessageActionEvents;
-
-window.initStage6MessageActions =
-    initStage6MessageActions;
-
-window.closeMessageActionMenu =
-    closeMessageActionMenu;
-
-window.searchMessages =
-    searchMessages;
-
-window.closeMessageSearch =
-    closeMessageSearch;
-
-window.nextMessageSearchResult =
-    nextMessageSearchResult;
-
-window.previousMessageSearchResult =
-    previousMessageSearchResult;
-
-window.toggleChatMute =
-    toggleChatMute;
-// ======================================================
-// 59. GLOBAL EDIT FUNCTIONS
-// ======================================================
-
-window.startEditMessage =
-    startEditMessage;
-
-
-window.cancelEditMessage =
-    cancelEditMessage;
-
-
-window.saveEditedMessage =
-    saveEditedMessage;
-
-
-window.isEditingMessage =
-    isEditingMessage;
-
-window.copyMessage =
-    copyMessage;
-
-
-window.deleteMessage =
-    deleteMessage;
-
-
-// ======================================================
-// 86. REPLY GLOBAL ACCESS
-// ======================================================
-
-window.replyToMessage =
-    replyToMessage;
-
-
-window.showReplyPreview =
-    showReplyPreview;
-
-
-window.closeReplyPreview =
-    closeReplyPreview;
-
-
-window.cancelReply =
-    cancelReply;
-
-
-window.sendReplyMessage =
-    sendReplyMessage;
-
-
-window.sendCurrentReply =
-    sendCurrentReply;
-
-
-window.handleReplyAction =
-    handleReplyAction;
-
-
-window.scrollToMessage =
-    scrollToMessage;
-
-
-window.openRepliedMessage =
-    openRepliedMessage;
-
-
-window.isReplying =
-    isReplying;
-
-
-window.getReplyingMessage =
-    getReplyingMessage;
-
-
-window.setupReplyPreviewEvents =
-    setupReplyPreviewEvents;
-
-
-
-// ======================================================
-// 69. MESSAGE ENGINE GLOBAL ACCESS
-// ======================================================
-
-window.sendMessage =
-    sendMessage;
-
-
-window.handleMessageInputKeydown =
-    handleMessageInputKeydown;
-
-
-window.getMessageText =
-    getMessageText;
-
-
-window.clearMessageInput =
-    clearMessageInput;
-
-
-window.initializeMessageEngine =
-    initializeMessageEngine;
-
-
-
-
-
-// ======================================================
-// SUPPORT CHAT GLOBAL FUNCTIONS
-// ======================================================
-
-window.showIndividualChats =
-    showIndividualChats;
-
-window.openIndividualChat =
-    openIndividualChat;
-
-window.closeChat =
-    closeChat;
-
-window.openNewChatModal =
-    openNewChatModal;
-
-window.closeNewChatModal =
-    closeNewChatModal;
-
-window.filterChats =
-    filterChats;
-    
-
-// =========================================================
-// GLOBAL CHAT FUNCTIONS
-// Required for HTML onclick="" handlers
-// =========================================================
-
-window.toggleChatMenu = toggleChatMenu;
-window.closeChatMenu = closeChatMenu;
-window.sendMessage = sendMessage;
-
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 7 — ATTACHMENTS, EMOJI & VOICE MESSAGES
-// ==========================================================================
-
-// ======================================================
-// TOGGLE ATTACHMENT MENU
-// ======================================================
-
-function toggleAttachmentMenu() {
-
-  if (
-        editingMessage
-    ) {
-
-        cancelEditMessage();
-
-    }
-
-    const menu =
-        supportChatElement(
-            "attachmentMenu"
-        );
-
-
-    if (!menu) {
-
-        return;
-
-    }
-
-
-    const isOpening =
-        menu.classList.contains(
-            "hidden"
-        );
-
-
-    if (isOpening) {
-
-        
-
-        menu.classList.remove(
-            "hidden"
-        );
-
-        attachmentMenuOpen =
-            true;
-
-    }
-    else {
-
-        closeAttachmentMenu();
-
-    }
-
-}
-
-
-// ======================================================
-// CLOSE ATTACHMENT MENU
-// ======================================================
-
-function closeAttachmentMenu() {
-
-    const menu =
-        supportChatElement(
-            "attachmentMenu"
-        );
-
-
-    if (menu) {
-
-        menu.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    attachmentMenuOpen =
-        false;
-
-}
-
-
-// ======================================================
-// ATTACH PHOTO
-// ======================================================
-
-function attachPhoto() {
-
-    closeAttachmentMenu();
-
-
-    const input =
-        supportChatElement(
-            "photoInput"
-        );
-
-
-    if (input) {
-
-        input.click();
-
-    }
-
-}
-
-
-// ======================================================
-// ATTACH DOCUMENT
-// ======================================================
-
-function attachDocument() {
-
-    closeAttachmentMenu();
-
-
-    const input =
-        supportChatElement(
-            "documentInput"
-        );
-
-
-    if (input) {
-
-        input.click();
-
-    }
-
-}
-
-
-// ======================================================
-// ATTACH CAMERA
-// ======================================================
-
-function attachCamera() {
-
-    closeAttachmentMenu();
-
-
-    const input =
-        supportChatElement(
-            "cameraInput"
-        );
-
-
-    if (input) {
-
-        input.click();
-
-    }
-
-}
-
-
-
-
-
-
-// ======================================================
-// SEND AN ATTACHMENT AS A MESSAGE
-// (no upload backend exists, so the attachment
-// is represented as a labeled text message)
-// ======================================================
-
-function sendAttachmentMessage(label, type, fileData) {
+function deleteMessage(messageId) {
 
     if (!currentChat) return;
 
-    const message = prepareMessageForSend(label, type, fileData);
-    if (!addMessageToCurrentChat(message)) return;
+    deleteActionType = "message";
+    deleteActionId = messageId;
 
-    if (replyingToMessage) {
-        replyingToMessage = null;
-        closeReplyPreview();
-    }
+    const titleElement = supportChatElement("deleteConfirmTitle");
+    const textElement = supportChatElement("deleteConfirmText");
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const modal = supportChatElement("deleteConfirmModal");
 
-    updateIndividualChatPreview(currentChat, message);
-    moveIndividualChatToTop(currentChat);
-    renderMessages();
-    renderIndividualChats();
-    updateUnreadCounts();
-    scrollMessagesToBottom();
+    if (titleElement) titleElement.textContent = "Delete Message?";
+    if (textElement) textElement.textContent = "This will permanently delete this message. This action cannot be undone.";
+    if (confirmBtn) confirmBtn.textContent = "Delete";
+    if (modal) modal.classList.remove("hidden");
 
 }
 
+function closeDeleteConfirmation() {
 
+    const modal = supportChatElement("deleteConfirmModal");
+    if (modal) modal.classList.add("hidden");
 
-// ======================================================
-// HANDLE FILE INPUT CHANGE
-// ======================================================
-
-function handleAttachmentFileChange(
-    event,
-    icon
-) {
-
-    const files =
-        event.target.files;
-
-
-    if (
-        !files ||
-        files.length === 0
-    ) {
-
-        return;
-
-    }
-
-
-    const file =
-        files[0];
-
-    const fileUrl =
-        URL.createObjectURL(
-            file
-        );
-
-
-    sendAttachmentMessage(
-        icon +
-        " " +
-        file.name,
-        "attachment",
-        {
-            fileUrl:
-                fileUrl,
-
-            fileName:
-                file.name,
-
-            fileMime:
-                file.type
-        }
-    );
-
-
-    /*
-     * Reset the input so selecting the
-     * same file again still fires "change".
-     */
-
-    event.target.value =
-        "";
+    deleteActionType = null;
+    deleteActionId = null;
+    deleteActionIds = [];
 
 }
 
+function confirmDeleteAction() {
 
+    if (deleteActionType === "message") {
 
+        const messageId = deleteActionId;
 
+        sb.from("support_messages").delete().eq("id", messageId).then(function (res) {
 
-
-// ======================================================
-// SETUP ATTACHMENT EVENTS
-// ======================================================
-
-function setupAttachmentEvents() {
-
-    const photoInput =
-        supportChatElement(
-            "photoInput"
-        );
-
-
-    const documentInput =
-        supportChatElement(
-            "documentInput"
-        );
-
-
-    const cameraInput =
-        supportChatElement(
-            "cameraInput"
-        );
-
-
-    const groupPhotoInput =
-        supportChatElement(
-            "groupPhotoInput"
-        );
-
-
-    if (
-        photoInput &&
-        !photoInput.dataset.ready
-    ) {
-
-        photoInput.addEventListener(
-            "change",
-            function(event) {
-
-                handleAttachmentFileChange(
-                    event,
-                    "📷 Photo:"
-                );
-
-            }
-        );
-
-
-        photoInput.dataset.ready =
-            "true";
-
-    }
-
-
-    if (
-        documentInput &&
-        !documentInput.dataset.ready
-    ) {
-
-        documentInput.addEventListener(
-            "change",
-            function(event) {
-
-                handleAttachmentFileChange(
-                    event,
-                    "📄 Document:"
-                );
-
-            }
-        );
-
-
-        documentInput.dataset.ready =
-            "true";
-
-    }
-
-
-    if (
-        cameraInput &&
-        !cameraInput.dataset.ready
-    ) {
-
-        cameraInput.addEventListener(
-            "change",
-            function(event) {
-
-                handleAttachmentFileChange(
-                    event,
-                    "📷 Photo:"
-                );
-
-            }
-        );
-
-
-        cameraInput.dataset.ready =
-            "true";
-
-    }
-
-
-    if (
-        groupPhotoInput &&
-        !groupPhotoInput.dataset.ready
-    ) {
-
-        groupPhotoInput.addEventListener(
-            "change",
-            handleGroupPhotoChange
-        );
-
-
-        groupPhotoInput.dataset.ready =
-            "true";
-
-    }
-
-
-    /*
-     * Close the attachment menu when
-     * clicking anywhere outside it.
-     */
-
-    document.addEventListener(
-        "click",
-        function(event) {
-
-            if (!attachmentMenuOpen) {
-
+            if (res.error) {
+                alert("Failed to delete message: " + res.error.message);
                 return;
+            }
+
+            if (currentChat) {
+
+                const index = currentChat.messages.findIndex(function (m) { return m.id === messageId; });
+
+                if (index !== -1) currentChat.messages.splice(index, 1);
+                if (replyingToMessage && replyingToMessage.id === messageId) cancelReply();
+                if (editingMessage && editingMessage.id === messageId) cancelEditMessage();
+
+                renderMessages();
+                updatePinnedMessageBar();
 
             }
 
+            loadSupportConversations();
 
-            const menu =
-                supportChatElement(
-                    "attachmentMenu"
-                );
+        });
 
+    } else if (deleteActionType === "chat") {
 
-            if (!menu) {
+        const chatId = deleteActionId;
 
+        sb.from("support_conversations").delete().eq("id", chatId).then(function (res) {
+
+            if (res.error) {
+                alert("Failed to delete conversation: " + res.error.message);
                 return;
-
             }
 
+            const index = individualChats.findIndex(function (c) { return c.id === chatId; });
+            if (index !== -1) individualChats.splice(index, 1);
 
-            const clickedInsideMenu =
-                menu.contains(
-                    event.target
-                );
+            if (currentChat && currentChat.id === chatId) closeChat();
 
+            renderIndividualChats();
+            updateUnreadCounts();
 
-            const clickedToggleButton =
-                event.target.closest(
-                    '[onclick="toggleAttachmentMenu()"]'
-                );
+        });
 
+    } else if (deleteActionType === "bulkChats") {
 
-            if (
-                !clickedInsideMenu &&
-                !clickedToggleButton
-            ) {
+        const ids = deleteActionIds;
 
-                closeAttachmentMenu();
+        sb.from("support_conversations").delete().in("id", ids).then(function (res) {
 
+            if (res.error) {
+                alert("Failed to delete conversations: " + res.error.message);
+                return;
             }
 
-        }
-    );
+            individualChats = individualChats.filter(function (c) { return !ids.includes(c.id); });
 
-}
+            if (currentChat && ids.includes(currentChat.id)) closeChat();
 
+            renderIndividualChats();
+            updateUnreadCounts();
+            exitChatSelectionMode();
 
-// ======================================================
-// EMOJI PICKER — EMOJI LIST
-// ======================================================
+        });
 
+    } else if (deleteActionType === "clearMessages") {
 
+        const chatId = deleteActionId;
 
+        sb.from("support_messages").delete().eq("conversation_id", chatId).then(function (res) {
 
-// ======================================================
-// TOGGLE EMOJI PICKER
-// ======================================================
-
-
-
-
-// ======================================================
-// CLOSE EMOJI PICKER
-// ======================================================
-
-
-
-
-// ======================================================
-// POPULATE EMOJI PICKER
-// ======================================================
-
-
-
-
-// ======================================================
-// INSERT EMOJI INTO MESSAGE INPUT
-// ======================================================
-
-
-
-
-// ======================================================
-// START VOICE MESSAGE
-// (no microphone/recording backend exists here,
-// so this toggles a simple recording indicator and,
-// on stop, sends a placeholder voice-note message)
-// ======================================================
-
-let voiceMediaRecorder = null;
-let voiceRecordedChunks = [];
-let voiceStream = null;
-
-
-function startVoiceMessage() {
-
-    if (
-        editingMessage
-    ) {
-
-        cancelEditMessage();
-
-    }
-
-
-    if (!currentChat) {
-
-        return;
-
-    }
-
-
-    const voiceButton =
-        supportChatElement(
-            "voiceMessageBtn"
-        );
-
-
-    /*
-     * Not currently recording -> start.
-     */
-
-    if (!isRecordingVoice) {
-
-        navigator.mediaDevices
-            .getUserMedia({ audio: true })
-            .then(
-                function(stream) {
-
-                    voiceStream = stream;
-
-                    voiceRecordedChunks = [];
-
-                    voiceMediaRecorder =
-                        new MediaRecorder(stream);
-
-
-                    voiceMediaRecorder.addEventListener(
-                        "dataavailable",
-                        function(event) {
-
-                            if (
-                                event.data &&
-                                event.data.size > 0
-                            ) {
-
-                                voiceRecordedChunks.push(
-                                    event.data
-                                );
-
-                            }
-
-                        }
-                    );
-
-
-                    voiceMediaRecorder.addEventListener(
-                        "stop",
-                        function() {
-
-                            const blob =
-                                new Blob(
-                                    voiceRecordedChunks,
-                                    { type: "audio/webm" }
-                                );
-
-
-                            const fileUrl =
-                                URL.createObjectURL(
-                                    blob
-                                );
-
-
-                            if (voiceStream) {
-
-                                voiceStream.getTracks().forEach(
-                                    function(track) {
-
-                                        track.stop();
-
-                                    }
-                                );
-
-                                voiceStream = null;
-
-                            }
-
-
-                            sendAttachmentMessage(
-                                "🎤 Voice message",
-                                "voice",
-                                {
-                                    fileUrl:
-                                        fileUrl
-                                }
-                            );
-
-                        }
-                    );
-
-
-                    voiceMediaRecorder.start();
-
-
-                    isRecordingVoice = true;
-
-
-                    if (voiceButton) {
-
-                        voiceButton.classList.add(
-                            "recording"
-                        );
-
-                        voiceButton.title =
-                            "Stop recording";
-
-                    }
-
-                }
-            )
-            .catch(
-                function(error) {
-
-                    console.error(
-                        "Microphone access denied:",
-                        error
-                    );
-
-                }
-            );
-
-
-        return;
-
-    }
-
-
-    /*
-     * Already recording -> stop.
-     */
-
-    isRecordingVoice = false;
-
-
-    if (voiceButton) {
-
-        voiceButton.classList.remove(
-            "recording"
-        );
-
-        voiceButton.title =
-            "Voice message";
-
-    }
-
-
-    if (
-        voiceMediaRecorder &&
-        voiceMediaRecorder.state !== "inactive"
-    ) {
-
-        voiceMediaRecorder.stop();
-
-    }
-
-}
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// ==========================================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 9 — MEMBER ACTIONS
-// ==========================================================================
-
-// ======================================================
-// OPEN MEMBER ACTIONS
-// ======================================================
-
-
-
-
-// ======================================================
-// CLOSE MEMBER ACTIONS
-// ======================================================
-
-
-
-
-// ======================================================
-// VIEW MEMBER PROFILE
-// ======================================================
-
-
-
-
-// ======================================================
-// TOGGLE MEMBER ADMIN
-// ======================================================
-
-
-
-
-
-
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 10 — USER PROFILE
-// ==========================================================================
-
-// ======================================================
-// OPEN CURRENT PROFILE
-// ======================================================
-
-function openCurrentProfile() {
-
-    closeMessagePreviewsOnUiOpen();
-    if (!currentChat || !currentUser) return;
-    populateUserProfileModal(currentUser);
-
-}
-
-
-
-// ======================================================
-// POPULATE USER PROFILE MODAL
-// ======================================================
-
-function populateUserProfileModal(
-    user
-) {
-
-    const modal =
-        supportChatElement(
-            "userProfileModal"
-        );
-  
-
-
-    if (
-        !modal ||
-        !user
-    ) {
-
-        return;
-
-    }
-
-
-    const fields =
-        {
-
-            profileName:
-                user.name,
-
-            profileUserId:
-                user.id,
-
-            profileAccountStatus:
-                user.status,
-
-            profileEmail:
-                user.email,
-
-            profilePhone:
-                user.phone,
-
-            profileJoined:
-                user.joined,
-
-            profileVerification:
-                user.verification,
-
-            profileBalance:
-                "M" +
-                Number(
-                    user.balance || 0
-                ).toFixed(2),
-
-            profileDeposited:
-                "M" +
-                Number(
-                    user.deposited || 0
-                ).toFixed(2),
-
-            profileWithdrawn:
-                "M" +
-                Number(
-                    user.withdrawn || 0
-                ).toFixed(2),
-
-            profilePlan:
-                user.plan ||
-                "None"
-
-        };
-
-
-    Object.keys(
-        fields
-    ).forEach(
-        function(id) {
-
-            const element =
-                supportChatElement(
-                    id
-                );
-
-
-            if (element) {
-
-                element.textContent =
-                    fields[id];
-
+            if (res.error) {
+                alert("Failed to clear messages: " + res.error.message);
+                return;
             }
 
-        }
-    );
+            const chat = findIndividualChat(chatId);
 
+            if (chat) {
+                chat.messages = [];
+                chat.lastMessage = "No messages yet";
+            }
 
-    const avatarElement =
-        supportChatElement(
-            "profileAvatar"
-        );
+            if (currentChat && currentChat.id === chatId) {
+                renderMessages();
+                updatePinnedMessageBar();
+            }
 
+            loadSupportConversations();
 
-        if (avatarElement) {
-
-        avatarElement.textContent =
-            getInitials(
-                user.name
-            );
-
-    }
-
-
-    const onlineElement =
-        supportChatElement(
-            "profileOnlineStatus"
-        );
-
-
-    if (onlineElement) {
-
-        onlineElement.style.display =
-            user.online
-                ? "block"
-                : "none";
+        });
 
     }
 
-
-    modal.dataset.profileUserId =
-        user.id;
-   
-
-    modal.classList.remove(
-        "hidden"
-    );
+    closeDeleteConfirmation();
 
 }
 
 
 // ======================================================
-// CLOSE USER PROFILE
+// MARK UNREAD / CLEAR MESSAGES / DELETE CHAT
 // ======================================================
 
-function closeUserProfile() {
+function markChatUnread() {
 
-    const modal =
-        supportChatElement(
-            "userProfileModal"
-        );
-// Reset scroll on the scrollable section
-    const secondModal = modal.querySelector(".secondModal");
-    if (secondModal) {
-        secondModal.scrollTop = 0;
-    }
+    if (!currentChat) return;
 
-    if (modal) {
+    sb.from("support_conversations")
+        .update({ admin_last_read_at: null })
+        .eq("id", currentChat.id)
+        .then(function (res) {
 
-        modal.classList.add(
-            "hidden"
-        );
+            if (res.error) {
+                alert("Failed to mark as unread: " + res.error.message);
+                return;
+            }
 
-    }
+            loadSupportConversations();
+
+        });
+
+    closeChatMenu();
 
 }
 
+function clearChatMessages() {
 
-// ======================================================
-// VIEW FULL USER PROFILE / ACTIVITY / TRANSACTIONS
-// (no dedicated admin pages are wired into this file,
-// so these surface the relevant info from what is
-// already known about the user)
-// ======================================================
+    if (!currentChat) return;
 
-// ======================================================
-// VIEW FULL USER PROFILE / ACTIVITY / TRANSACTIONS
-// Navigates to the relevant admin page via loadAdminPage()
-// and hands off which user to focus on via sessionStorage,
-// so users.js / transactions.js / activity-log.js can read
-// "pendingProfileUserId" on load and pre-filter to them.
-// ======================================================
+    closeChatMenu();
 
-function goToAdminUserRecord(page, userId) {
+    deleteActionType = "clearMessages";
+    deleteActionId = currentChat.id;
 
-    if (!userId) {
-        return;
-    }
+    const titleElement = supportChatElement("deleteConfirmTitle");
+    const textElement = supportChatElement("deleteConfirmText");
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const modal = supportChatElement("deleteConfirmModal");
 
-    sessionStorage.setItem("pendingProfileUserId", userId);
-
-    closeUserProfile();
-
-    if (typeof loadAdminPage === "function") {
-        loadAdminPage(page);
-    } else {
-        console.warn(
-            "loadAdminPage() is not defined — make sure admin.js is loaded before support-chat.js."
-        );
-    }
-}
-
-function viewFullUserProfile() {
-    const modal = supportChatElement("userProfileModal");
-    const userId = modal ? modal.dataset.profileUserId : null;
-    goToAdminUserRecord("users", userId);
-}
-
-function deleteChatFromProfile() {
-
-    
-
-    deleteCurrentChat();
-    closeUserProfile();
+    if (titleElement) titleElement.textContent = "Clear Messages?";
+    if (textElement) textElement.textContent = "All messages in this chat will be permanently deleted.";
+    if (confirmBtn) confirmBtn.textContent = "Clear";
+    if (modal) modal.classList.remove("hidden");
 
 }
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 11 — DELETE CHAT
-// ==========================================================================
-
-// ======================================================
-// DELETE CURRENT CHAT
-// ======================================================
 
 function deleteCurrentChat() {
 
-    if (!currentChat || currentChatType !== "individual") return;
+    if (!currentChat) return;
 
     closeChatMenu();
+
     deleteActionType = "chat";
     deleteActionId = currentChat.id;
 
@@ -10646,1548 +1584,1244 @@ function deleteCurrentChat() {
     const modal = supportChatElement("deleteConfirmModal");
 
     if (titleElement) titleElement.textContent = "Delete Conversation?";
-    if (textElement) {
-        textElement.textContent =
-            "This will permanently delete your conversation with " + currentChat.name + ". This action cannot be undone.";
-    }
+    if (textElement) textElement.textContent = "This will permanently delete your conversation with " + currentChat.name + ". This action cannot be undone.";
     if (confirmBtn) confirmBtn.textContent = "Delete";
     if (modal) modal.classList.remove("hidden");
 
 }
 
 
-
-
-
-
-
 // ======================================================
-// CLOSE DELETE CONFIRMATION
+// PIN MESSAGES
 // ======================================================
 
-function closeDeleteConfirmation() {
+function getPinnedMessages() {
 
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
+    if (!currentChat) return [];
 
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    deleteActionType =
-        null;
-
-    deleteActionId =
-        null;
-
-    deleteActionIds =
-        [];
-
-    deleteActionChatType =
-        null;
+    return currentChat.messages.filter(function (m) { return m.isPinned; });
 
 }
 
+function openPinMessages() {
 
-// ======================================================
-// CONFIRM DELETE ACTION
-// ======================================================
+    closeChatMenu();
 
-function confirmDeleteAction() {
+    const modal = supportChatElement("pinMessagesModal");
+    if (modal) modal.classList.remove("hidden");
 
-    if (deleteActionType === "chat") {
+}
 
-        const index = individualChats.findIndex(function(chat) {
-            return chat.id === deleteActionId;
+function closePinMessages() {
+
+    const modal = supportChatElement("pinMessagesModal");
+    if (modal) modal.classList.add("hidden");
+
+}
+
+function openWritePinMessage() {
+
+    closePinMessages();
+
+    const modal = supportChatElement("writePinMessageModal");
+    const input = supportChatElement("pinMessageInput");
+
+    if (input) input.value = "";
+
+    updatePinMessageCharacterCount();
+
+    if (modal) modal.classList.remove("hidden");
+
+}
+
+function closeWritePinMessage() {
+
+    const modal = supportChatElement("writePinMessageModal");
+    if (modal) modal.classList.add("hidden");
+
+}
+
+function updatePinMessageCharacterCount() {
+
+    const input = supportChatElement("pinMessageInput");
+    const counter = supportChatElement("pinMessageCharacterCount");
+
+    if (input && counter) counter.textContent = input.value.length;
+
+}
+
+function setupPinMessageInput() {
+
+    const input = supportChatElement("pinMessageInput");
+
+    if (input) {
+        input.addEventListener("input", updatePinMessageCharacterCount);
+    }
+
+}
+
+function createPinnedMessage() {
+
+    if (!currentChat) return;
+
+    const input = supportChatElement("pinMessageInput");
+    const text = input ? input.value.trim() : "";
+
+    if (!text) return;
+
+    sb.from("support_messages")
+        .insert({
+            conversation_id: currentChat.id,
+            sender_type: "admin",
+            sender_id: supportAdminId,
+            content: text,
+            is_pinned: true,
+            pinned_at: new Date().toISOString(),
+            pinned_by: supportAdminId
+        })
+        .select("*")
+        .single()
+        .then(function (res) {
+
+            if (res.error) {
+                alert("Failed to pin message: " + res.error.message);
+                return;
+            }
+
+            currentChat.messages.push(mapSupportMessageRow(res.data));
+
+            renderMessages();
+            updatePinnedMessageBar();
+            scrollMessagesToBottom();
+
+            closeWritePinMessage();
+            loadSupportConversations();
+
         });
 
-        if (index !== -1) individualChats.splice(index, 1);
-        if (currentChat && currentChat.id === deleteActionId) closeChat();
-        renderIndividualChats();
+}
 
-    }
-    else if (deleteActionType === "bulkChats") {
+function startSelectPinnedMessages() {
 
-        const idsToDelete = deleteActionIds;
-        for (let i = individualChats.length - 1; i >= 0; i--) {
-            if (idsToDelete.includes(individualChats[i].id)) individualChats.splice(i, 1);
-        }
-        if (currentChat && idsToDelete.includes(currentChat.id)) closeChat();
-        renderIndividualChats();
-        exitChatSelectionMode();
+    closePinMessages();
 
-    }
-    else if (deleteActionType === "message") {
+    pinMessageSelectionMode = true;
+    selectedPinMessageIds = [];
 
-        if (currentChat && Array.isArray(currentChat.messages)) {
-            const messageIndex = currentChat.messages.findIndex(function(item) {
-                return item.id === deleteActionId;
-            });
-
-            if (messageIndex !== -1) {
-                currentChat.messages.splice(messageIndex, 1);
-                if (replyingToMessage && replyingToMessage.id === deleteActionId) cancelReply();
-                if (editingMessage && editingMessage.id === deleteActionId) cancelEditMessage();
-                updateChatLastMessage(currentChat);
-                renderMessages();
-                renderIndividualChats();
-                scrollMessagesToBottom();
-            }
-        }
-
-    }
-
-    updateUnreadCounts();
-    closeDeleteConfirmation();
+    renderMessages();
+    updatePinMessageSelectionBar();
 
 }
 
+function cancelPinMessageSelection() {
 
+    pinMessageSelectionMode = false;
+    selectedPinMessageIds = [];
 
-// ======================================================
-// GLOBAL ACCESS — STAGE 7-11
-// ======================================================
-
-window.toggleAttachmentMenu = toggleAttachmentMenu;
-window.attachPhoto = attachPhoto;
-window.attachDocument = attachDocument;
-window.attachCamera = attachCamera;
-
-window.startVoiceMessage = startVoiceMessage;
-
-
-window.openCurrentProfile = openCurrentProfile;
-window.closeUserProfile = closeUserProfile;
-window.viewFullUserProfile = viewFullUserProfile;
-
-
-
-window.deleteCurrentChat = deleteCurrentChat;
-window.confirmDeleteAction = confirmDeleteAction;
-window.closeDeleteConfirmation = closeDeleteConfirmation;
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 12 — CHAT PRIORITY & MULTI-SELECT DELETE
-// (press-and-hold a chat to highlight it and open a
-// quick-actions modal: toggle priority, or delete —
-// deletion supports selecting and removing many chats
-// at once)
-// ==========================================================================
-
-
-
-
-// ======================================================
-// ATTACH CHAT PRESS HANDLERS
-// (wires long-press detection AND normal-tap handling
-// onto a single chat list item — called once per item
-// as it is created)
-//
-// All press/long-press state (the timer, whether the
-// long-press already fired, the press start position)
-// is kept in variables local to this function's closure
-// — one private set per chat item — rather than in a
-// single shared/global flag. Sharing one global flag
-// across every chat item caused a real bug: firing a
-// long-press on one chat left the flag "stuck", so the
-// very next ordinary click on a *different* chat was
-// silently swallowed instead of toggling its selection.
-// Scoping the flag per item makes that impossible.
-// ======================================================
-
-
-
-
-// ======================================================
-// HANDLE CHAT LONG PRESS
-// ======================================================
-
-
-
-
-// ======================================================
-// TOGGLE CHAT SELECTION
-// (tapping additional chats while selection mode
-// is already active)
-// ======================================================
-
-
-
-
-// ======================================================
-// REFRESH CHAT SELECTION UI
-// (updates the selection bar and re-renders the
-// active list so highlighted items stay in sync)
-// ======================================================
-
-
-
-
-// ======================================================
-// EXIT CHAT SELECTION MODE
-// ======================================================
-
-
-
-
-// ======================================================
-// OPEN CHAT ACTIONS MODAL
-// ======================================================
-
-
-
-
-
-// ======================================================
-// CLOSE CHAT ACTIONS MODAL
-// (does not clear the current selection — the person
-// can keep tapping more chats to build a batch before
-// deleting or re-opening this modal on another chat)
-// ======================================================
-
-
-
-
-
-
-// ======================================================
-// CHOOSE BULK DELETE MODE
-// (picked from the chat actions modal right after a
-// long-press — just records the intent and lets the
-// person keep tapping more chats to add to the batch)
-// ======================================================
-
-
-
-
-// ======================================================
-// CHOOSE BULK PRIORITY MODE
-// (picked from the chat actions modal right after a
-// long-press — whether this batch is adding to or
-// removing from priority is decided once, from the
-// anchor chat's own current priority state, and then
-// the individual chat list is narrowed down to only the
-// chats eligible for that action)
-// ======================================================
-
-
-
-
-
-// ======================================================
-// CONFIRM PRIORITY SELECTED CHATS
-// (opens the priority confirmation modal, mirroring
-// confirmDeleteSelectedChats for the priority action)
-// ======================================================
-
-
-
-
-// ======================================================
-// CLOSE PRIORITY CONFIRMATION
-// ======================================================
-
-
-
-
-// ======================================================
-// CONFIRM PRIORITY ACTION
-// (applies the recorded add/remove decision to every
-// chat captured at confirmation time)
-// ======================================================
-
-
-
-
-// ======================================================
-// CONFIRM DELETE SELECTED CHATS
-// (opens the shared delete-confirmation modal,
-// generalized to accept one or many chat ids)
-// ======================================================
-
-
-
-
-// ======================================================
-// CANCEL SELECTION ON OUTSIDE CLICK
-// (any click that lands outside the selection bar, the
-// chat actions modal, the confirmation modals, or a chat
-// list item itself cancels the current selection and
-// closes whichever of those modals is open — this also
-// since they count as "outside" and are handled by the
-// same check, with no extra code needed in those
-// functions)
-// ======================================================
-
-
-
-
-// ======================================================
-// GLOBAL ACCESS — STAGE 12
-// ======================================================
-
-window.exitChatSelectionMode = exitChatSelectionMode;
-window.closeChatActionsModal = closeChatActionsModal;
-window.chooseBulkDeleteMode = chooseBulkDeleteMode;
-window.chooseBulkPriorityMode = chooseBulkPriorityMode;
-window.confirmDeleteSelectedChats = confirmDeleteSelectedChats;
-window.confirmPrioritySelectedChats = confirmPrioritySelectedChats;
-window.closePriorityConfirmation = closePriorityConfirmation;
-window.confirmPriorityAction = confirmPriorityAction;
-window.deleteChatFromProfile = deleteChatFromProfile;
-
-
-// ======================================================
-// GLOBAL ACCESS — INDIVIDUAL CHAT SELECTION ACTIONS
-// ======================================================
-
-window.exitChatSelectionMode =
-    exitChatSelectionMode;
-
-window.closeChatActionsModal =
-    closeChatActionsModal;
-
-window.chooseBulkDeleteMode =
-    chooseBulkDeleteMode;
-
-window.chooseBulkPriorityMode =
-    chooseBulkPriorityMode;
-
-window.confirmDeleteSelectedChats =
-    confirmDeleteSelectedChats;
-
-window.confirmPrioritySelectedChats =
-    confirmPrioritySelectedChats;
-
-window.closePriorityConfirmation =
-    closePriorityConfirmation;
-
-window.confirmPriorityAction =
-    confirmPriorityAction;
-
-
-// ==========================================================================
-// SUPPORT CHAT SYSTEM
-// STAGE 13 — SELF-INITIALIZATION
-// ==========================================================================
-//
-// support-chat.html is injected into admin.html's DOM at runtime by
-// admin.js rather than loaded as its own page, so a normal script-load
-// or DOMContentLoaded moment cannot be relied on to run
-// initSupportChatPage() — the markup may not exist yet, or may not
-// exist at all if this script loaded once, up front.
-//
-// This watcher detects the moment ".support-chat" actually appears
-// in the DOM (now, or later if it hasn't been injected yet) and
-// initializes it automatically. It keeps watching afterward so that
-// if admin.js ever removes and re-injects the support chat markup
-// (e.g. navigating away from and back to the support tab), it will
-// be initialized again. initSupportChatPage() already guards itself
-// against double-initializing the same DOM node, so this is safe to
-// call as often as mutations occur.
-// ==========================================================================
-
-(function watchForSupportChatMount() {
-
-    function attemptSupportChatInit() {
-
-        const supportChat =
-            document.querySelector(
-                ".support-chat"
-            );
-
-
-        if (supportChat) {
-
-            initSupportChatPage();
-
-        }
-
-    }
-
-
-    function startWatching() {
-
-        attemptSupportChatInit();
-
-
-        const observer =
-            new MutationObserver(
-                attemptSupportChatInit
-            );
-
-
-        observer.observe(
-            document.body,
-            {
-                childList: true,
-                subtree: true
-            }
-        );
-
-    }
-
-
-    if (document.body) {
-
-        startWatching();
-
-    }
-    else {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            startWatching
-        );
-
-    }
-
-})();
-
-// ======================================================
-// ATTACH CHAT PRESS HANDLERS
-// INDIVIDUAL CHAT ONLY
-// ======================================================
-
-function attachChatPressHandlers(
-    item,
-    chatId,
-    chatType,
-    onTap
-) {
-
-    let pressTimer =
-        null;
-
-    let pressFired =
-        false;
-
-    let pressStartX =
-        0;
-
-    let pressStartY =
-        0;
-
-
-    function clearPressTimer() {
-
-        if (pressTimer) {
-
-            clearTimeout(
-                pressTimer
-            );
-
-            pressTimer =
-                null;
-
-        }
-
-    }
-
-
-    function startPress(
-        clientX,
-        clientY
-    ) {
-
-        clearPressTimer();
-
-        pressFired =
-            false;
-
-        pressStartX =
-            clientX;
-
-        pressStartY =
-            clientY;
-
-
-        pressTimer =
-            setTimeout(
-                function() {
-
-                    pressFired =
-                        true;
-
-                    pressTimer =
-                        null;
-
-
-                    handleChatLongPress(
-                        chatId,
-                        "individual"
-                    );
-
-                },
-                CHAT_LONG_PRESS_DURATION
-            );
-
-    }
-
-
-    function endPress() {
-
-        clearPressTimer();
-
-    }
-
-
-    item.addEventListener(
-        "mousedown",
-        function(event) {
-
-            startPress(
-                event.clientX,
-                event.clientY
-            );
-
-        }
-    );
-
-
-    item.addEventListener(
-        "mouseup",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "mouseleave",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "touchstart",
-        function(event) {
-
-            const touch =
-                event.touches[0];
-
-
-            startPress(
-                touch.clientX,
-                touch.clientY
-            );
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    item.addEventListener(
-        "touchend",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "touchcancel",
-        endPress
-    );
-
-
-    item.addEventListener(
-        "touchmove",
-        function(event) {
-
-            const touch =
-                event.touches[0];
-
-
-            const movedX =
-                Math.abs(
-                    touch.clientX -
-                    pressStartX
-                );
-
-
-            const movedY =
-                Math.abs(
-                    touch.clientY -
-                    pressStartY
-                );
-
-
-            if (
-                movedX >
-                    CHAT_LONG_PRESS_MOVE_TOLERANCE ||
-
-                movedY >
-                    CHAT_LONG_PRESS_MOVE_TOLERANCE
-            ) {
-
-                endPress();
-
-            }
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    item.addEventListener(
-        "click",
-        function(event) {
-
-            event.preventDefault();
-
-
-            if (pressFired) {
-
-                pressFired =
-                    false;
-
-                return;
-
-            }
-
-
-            if (chatSelectionMode) {
-
-                toggleChatSelection(
-                    chatId,
-                    "individual"
-                );
-
-                return;
-
-            }
-
-
-            onTap();
-
-        }
-    );
+    renderMessages();
+    updatePinMessageSelectionBar();
 
 }
 
-
-// ======================================================
-// HANDLE CHAT LONG PRESS
-// INDIVIDUAL CHAT ONLY
-// ======================================================
-
-function handleChatLongPress(
-    chatId,
-    chatType
-) {
-
-    chatType =
-        "individual";
-
-
-    if (
-        chatSelectionMode &&
-        chatSelectionType !== "individual"
-    ) {
-
-        exitChatSelectionMode();
-
-    }
-
-
-    chatSelectionMode =
-        true;
-
-    chatSelectionType =
-        "individual";
-
-
-    if (
-        !selectedChatIds.includes(
-            chatId
-        )
-    ) {
-
-        selectedChatIds.push(
-            chatId
-        );
-
-    }
-
-
-    refreshChatSelectionUI();
-
-
-    /*
-     * Only show the delete/priority chooser
-     * on the FIRST long-press.
-     *
-     * Additional long-pressed chats are
-     * simply added to the selection.
-     */
-
-    if (
-        pendingBulkAction === null
-    ) {
-
-        openChatActionsModal(
-            chatId,
-            "individual"
-        );
-
-    }
-
+function setupPinSelectionOutsideClick() {
+    // Selection is exited explicitly (Cancel / Pin buttons) — no outside-click needed.
 }
 
+function togglePinMessageSelection(messageId) {
 
-// ======================================================
-// TOGGLE CHAT SELECTION
-// INDIVIDUAL CHAT ONLY
-// ======================================================
-
-function toggleChatSelection(
-    chatId,
-    chatType
-) {
-
-    if (
-        chatType !==
-        "individual"
-    ) {
-
-        return;
-
-    }
-
-
-    const index =
-        selectedChatIds.indexOf(
-            chatId
-        );
-
+    const index = selectedPinMessageIds.indexOf(messageId);
 
     if (index === -1) {
-
-        selectedChatIds.push(
-            chatId
-        );
-
-    }
-    else {
-
-        selectedChatIds.splice(
-            index,
-            1
-        );
-
+        selectedPinMessageIds.push(messageId);
+    } else {
+        selectedPinMessageIds.splice(index, 1);
     }
 
+    renderMessages();
+    updatePinMessageSelectionBar();
 
-    if (
-        selectedChatIds.length === 0
-    ) {
+}
 
-        exitChatSelectionMode();
+function updatePinMessageSelectionBar() {
 
+    const bar = supportChatElement("pinMessageSelectionBar");
+    const countLabel = supportChatElement("selectedPinMessageCount");
+
+    if (bar) bar.classList.toggle("hidden", !pinMessageSelectionMode);
+    if (countLabel) countLabel.textContent = selectedPinMessageIds.length;
+
+}
+
+function pinSelectedMessages() {
+
+    if (selectedPinMessageIds.length === 0) {
+        cancelPinMessageSelection();
         return;
-
     }
 
+    const ids = selectedPinMessageIds;
 
-    refreshChatSelectionUI();
+    sb.from("support_messages")
+        .update({ is_pinned: true, pinned_at: new Date().toISOString(), pinned_by: supportAdminId })
+        .in("id", ids)
+        .then(function (res) {
+
+            if (res.error) {
+                alert("Failed to pin messages: " + res.error.message);
+                return;
+            }
+
+            currentChat.messages.forEach(function (m) {
+                if (ids.includes(m.id)) m.isPinned = true;
+            });
+
+            cancelPinMessageSelection();
+            updatePinnedMessageBar();
+
+        });
+
+}
+
+function toggleSingleMessagePin(messageId, pin) {
+
+    sb.from("support_messages")
+        .update(pin
+            ? { is_pinned: true, pinned_at: new Date().toISOString(), pinned_by: supportAdminId }
+            : { is_pinned: false, pinned_at: null, pinned_by: null })
+        .eq("id", messageId)
+        .then(function (res) {
+
+            if (res.error) {
+                alert("Failed to update pin: " + res.error.message);
+                return;
+            }
+
+            const target = currentChat && currentChat.messages.find(function (m) { return m.id === messageId; });
+            if (target) target.isPinned = pin;
+
+            renderMessages();
+            updatePinnedMessageBar();
+
+        });
+
+}
+
+function unpinCurrentPinnedMessage() {
+
+    const pinned = getPinnedMessages();
+    const message = pinned[currentPinnedMessageIndex];
+
+    if (!message) return;
+
+    toggleSingleMessagePin(message.id, false);
+
+}
+
+function updatePinnedMessageBar() {
+
+    const bar = supportChatElement("pinnedMessageBar");
+    const textEl = supportChatElement("pinnedMessageText");
+    const counterEl = supportChatElement("pinnedMessageCounter");
+    const pinText = supportChatElement("messagePinText");
+
+    const pinned = getPinnedMessages();
+
+    if (pinText) pinText.textContent = pinned.length > 0 ? "Pinned Messages (" + pinned.length + ")" : "Pin Messages";
+
+    if (!bar) return;
+
+    if (pinned.length === 0) {
+        bar.classList.add("hidden");
+        currentPinnedMessageIndex = 0;
+        return;
+    }
+
+    bar.classList.remove("hidden");
+
+    if (currentPinnedMessageIndex >= pinned.length) {
+        currentPinnedMessageIndex = pinned.length - 1;
+    }
+
+    const current = pinned[currentPinnedMessageIndex];
+
+    if (textEl) textEl.textContent = current.text || "";
+    if (counterEl) counterEl.textContent = (currentPinnedMessageIndex + 1) + " of " + pinned.length;
+
+}
+
+function nextPinnedMessage() {
+
+    const pinned = getPinnedMessages();
+    if (pinned.length === 0) return;
+
+    currentPinnedMessageIndex = (currentPinnedMessageIndex + 1) % pinned.length;
+    updatePinnedMessageBar();
+    scrollToCurrentPinnedMessage();
+
+}
+
+function previousPinnedMessage() {
+
+    const pinned = getPinnedMessages();
+    if (pinned.length === 0) return;
+
+    currentPinnedMessageIndex = (currentPinnedMessageIndex - 1 + pinned.length) % pinned.length;
+    updatePinnedMessageBar();
+    scrollToCurrentPinnedMessage();
+
+}
+
+function scrollToCurrentPinnedMessage() {
+
+    const pinned = getPinnedMessages();
+    const message = pinned[currentPinnedMessageIndex];
+
+    if (message) scrollToMessage(message.id);
 
 }
 
 
 // ======================================================
-// REFRESH CHAT SELECTION UI
-// INDIVIDUAL CHAT ONLY
+// MESSAGE SEARCH (within the open chat)
 // ======================================================
+
+function searchMessages() {
+
+    closeChatMenu();
+
+    messageSearchActive = true;
+    messageSearchQuery = "";
+    messageSearchResults = [];
+    currentMessageSearchIndex = -1;
+
+    const bar = supportChatElement("messageSearchBar");
+    const input = supportChatElement("messageSearchInput");
+
+    if (bar) bar.classList.remove("hidden");
+    if (input) { input.value = ""; input.focus(); }
+
+}
+
+function closeMessageSearch() {
+
+    messageSearchActive = false;
+    messageSearchQuery = "";
+    messageSearchResults = [];
+    currentMessageSearchIndex = -1;
+
+    const bar = supportChatElement("messageSearchBar");
+    if (bar) bar.classList.add("hidden");
+
+    renderMessages();
+
+}
+
+function setupMessageSearchEvents() {
+
+    const input = supportChatElement("messageSearchInput");
+
+    if (input) {
+        input.addEventListener("input", function () {
+            messageSearchQuery = input.value;
+            performMessageSearch();
+        });
+    }
+
+}
+
+function performMessageSearch() {
+
+    if (!currentChat) return;
+
+    const query = messageSearchQuery.trim().toLowerCase();
+
+    document.querySelectorAll("#messages .message-text").forEach(function (el) {
+        el.innerHTML = supportEscapeHtml(el.textContent);
+    });
+
+    if (!query) {
+        messageSearchResults = [];
+        currentMessageSearchIndex = -1;
+        return;
+    }
+
+    messageSearchResults = currentChat.messages
+        .filter(function (m) { return (m.text || "").toLowerCase().includes(query); })
+        .map(function (m) { return m.id; });
+
+    currentMessageSearchIndex = messageSearchResults.length > 0 ? 0 : -1;
+
+    messageSearchResults.forEach(function (id) {
+        const el = findMessageElement(id);
+        const textEl = el ? el.querySelector(".message-text") : null;
+        if (textEl) highlightMessageText(textEl, query);
+    });
+
+    scrollToMessageSearchResult();
+
+}
+
+function highlightMessageText(textEl, query) {
+
+    const original = textEl.textContent;
+    const lower = original.toLowerCase();
+    const index = lower.indexOf(query);
+
+    if (index === -1) return;
+
+    textEl.innerHTML =
+        supportEscapeHtml(original.slice(0, index)) +
+        '<mark class="message-search-highlight">' + supportEscapeHtml(original.slice(index, index + query.length)) + '</mark>' +
+        supportEscapeHtml(original.slice(index + query.length));
+
+}
+
+function scrollToMessageSearchResult() {
+
+    if (currentMessageSearchIndex === -1) return;
+
+    const id = messageSearchResults[currentMessageSearchIndex];
+    if (id) scrollToMessage(id);
+
+}
+
+function nextMessageSearchResult() {
+
+    if (messageSearchResults.length === 0) return;
+
+    currentMessageSearchIndex = (currentMessageSearchIndex + 1) % messageSearchResults.length;
+    scrollToMessageSearchResult();
+
+}
+
+function previousMessageSearchResult() {
+
+    if (messageSearchResults.length === 0) return;
+
+    currentMessageSearchIndex = (currentMessageSearchIndex - 1 + messageSearchResults.length) % messageSearchResults.length;
+    scrollToMessageSearchResult();
+
+}
+
+
+// ======================================================
+// ATTACHMENTS (real upload to the "support-chat" storage bucket)
+// ======================================================
+
+function toggleAttachmentMenu() {
+
+    attachmentMenuOpen = !attachmentMenuOpen;
+
+    const menu = supportChatElement("attachmentMenu");
+    if (menu) menu.classList.toggle("hidden", !attachmentMenuOpen);
+
+}
+
+function closeAttachmentMenu() {
+
+    attachmentMenuOpen = false;
+
+    const menu = supportChatElement("attachmentMenu");
+    if (menu) menu.classList.add("hidden");
+
+}
+
+function attachPhoto() {
+
+    closeAttachmentMenu();
+
+    const input = supportChatElement("photoInput");
+    if (input) input.click();
+
+}
+
+function attachDocument() {
+
+    closeAttachmentMenu();
+
+    const input = supportChatElement("documentInput");
+    if (input) input.click();
+
+}
+
+function attachCamera() {
+
+    closeAttachmentMenu();
+
+    const input = supportChatElement("cameraInput");
+    if (input) input.click();
+
+}
+
+function setupAttachmentEvents() {
+
+    const photoInput = supportChatElement("photoInput");
+    const documentInput = supportChatElement("documentInput");
+    const cameraInput = supportChatElement("cameraInput");
+
+    if (photoInput) photoInput.addEventListener("change", function (e) { handleAttachmentFileChange(e, "photo"); });
+    if (documentInput) documentInput.addEventListener("change", function (e) { handleAttachmentFileChange(e, "document"); });
+    if (cameraInput) cameraInput.addEventListener("change", function (e) { handleAttachmentFileChange(e, "camera"); });
+
+    document.addEventListener("click", function (event) {
+
+        if (!attachmentMenuOpen) return;
+
+        const menu = supportChatElement("attachmentMenu");
+        const btn = document.querySelector('[onclick="toggleAttachmentMenu()"]');
+
+        if (menu && (menu.contains(event.target) || (btn && btn.contains(event.target)))) return;
+
+        closeAttachmentMenu();
+
+    });
+
+}
+
+function handleAttachmentFileChange(event, kind) {
+
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+
+    if (!file || !currentChat) return;
+
+    uploadAndSendAttachment(file, kind);
+
+}
+
+function uploadAndSendAttachment(file, kind) {
+
+    const path = currentChat.id + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+
+    sb.storage.from("support-chat").upload(path, file).then(function (uploadRes) {
+
+        if (uploadRes.error) {
+            alert("Failed to upload file: " + uploadRes.error.message);
+            return;
+        }
+
+        const publicUrlRes = sb.storage.from("support-chat").getPublicUrl(path);
+        const url = publicUrlRes.data.publicUrl;
+
+        const label =
+            (kind === "camera" ? "📷 " : kind === "document" ? "📎 " : "🖼️ ") + file.name;
+
+        sb.from("support_messages")
+            .insert({
+                conversation_id: currentChat.id,
+                sender_type: "admin",
+                sender_id: supportAdminId,
+                content: label,
+                message_type: kind === "document" ? "document" : "photo",
+                attachment_url: url,
+                attachment_name: file.name,
+                attachment_mime: file.type
+            })
+            .select("*")
+            .single()
+            .then(function (res) {
+
+                if (res.error) {
+                    alert("Failed to send attachment: " + res.error.message);
+                    return;
+                }
+
+                currentChat.messages.push(mapSupportMessageRow(res.data));
+                renderMessages();
+                scrollMessagesToBottom();
+                loadSupportConversations();
+
+            });
+
+    });
+
+}
+
+
+// ======================================================
+// VOICE MESSAGE (real recording, real upload)
+// ======================================================
+
+function startVoiceMessage() {
+
+    if (isRecordingVoice) {
+        stopVoiceRecording(true);
+        return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Voice recording is not supported in this browser.");
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+
+        voiceStream = stream;
+        voiceRecordedChunks = [];
+
+        voiceMediaRecorder = new MediaRecorder(stream);
+
+        voiceMediaRecorder.addEventListener("dataavailable", function (e) {
+            if (e.data && e.data.size > 0) voiceRecordedChunks.push(e.data);
+        });
+
+        voiceMediaRecorder.addEventListener("stop", function () {
+
+            const blob = new Blob(voiceRecordedChunks, { type: "audio/webm" });
+
+            voiceStream.getTracks().forEach(function (track) { track.stop(); });
+            voiceStream = null;
+
+            if (blob.size > 0 && currentChat) {
+                uploadAndSendVoiceMessage(blob);
+            }
+
+        });
+
+        voiceMediaRecorder.start();
+        isRecordingVoice = true;
+
+        const btn = supportChatElement("voiceMessageBtn");
+        if (btn) btn.classList.add("recording");
+
+    }).catch(function () {
+        alert("Microphone access was denied.");
+    });
+
+}
+
+function stopVoiceRecording() {
+
+    if (voiceMediaRecorder && isRecordingVoice) {
+        voiceMediaRecorder.stop();
+    }
+
+    isRecordingVoice = false;
+
+    const btn = supportChatElement("voiceMessageBtn");
+    if (btn) btn.classList.remove("recording");
+
+}
+
+function uploadAndSendVoiceMessage(blob) {
+
+    const path = currentChat.id + "/" + Date.now() + "-voice.webm";
+
+    sb.storage.from("support-chat").upload(path, blob, { contentType: "audio/webm" }).then(function (uploadRes) {
+
+        if (uploadRes.error) {
+            alert("Failed to upload voice message: " + uploadRes.error.message);
+            return;
+        }
+
+        const publicUrlRes = sb.storage.from("support-chat").getPublicUrl(path);
+        const url = publicUrlRes.data.publicUrl;
+
+        sb.from("support_messages")
+            .insert({
+                conversation_id: currentChat.id,
+                sender_type: "admin",
+                sender_id: supportAdminId,
+                content: "🎤 Voice message",
+                message_type: "voice",
+                attachment_url: url,
+                attachment_name: "voice-message.webm",
+                attachment_mime: "audio/webm"
+            })
+            .select("*")
+            .single()
+            .then(function (res) {
+
+                if (res.error) {
+                    alert("Failed to send voice message: " + res.error.message);
+                    return;
+                }
+
+                currentChat.messages.push(mapSupportMessageRow(res.data));
+                renderMessages();
+                scrollMessagesToBottom();
+                loadSupportConversations();
+
+            });
+
+    });
+
+}
+
+
+// ======================================================
+// NEW CHAT MODAL
+// ======================================================
+
+function openNewChatModal() {
+
+    const modal = supportChatElement("newChatModal");
+    const input = supportChatElement("userSearchInput");
+
+    if (input) input.value = "";
+
+    if (supportChatUsers.length > 0) {
+
+        renderAvailableUsers("");
+
+    } else {
+
+        sb.from("profiles")
+            .select("id, username, surname, phone")
+            .order("username", { ascending: true })
+            .then(function (res) {
+
+                if (res.error) {
+                    console.error("Failed to load users:", res.error);
+                    return;
+                }
+
+                supportChatUsers = (res.data || []).map(function (row) {
+                    return { id: row.id, name: fullNameOf(row), phone: row.phone };
+                });
+
+                renderAvailableUsers("");
+
+            });
+
+    }
+
+    if (modal) modal.classList.remove("hidden");
+
+}
+
+function closeNewChatModal() {
+
+    const modal = supportChatElement("newChatModal");
+    if (modal) modal.classList.add("hidden");
+
+}
+
+function renderAvailableUsers(query) {
+
+    const container = supportChatElement("availableUsers");
+    if (!container) return;
+
+    const search = (query || "").trim().toLowerCase();
+
+    let users = supportChatUsers;
+
+    if (search) {
+        users = users.filter(function (u) {
+            return u.name.toLowerCase().includes(search) || String(u.phone || "").toLowerCase().includes(search);
+        });
+    }
+
+    if (users.length === 0) {
+        container.innerHTML = '<p class="available-users-empty">No users found.</p>';
+        return;
+    }
+
+    container.innerHTML = users.map(function (u) {
+
+        return (
+            '<div class="available-user" onclick="startNewConversation(\'' + u.id + '\')">' +
+                '<div class="chat-list-avatar">' + supportEscapeHtml(getInitials(u.name)) + '</div>' +
+                '<div>' +
+                    '<h5>' + supportEscapeHtml(u.name) + '</h5>' +
+                    '<p>' + supportEscapeHtml(u.phone || "") + '</p>' +
+                '</div>' +
+            '</div>'
+        );
+
+    }).join("");
+
+}
+
+function startNewConversation(userId) {
+
+    const existing = individualChats.find(function (c) { return c.userId === userId; });
+
+    if (existing) {
+        closeNewChatModal();
+        openIndividualChat(existing.id);
+        return;
+    }
+
+    sb.from("support_conversations")
+        .insert({ user_id: userId, status: "open", assigned_admin: supportAdminId })
+        .select("*")
+        .single()
+        .then(function (res) {
+
+            if (res.error) {
+                alert("Failed to start conversation: " + res.error.message);
+                return;
+            }
+
+            closeNewChatModal();
+
+            loadSupportConversations();
+
+            setTimeout(function () { openIndividualChat(res.data.id); }, 200);
+
+        });
+
+}
+
+
+// ======================================================
+// USER PROFILE MODAL
+// ======================================================
+
+function openCurrentProfile() {
+
+    if (!currentChat) return;
+
+    const modal = supportChatElement("userProfileModal");
+    if (modal) modal.dataset.profileUserId = currentChat.userId;
+
+    populateUserProfileModal(currentChat.userId, currentChat.name);
+
+    if (modal) modal.classList.remove("hidden");
+
+}
+
+function closeUserProfile() {
+
+    const modal = supportChatElement("userProfileModal");
+    if (modal) modal.classList.add("hidden");
+
+}
+
+function populateUserProfileModal(userId, fallbackName) {
+
+    const nameEl = supportChatElement("profileName");
+    const avatarEl = supportChatElement("profileAvatar");
+    const statusEl = supportChatElement("profileAccountStatus");
+
+    if (nameEl) nameEl.textContent = fallbackName || "User";
+    if (avatarEl) avatarEl.textContent = getInitials(fallbackName);
+
+    [
+        "profileEmail", "profilePhone", "profileJoined", "profileVerification",
+        "profileBalance", "profileDeposited", "profileWithdrawn", "profilePlan"
+    ].forEach(function (id) {
+        const el = supportChatElement(id);
+        if (el) el.textContent = "—";
+    });
+
+    sb.rpc("admin_get_support_user_profile", { p_user_id: userId }).then(function (res) {
+
+        if (res.error || !res.data || res.data.length === 0) {
+            console.error("Failed to load user profile:", res.error);
+            return;
+        }
+
+        const p = res.data[0];
+
+        const fullName = (p.username + " " + (p.surname || "")).trim();
+
+        if (nameEl) nameEl.textContent = fullName || fallbackName;
+        if (avatarEl) avatarEl.textContent = getInitials(fullName || fallbackName);
+
+        if (statusEl) {
+            statusEl.textContent = p.is_blocked ? "Blocked" : "Active";
+            statusEl.className = "profile-status " + (p.is_blocked ? "blocked" : "active");
+        }
+
+        setText("profileEmail", p.email || "—");
+        setText("profilePhone", p.phone || "—");
+        setText("profileJoined", p.created_at ? new Date(p.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—");
+        setText("profileVerification", p.kyc_status ? (p.kyc_status.charAt(0).toUpperCase() + p.kyc_status.slice(1)) : "Not submitted");
+
+        setText("profileBalance", "R" + Number(p.balance_zar || 0).toFixed(2));
+        setText("profileDeposited", "R" + Number(p.total_deposited_zar || 0).toFixed(2));
+        setText("profileWithdrawn", "R" + Number(p.total_withdrawn_zar || 0).toFixed(2));
+        setText("profilePlan", p.active_plan_name || "None");
+
+    });
+
+}
+
+function setText(id, value) {
+
+    const el = supportChatElement(id);
+    if (el) el.textContent = value;
+
+}
+
+function goToAdminUserRecord(page, userId) {
+
+    if (!userId) return;
+
+    sessionStorage.setItem("pendingProfileUserId", userId);
+
+    closeUserProfile();
+
+    if (typeof loadAdminPage === "function") {
+        loadAdminPage(page);
+    } else {
+        console.warn("loadAdminPage() is not defined — make sure admin.js is loaded before support-chat.js.");
+    }
+
+}
+
+function viewFullUserProfile() {
+
+    const modal = supportChatElement("userProfileModal");
+    const userId = modal ? modal.dataset.profileUserId : null;
+
+    goToAdminUserRecord("users", userId);
+
+}
+
+function deleteChatFromProfile() {
+
+    deleteCurrentChat();
+    closeUserProfile();
+
+}
+
+
+// ======================================================
+// BULK SELECTION (long-press a chat: delete or priority,
+// in bulk, across multiple chats)
+// ======================================================
+
+function attachChatPressHandlers(item, chatId, onTap) {
+
+    let pressTimer = null;
+    let pressFired = false;
+    let pressStartX = 0;
+    let pressStartY = 0;
+
+    function clearPressTimer() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    }
+
+    function startPress(clientX, clientY) {
+
+        clearPressTimer();
+        pressFired = false;
+        pressStartX = clientX;
+        pressStartY = clientY;
+
+        pressTimer = setTimeout(function () {
+            pressFired = true;
+            pressTimer = null;
+            handleChatLongPress(chatId);
+        }, CHAT_LONG_PRESS_DURATION);
+
+    }
+
+    function endPress() {
+        clearPressTimer();
+    }
+
+    item.addEventListener("mousedown", function (e) { startPress(e.clientX, e.clientY); });
+    item.addEventListener("mouseup", endPress);
+    item.addEventListener("mouseleave", endPress);
+
+    item.addEventListener("touchstart", function (e) {
+        const t = e.touches[0];
+        startPress(t.clientX, t.clientY);
+    }, { passive: true });
+
+    item.addEventListener("touchend", endPress);
+    item.addEventListener("touchcancel", endPress);
+
+    item.addEventListener("touchmove", function (e) {
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - pressStartX) > CHAT_LONG_PRESS_MOVE_TOLERANCE ||
+            Math.abs(t.clientY - pressStartY) > CHAT_LONG_PRESS_MOVE_TOLERANCE) {
+            endPress();
+        }
+    }, { passive: true });
+
+    item.addEventListener("click", function (event) {
+
+        event.preventDefault();
+
+        if (pressFired) { pressFired = false; return; }
+
+        if (chatSelectionMode) {
+            toggleChatSelection(chatId);
+            return;
+        }
+
+        onTap();
+
+    });
+
+}
+
+function handleChatLongPress(chatId) {
+
+    chatSelectionMode = true;
+
+    if (!selectedChatIds.includes(chatId)) {
+        selectedChatIds.push(chatId);
+    }
+
+    refreshChatSelectionUI();
+
+    if (pendingBulkAction === null) {
+        openChatActionsModal(chatId);
+    }
+
+}
+
+function toggleChatSelection(chatId) {
+
+    const index = selectedChatIds.indexOf(chatId);
+
+    if (index === -1) {
+        selectedChatIds.push(chatId);
+    } else {
+        selectedChatIds.splice(index, 1);
+    }
+
+    if (selectedChatIds.length === 0) {
+        exitChatSelectionMode();
+        return;
+    }
+
+    refreshChatSelectionUI();
+
+}
 
 function refreshChatSelectionUI() {
 
-    const bar =
-        supportChatElement(
-            "chatSelectionBar"
-        );
+    const bar = supportChatElement("chatSelectionBar");
+    const countLabel = supportChatElement("chatSelectionCount");
 
+    if (bar) bar.classList.toggle("hidden", !(chatSelectionMode && selectedChatIds.length > 0));
+    if (countLabel) countLabel.textContent = selectedChatIds.length + " selected";
 
-    const countLabel =
-        supportChatElement(
-            "chatSelectionCount"
-        );
+    const priorityBtn = supportChatElement("chatSelectionPriorityBtn");
+    const deleteBtn = supportChatElement("chatSelectionDeleteBtn");
 
-
-    if (bar) {
-
-        if (
-            chatSelectionMode &&
-            selectedChatIds.length > 0
-        ) {
-
-            bar.classList.remove(
-                "hidden"
-            );
-
-        }
-        else {
-
-            bar.classList.add(
-                "hidden"
-            );
-
-        }
-
-    }
-
-
-    if (countLabel) {
-
-        countLabel.textContent =
-            selectedChatIds.length +
-            (
-                selectedChatIds.length === 1
-                    ? " selected"
-                    : " selected"
-            );
-
-    }
-
-
-    const headerPriorityBtn =
-        supportChatElement(
-            "chatSelectionPriorityBtn"
-        );
-
-
-    const headerDeleteBtn =
-        supportChatElement(
-            "chatSelectionDeleteBtn"
-        );
-
-
-    if (headerPriorityBtn) {
-
-        const hidePriorityBtn =
-            pendingBulkAction ===
-            "delete";
-
-
-        if (hidePriorityBtn) {
-
-            headerPriorityBtn.classList.add(
-                "hidden"
-            );
-
-        }
-        else {
-
-            headerPriorityBtn.classList.remove(
-                "hidden"
-            );
-
-        }
-
-    }
-
-
-    if (headerDeleteBtn) {
-
-        const hideDeleteBtn =
-            pendingBulkAction ===
-            "priority";
-
-
-        if (hideDeleteBtn) {
-
-            headerDeleteBtn.classList.add(
-                "hidden"
-            );
-
-        }
-        else {
-
-            headerDeleteBtn.classList.remove(
-                "hidden"
-            );
-
-        }
-
-    }
-
+    if (priorityBtn) priorityBtn.classList.toggle("hidden", pendingBulkAction === "delete");
+    if (deleteBtn) deleteBtn.classList.toggle("hidden", pendingBulkAction === "priority");
 
     renderIndividualChats();
 
 }
-
-
-// ======================================================
-// EXIT CHAT SELECTION MODE
-// ======================================================
 
 function exitChatSelectionMode() {
 
-    chatSelectionMode =
-        false;
+    chatSelectionMode = false;
+    selectedChatIds = [];
+    pendingBulkAction = null;
+    pendingPriorityMode = null;
 
-    chatSelectionType =
-        null;
-
-    selectedChatIds =
-        [];
-
-    pendingBulkAction =
-        null;
-
-    pendingPriorityMode =
-        null;
-
-
-    const bar =
-        supportChatElement(
-            "chatSelectionBar"
-        );
-
-
-    if (bar) {
-
-        bar.classList.add(
-            "hidden"
-        );
-
-    }
-
+    const bar = supportChatElement("chatSelectionBar");
+    if (bar) bar.classList.add("hidden");
 
     renderIndividualChats();
 
 }
 
+function openChatActionsModal(chatId) {
 
-// ======================================================
-// OPEN CHAT ACTIONS MODAL
-// INDIVIDUAL CHAT ONLY
-// ======================================================
-
-function openChatActionsModal(
-    anchorChatId
-) {
-
-    const modal =
-        supportChatElement(
-            "chatActionsModal"
-        );
-
-
-    if (!modal) {
-
-        return;
-
-    }
-
-
-    const anchorChat =
-        findIndividualChat(
-            anchorChatId
-        );
-
-
-    const titleElement =
-        supportChatElement(
-            "chatActionsTitle"
-        );
-
-
-    const priorityButton =
-        supportChatElement(
-            "chatActionsPriorityBtn"
-        );
-
-
-    if (
-        titleElement &&
-        anchorChat
-    ) {
-
-        titleElement.textContent =
-            anchorChat.name;
-
-    }
-
-
-    if (priorityButton) {
-
-        priorityButton.classList.remove(
-            "hidden"
-        );
-
-
-        if (anchorChat) {
-
-            priorityButton.innerHTML =
-                anchorChat.priority
-
-                    ? '<i class="fa-solid fa-star"></i> Remove from Priority'
-
-                    : '<i class="fa-solid fa-star"></i> Add to Priority';
-
-        }
-
-    }
-
-
-    modal.classList.remove(
-        "hidden"
-    );
+    const modal = supportChatElement("chatActionsModal");
+    if (modal) { modal.dataset.chatId = chatId; modal.classList.remove("hidden"); }
 
 }
-
-
-// ======================================================
-// CLOSE CHAT ACTIONS MODAL
-// ======================================================
 
 function closeChatActionsModal() {
 
-    const modal =
-        supportChatElement(
-            "chatActionsModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-    const priorityButton =
-    supportChatElement(
-        "chatSelectionPriorityBtn"
-    );
-
-if (priorityButton) {
-
-    priorityButton.classList.remove(
-        "priority-add"
-    );
+    const modal = supportChatElement("chatActionsModal");
+    if (modal) modal.classList.add("hidden");
 
 }
-
-
-    exitChatSelectionMode();
-
-}
-
-
-// ======================================================
-// HIDE CHAT ACTIONS MODAL
-// WITHOUT CLEARING SELECTION
-// ======================================================
-
-function hideChatActionsModal() {
-
-    const modal =
-        supportChatElement(
-            "chatActionsModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
-
-
-// ======================================================
-// CHOOSE BULK DELETE MODE
-// ======================================================
 
 function chooseBulkDeleteMode() {
 
-    if (
-        selectedChatIds.length === 0
-    ) {
-
-        closeChatActionsModal();
-
-        return;
-
-    }
-
-
-    pendingBulkAction =
-        "delete";
-
-    pendingPriorityMode =
-        null;
-
-
-    hideChatActionsModal();
-
-
+    pendingBulkAction = "delete";
+    closeChatActionsModal();
     refreshChatSelectionUI();
 
 }
-
-
-// ======================================================
-// CHOOSE BULK PRIORITY MODE
-// ======================================================
 
 function chooseBulkPriorityMode() {
 
-    if (
-        selectedChatIds.length === 0
-    ) {
+    const modal = supportChatElement("chatActionsModal");
+    const anchorChatId = modal ? modal.dataset.chatId : null;
+    const anchorChat = findIndividualChat(anchorChatId);
 
-        closeChatActionsModal();
+    pendingBulkAction = "priority";
+    pendingPriorityMode = anchorChat && anchorChat.priority ? "remove" : "add";
 
-        return;
-
-    }
-
-
-    const anchorChat =
-        findIndividualChat(
-            selectedChatIds[0]
-        );
-
-
-    pendingBulkAction =
-        "priority";
-
-
-    pendingPriorityMode =
-        anchorChat &&
-        anchorChat.priority
-
-            ? "remove"
-
-            : "add";
-
-
-    const priorityButton =
-        supportChatElement(
-            "chatSelectionPriorityBtn"
-        );
-
-
-    if (priorityButton) {
-
-        if (
-            pendingPriorityMode === "add"
-        ) {
-
-            priorityButton.classList.add(
-                "priority-add"
-            );
-
-        }
-        else {
-
-            priorityButton.classList.remove(
-                "priority-add"
-            );
-
-        }
-
-    }
-
-
-    hideChatActionsModal();
-
-
+    closeChatActionsModal();
     refreshChatSelectionUI();
 
 }
 
-// ======================================================
-// CONFIRM PRIORITY SELECTED CHATS
-// ======================================================
+function confirmDeleteSelectedChats() {
 
-function confirmPrioritySelectedChats() {
+    if (selectedChatIds.length === 0) return;
 
-    if (
-        selectedChatIds.length === 0
-    ) {
+    deleteActionType = "bulkChats";
+    deleteActionIds = [...selectedChatIds];
 
-        return;
+    const titleElement = supportChatElement("deleteConfirmTitle");
+    const textElement = supportChatElement("deleteConfirmText");
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const modal = supportChatElement("deleteConfirmModal");
 
-    }
-
-
-    const anchorChat =
-        findIndividualChat(
-            selectedChatIds[0]
-        );
-
-
-    const newPriority =
-        anchorChat
-            ? !anchorChat.priority
-            : true;
-
-
-    priorityActionIds =
-        [
-            ...selectedChatIds
-        ];
-
-
-    priorityActionValue =
-        newPriority;
-
-
-    const count =
-        selectedChatIds.length;
-
-
-    const noun =
-        count === 1
-            ? "conversation"
-            : "conversations";
-
-
-    const actionWord =
-        newPriority
-            ? "Add"
-            : "Remove";
-
-
-    const actionPrep =
-        newPriority
-            ? "to"
-            : "from";
-
-
-    const titleElement =
-        supportChatElement(
-            "priorityConfirmTitle"
-        );
-
-
-    const textElement =
-        supportChatElement(
-            "priorityConfirmText"
-        );
-
-
-    const confirmBtn =
-        supportChatElement(
-            "confirmPriorityBtn"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            actionWord +
-            " " +
-            count +
-            " " +
-            noun +
-            " " +
-            actionPrep +
-            " Priority?";
-
-    }
-
-
-    if (textElement) {
-
-        textElement.textContent =
-            newPriority
-
-                ? "The selected " +
-                  noun +
-                  " will be marked as priority."
-
-                : "The selected " +
-                  noun +
-                  " will be removed from priority.";
-
-    }
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            actionWord;
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "priorityConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
+    if (titleElement) titleElement.textContent = "Delete " + selectedChatIds.length + " Conversation" + (selectedChatIds.length === 1 ? "" : "s") + "?";
+    if (textElement) textElement.textContent = "This will permanently delete the selected conversations. This action cannot be undone.";
+    if (confirmBtn) confirmBtn.textContent = "Delete";
+    if (modal) modal.classList.remove("hidden");
 
 }
-
-
-// ======================================================
-// CLOSE PRIORITY CONFIRMATION
-// ======================================================
 
 function closePriorityConfirmation() {
 
-    const modal =
-        supportChatElement(
-            "priorityConfirmModal"
-        );
+    const modal = supportChatElement("priorityConfirmModal");
+    if (modal) modal.classList.add("hidden");
 
+}
 
-    if (modal) {
+function confirmPrioritySelectedChats() {
 
-        modal.classList.add(
-            "hidden"
-        );
+    if (selectedChatIds.length === 0) return;
+
+    if (pendingBulkAction !== "priority") {
+
+        const anchorChat = findIndividualChat(selectedChatIds[selectedChatIds.length - 1]);
+        pendingPriorityMode = anchorChat && anchorChat.priority ? "remove" : "add";
+        pendingBulkAction = "priority";
 
     }
 
-  const priorityButton =
-    supportChatElement(
-        "chatSelectionPriorityBtn"
-    );
+    const titleElement = supportChatElement("priorityConfirmTitle");
+    const textElement = supportChatElement("priorityConfirmText");
+    const modal = supportChatElement("priorityConfirmModal");
 
-if (priorityButton) {
+    const verb = pendingPriorityMode === "remove" ? "remove from" : "add to";
 
-    priorityButton.classList.remove(
-        "priority-add"
-    );
-
-}
-
-
-    priorityActionIds =
-        [];
-
-
-    priorityActionValue =
-        null;
+    if (titleElement) titleElement.textContent = "Update Priority?";
+    if (textElement) textElement.textContent = "This will " + verb + " priority for " + selectedChatIds.length + " conversation" + (selectedChatIds.length === 1 ? "" : "s") + ".";
+    if (modal) modal.classList.remove("hidden");
 
 }
-
-
-// ======================================================
-// CONFIRM PRIORITY ACTION
-// ======================================================
 
 function confirmPriorityAction() {
 
-    individualChats.forEach(
-        function(chat) {
+    const ids = [...selectedChatIds];
+    const makePriority = pendingPriorityMode !== "remove";
 
-            if (
-                priorityActionIds.includes(
-                    chat.id
-                )
-            ) {
+    sb.from("support_conversations")
+        .update({ priority: makePriority })
+        .in("id", ids)
+        .then(function (res) {
 
-                chat.priority =
-                    priorityActionValue;
-
+            if (res.error) {
+                alert("Failed to update priority: " + res.error.message);
+                return;
             }
 
-        }
-    );
+            ids.forEach(function (id) {
+                const chat = findIndividualChat(id);
+                if (chat) chat.priority = makePriority;
+            });
 
+            renderIndividualChats();
+            exitChatSelectionMode();
+            closePriorityConfirmation();
 
-    exitChatSelectionMode();
+        });
 
+}
 
-    closePriorityConfirmation();
+function setupChatSelectionOutsideClick() {
 
+    document.addEventListener("click", function (event) {
 
-    renderIndividualChats();
+        if (!chatSelectionMode) return;
+
+        const bar = supportChatElement("chatSelectionBar");
+        const actionsModal = supportChatElement("chatActionsModal");
+        const deleteModal = supportChatElement("deleteConfirmModal");
+        const priorityModal = supportChatElement("priorityConfirmModal");
+
+        const insideAny =
+            (bar && bar.contains(event.target)) ||
+            (actionsModal && !actionsModal.classList.contains("hidden") && actionsModal.contains(event.target)) ||
+            (deleteModal && !deleteModal.classList.contains("hidden") && deleteModal.contains(event.target)) ||
+            (priorityModal && !priorityModal.classList.contains("hidden") && priorityModal.contains(event.target)) ||
+            event.target.closest(".chat-list-item");
+
+        if (insideAny) return;
+
+        exitChatSelectionMode();
+        closeChatActionsModal();
+
+    });
 
 }
 
 
 // ======================================================
-// CONFIRM DELETE SELECTED CHATS
-// INDIVIDUAL CHAT ONLY
+// REALTIME
 // ======================================================
 
-function confirmDeleteSelectedChats() {
+function setupSupportRealtime() {
 
-    if (
-        selectedChatIds.length === 0
-    ) {
+    if (supportMsgChannel) return;
 
-        closeChatActionsModal();
+    supportMsgChannel = sb.channel("support-messages-admin")
+        .on("postgres_changes", { event: "*", schema: "public", table: "support_messages" }, handleIncomingSupportMessageChange)
+        .subscribe();
+
+    supportConvChannel = sb.channel("support-conversations-admin")
+        .on("postgres_changes", { event: "*", schema: "public", table: "support_conversations" }, function () {
+            loadSupportConversations();
+        })
+        .subscribe();
+
+}
+
+function handleIncomingSupportMessageChange(payload) {
+
+    if (payload.eventType === "DELETE") {
+
+        const chat = individualChats.find(function (c) {
+            return c.messages && c.messages.some(function (m) { return m.id === payload.old.id; });
+        });
+
+        if (chat) {
+            chat.messages = chat.messages.filter(function (m) { return m.id !== payload.old.id; });
+            if (currentChat && currentChat.id === chat.id) { renderMessages(); updatePinnedMessageBar(); }
+        }
 
         return;
 
     }
 
+    const row = payload.new;
+    const chat = findIndividualChat(row.conversation_id);
 
-    hideChatActionsModal();
+    if (!chat) { loadSupportConversations(); return; }
+    if (!chat.messagesLoaded) return;
 
+    const existingIndex = chat.messages.findIndex(function (m) { return m.id === row.id; });
 
-    deleteActionType =
-        "bulkChats";
+    if (existingIndex === -1) {
+        chat.messages.push(mapSupportMessageRow(row));
+    } else {
+        chat.messages[existingIndex] = mapSupportMessageRow(row);
+    }
 
+    if (currentChat && currentChat.id === chat.id) {
 
-    deleteActionIds =
-        [
-            ...selectedChatIds
-        ];
+        renderMessages();
+        updatePinnedMessageBar();
 
-
-    deleteActionChatType =
-        "individual";
-
-
-    const count =
-        selectedChatIds.length;
-
-
-    const noun =
-        count === 1
-            ? "conversation"
-            : "conversations";
-
-
-    const titleElement =
-        supportChatElement(
-            "deleteConfirmTitle"
-        );
-
-
-    const textElement =
-        supportChatElement(
-            "deleteConfirmText"
-        );
-
-
-    if (titleElement) {
-
-        titleElement.textContent =
-            "Delete " +
-            count +
-            " " +
-            noun +
-            "?";
+        if (row.sender_type === "user") {
+            scrollMessagesToBottom();
+        }
 
     }
 
-
-    if (textElement) {
-
-        textElement.textContent =
-            "This will permanently delete the selected " +
-            noun +
-            ". This action cannot be undone.";
-
-    }
-
-
-    const confirmBtn =
-        supportChatElement(
-            "confirmDeleteBtn"
-        );
-
-
-    if (confirmBtn) {
-
-        confirmBtn.textContent =
-            "Delete";
-
-    }
-
-
-    const modal =
-        supportChatElement(
-            "deleteConfirmModal"
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-    }
-
-}
-
-
-// ======================================================
-// SETUP CHAT SELECTION OUTSIDE CLICK
-// INDIVIDUAL CHAT ONLY
-// ======================================================
-
-function setupChatSelectionOutsideClick() {
-
-    document.addEventListener(
-        "click",
-        function(event) {
-
-            if (
-                !chatSelectionMode
-            ) {
-
-                return;
-
-            }
-
-
-            const isInsideSelectionUI =
-                event.target.closest(
-                    "#chatSelectionBar, " +
-                    "#chatActionsModal, " +
-                    "#deleteConfirmModal, " +
-                    "#priorityConfirmModal, " +
-                    ".chat-list-item"
-                );
-
-
-            if (
-                isInsideSelectionUI
-            ) {
-
-                return;
-
-            }
-
-
-            exitChatSelectionMode();
-
-
-            closeChatActionsModal();
-
-
-            closeDeleteConfirmation();
-
-
-            closePriorityConfirmation();
-
-        },
-        true
-    );
+    loadSupportConversations();
 
 }
