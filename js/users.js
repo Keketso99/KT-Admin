@@ -1447,23 +1447,7 @@ const hiddenData =
     // DEPOSIT / WITHDRAWAL HISTORY
     // ===============================
 
-    const depositBtn = document.querySelector(".deposit-btn");
-
-    if(depositBtn){
-        depositBtn.onclick=function(){
-            if(!currentRow) return;
-            loadAdminPage("deposits");
-        };
-    }
-
-    const withdrawBtn = document.querySelector(".withdraw-btn");
-
-    if(withdrawBtn){
-        withdrawBtn.onclick=function(){
-            if(!currentRow) return;
-            loadAdminPage("withdrawals");
-        };
-    }
+    
 
 
 // ======================================================
