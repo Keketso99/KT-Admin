@@ -1448,11 +1448,14 @@
 
     font-size:25px;
 
-    line-height:36px;
-
     cursor:pointer;
 
     flex:0 0 auto;
+
+    display:flex;            
+    align-items:center;      
+    justify-content:center;   
+    line-height:normal; 
 
 }
 
@@ -1587,4 +1590,18 @@
 
     font-size:14px;
 
+}
+
+.avatar-initials {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #e5e7eb; /* navy blue background */
+  color: #222;         /* white text */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 auto 15px;
 }

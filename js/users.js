@@ -300,15 +300,30 @@ function initUsers(){
     // OPEN USER MODAL
     // ===============================
 
-    function openUserModal(row){
+  function getInitials(fullName) {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(" ");
+    let initials = parts[0].charAt(0).toUpperCase();
+    if (parts.length > 1) {
+        initials += parts[1].charAt(0).toUpperCase();
+    }
+    return initials;
+}
 
-        currentRow = row;
+function openUserModal(row) {
+    currentRow = row;
 
-        let hiddenData = row.querySelector(".user-hidden-data");
+    let hiddenData = row.querySelector(".user-hidden-data");
+    const fullName = row.querySelector("h4").textContent;
 
-        modalUserName.textContent = row.querySelector("h4").textContent;
+    modalUserName.textContent = fullName;
+    modalUserID.textContent = "User ID : " + row.dataset.userid;
 
-        modalUserID.textContent = "User ID : " + row.dataset.userid;
+    // Replace avatar with initials
+    const modalAvatar = document.getElementById("modalAvatar");
+    modalAvatar.textContent = getInitials(fullName);
+
+    // … existing code for email, gender, etc.
 
                 modalEmail.textContent = hiddenData.querySelector(".email").textContent;
 
@@ -1977,7 +1992,7 @@ async function openUserHistory(type){
     `;
 
 
-    userModal.style.display = "none";
+    
 
     userHistoryModal.style.display = "flex";
 
