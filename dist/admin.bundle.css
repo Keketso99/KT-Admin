@@ -4072,6 +4072,11 @@ button{
    USER DEPOSIT / WITHDRAWAL HISTORY MODAL
 ========================================================= */
 
+/* =========================================================
+   USER DEPOSIT / WITHDRAWAL HISTORY MODAL
+   BOTTOM HALF-SCREEN SHEET
+========================================================= */
+
 .user-history-modal{
 
     display:none;
@@ -4079,34 +4084,40 @@ button{
     position:fixed;
 
     top:65px;
-    right:40px;
+    right:0;
 
-    width:calc(100% - 35px);
-    height:calc(100vh - 65px);
+    width:100%;
+    height:90%;
 
     background:rgba(0,0,0,.55);
 
     z-index:5100;
 
-    padding:15px;
+    padding:0;
 
-    overflow-y:auto;
+    overflow:hidden;
 
-    align-items:flex-start;
+    align-items:flex-end;
     justify-content:center;
 
 }
 
 
+/* =========================================================
+   HISTORY CONTENT
+========================================================= */
+
 .user-history-content{
 
-    width:min(900px,100%);
+    width:100%;
 
-    max-height:calc(100vh - 95px);
+    height:80vh;
+
+  
 
     background:#fff;
 
-    border-radius:15px;
+    border-radius:18px 18px 0 0;
 
     padding:20px;
 
@@ -4114,12 +4125,20 @@ button{
 
     overflow:hidden;
 
-    box-shadow:0 8px 30px rgba(0,0,0,.18);
+    box-shadow:0 -8px 30px rgba(0,0,0,.18);
+
+    box-sizing:border-box;
+
+    display:flex;
+
+    flex-direction:column;
 
 }
 
 
-/* HEADER */
+/* =========================================================
+   HEADER
+========================================================= */
 
 .user-history-header{
 
@@ -4134,6 +4153,8 @@ button{
     padding-right:5px;
 
     margin-bottom:15px;
+
+    flex-shrink:0;
 
 }
 
@@ -4160,11 +4181,14 @@ button{
 }
 
 
-/* CLOSE BUTTON */
+/* =========================================================
+   CLOSE BUTTON
+========================================================= */
 
 .user-history-close{
 
     width:36px;
+
     height:36px;
 
     border:none;
@@ -4195,11 +4219,15 @@ button{
 }
 
 
-/* SEARCH */
+/* =========================================================
+   SEARCH
+========================================================= */
 
 .user-history-toolbar{
 
     margin-bottom:15px;
+
+    flex-shrink:0;
 
 }
 
@@ -4234,82 +4262,71 @@ button{
 }
 
 
-/* HISTORY BODY */
+/* =========================================================
+   HISTORY BODY
+========================================================= */
 
 .user-history-body{
-
-    max-height:calc(100vh - 245px);
-
-    overflow:auto;
-
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
     border:1px solid #eee;
-
     border-radius:10px;
-
+    width:100%;
+    box-sizing:border-box;
 }
-
-
-/* TABLE */
 
 .user-history-table{
-
     width:100%;
-
+    max-width:100%;
+    min-width:0;
+    table-layout:fixed;
     border-collapse:collapse;
-
-    min-width:650px;
-
 }
-
 
 .user-history-table th,
 .user-history-table td{
-
     padding:12px 10px;
-
-    border-bottom:1px solid #eee;
-
     text-align:left;
-
-    font-size:13px;
-
-    white-space:nowrap;
-
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+    box-sizing:border-box;
 }
-
 
 .user-history-table th{
-
-    background:#f7f9fc;
-
-    color:#666;
-
-    font-weight:600;
-
-    position:sticky;
-
-    top:0;
-
-    z-index:1;
-
+    font-size:12px;
 }
-
 
 .user-history-table td{
+    font-size:11px;
+}
 
-    color:#333;
+.user-history-table th:nth-child(1),
+.user-history-table td:nth-child(1){
+    width:28%;
+}
 
+.user-history-table th:nth-child(2),
+.user-history-table td:nth-child(2){
+    width:20%;
+}
+
+.user-history-table th:nth-child(3),
+.user-history-table td:nth-child(3){
+    width:30%;
+}
+
+.user-history-table th:nth-child(4),
+.user-history-table td:nth-child(4){
+    width:22%;
 }
 
 
-.user-history-table tr:last-child td{
-
-    border-bottom:none;
-
-}
-
-
-/* EMPTY / LOADING / ERROR */
+/* =========================================================
+   EMPTY / LOADING / ERROR
+========================================================= */
 
 .user-history-empty,
 .user-history-loading,
