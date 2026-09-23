@@ -5538,6 +5538,10 @@ function getHistoryColumns(records){
 // RENDER HISTORY
 // ======================================================
 
+// ======================================================
+// RENDER HISTORY
+// ======================================================
+
 function renderHistoryRecords(){
 
     const search =
@@ -5549,18 +5553,40 @@ function renderHistoryRecords(){
     const filtered =
         userHistoryRecords.filter(record => {
 
+            let method = "—";
+
+if(userHistoryType === "deposit"){
+
+    method = formatDepositMethodLabel(record.method);
+
+}else{
+
+    method =
+        record.payment_methods
+            ? formatWithdrawalMethodLabel(record.payment_methods.method)
+            : "—";
+
+}
+
+
             const searchableText = [
 
-                record.method,
-                record.amount,
+                method,
+
+                record.amount_zar,
+
                 record.created_at,
+
                 record.status
 
             ]
+
             .map(value =>
                 formatHistoryValue(value)
             )
+
             .join(" ")
+
             .toLowerCase();
 
 
@@ -5621,25 +5647,75 @@ function renderHistoryRecords(){
 
     filtered.forEach(record => {
 
-        const method =
-            formatHistoryValue(
-                record.method
-            );
+        // ================================================
+        // METHOD
+        // ================================================
 
+        let method = "—";
+
+
+        if(userHistoryType === "deposit"){
+
+            method =
+               formatDepositMethodLabel(record.method) || "—";
+
+        }
+
+        else{
+
+            method =
+
+                record.payment_methods
+
+                    ? formatUserHistoryWithdrawalMethod(
+                        record.payment_methods.method
+                    )
+
+                    : "—";
+
+        }
+
+
+        // ================================================
+        // AMOUNT
+        // ================================================
 
         const amount =
-            formatHistoryValue(
-                record.amount
-            );
 
+            record.amount_zar !== null &&
+            record.amount_zar !== undefined
+
+                ? "M " +
+                  Number(
+                      record.amount_zar
+                  ).toLocaleString(
+                      "en-US",
+                      {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                      }
+                  )
+
+                : "—";
+
+
+        // ================================================
+        // DATE
+        // ================================================
 
         const date =
+
             formatHistoryDate(
                 record.created_at
             );
 
 
+        // ================================================
+        // STATUS
+        // ================================================
+
         const status =
+
             formatHistoryValue(
                 record.status
             );
@@ -5685,6 +5761,51 @@ function renderHistoryRecords(){
 
 }
 
+// ======================================================
+// WITHDRAWAL METHOD LABEL
+// Uses the same method mapping as withdrawals.js
+// ======================================================
+
+function formatUserHistoryWithdrawalMethod(method){
+
+    const labels = {
+
+        usdt_trc20: "USDT (TRC20)",
+
+        mpesa: "M-Pesa",
+
+        ecocash: "EcoCash"
+
+    };
+
+    return labels[method] || method || "—";
+
+}
+
+
+  // ======================================================
+// DEPOSIT METHOD LABEL
+// ======================================================
+
+function formatDepositMethodLabel(method){
+
+    const labels = {
+
+        usdt_trc20: "USDT (TRC20)",
+
+        mpesa: "M-Pesa",
+
+        ecocash: "EcoCash"
+
+    };
+
+    return labels[method] || method || "—";
+
+}
+  
+// ======================================================
+// OPEN USER HISTORY
+// ======================================================
 
 // ======================================================
 // OPEN USER HISTORY
@@ -5745,33 +5866,87 @@ async function openUserHistory(type){
     userHistoryModal.style.display = "flex";
 
 
-    const tableName =
-
-        type === "deposit"
-
-            ? "deposits"
-
-            : "withdrawals";
-
-
     try{
 
-        const { data, error } =
+        let data;
 
-            await sb
+        let error;
 
-                .from(tableName)
 
-                .select("*")
+        // ==================================================
+        // DEPOSIT HISTORY
+        // ==================================================
 
-                .eq("user_id", userId)
+        if(type === "deposit"){
 
-                .order(
-                    "created_at",
-                    {
-                        ascending:false
-                    }
-                );
+            const result =
+
+                await sb
+
+                    .from("deposits")
+
+                    .select(`
+                        id,
+                        user_id,
+                        amount_zar,
+                        method,
+                        status,
+                        created_at
+                    `)
+
+                    .eq("user_id", userId)
+
+                    .order(
+                        "created_at",
+                        {
+                            ascending:false
+                        }
+                    );
+
+
+            data = result.data;
+
+            error = result.error;
+
+        }
+
+
+        // ==================================================
+        // WITHDRAWAL HISTORY
+        // ==================================================
+
+        else{
+
+            const result =
+
+                await sb
+
+                    .from("withdrawals")
+
+                    .select(`
+                        id,
+                        user_id,
+                        amount_zar,
+                        status,
+                        created_at,
+                        payment_methods(method)
+                    `)
+
+                    .eq("user_id", userId)
+
+                    .order(
+                        "created_at",
+                        {
+                            ascending:false
+                        }
+                    );
+
+
+            data = result.data;
+
+            error = result.error;
+
+        }
 
 
         if(error){
