@@ -1190,7 +1190,7 @@ const hiddenData =
     }
 
     // ===============================
-    // ADD BONUS (real — admin_credit_wallet)
+    // ADD BONUS (real — admin_add_bonus)
     // ===============================
 
     const rewardBtn = document.querySelector(".reward-btn");
@@ -1212,10 +1212,10 @@ const hiddenData =
                 return;
             }
 
-            sb.rpc("admin_credit_wallet", {
+            sb.rpc("admin_add_bonus", {
                 p_user_id: currentRow.dataset.userid,
                 p_amount: bonus,
-                p_note: "Bonus"
+                p_note: "Bonus added by admin"
             })
 
             .then(({ error }) => {

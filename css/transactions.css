@@ -764,3 +764,33 @@
 .transaction-type-admin_debit{
     background:#e74c3c;
 }
+/* =====================================
+   TRANSACTION TYPE BADGES
+===================================== */
+
+.transaction-type-credit{
+    background:#27ae60;
+}
+
+.transaction-type-debit{
+    background:#e74c3c;
+}
+
+/* =====================================
+   RECORDING INTEGRITY STATUS
+===================================== */
+
+.transaction-status-incomplete{
+    background:#e74c3c;
+}
+
+.transaction-status-complete{
+    background:#27ae60;
+}
+
+.transaction-loading,
+.transaction-empty{
+    text-align:center;
+    padding:28px 15px !important;
+    color:#6b7280 !important;
+}
