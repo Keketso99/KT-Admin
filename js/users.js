@@ -359,6 +359,7 @@ function openUserModal(row) {
         updateApproveButton();
 
         userModal.style.display="flex";
+        updateVerifyUserButton();
 
     }
 
@@ -1239,14 +1240,247 @@ const hiddenData =
     // VERIFY USER
     // ===============================
 
-    const verifyBtn = document.querySelector(".verify-btn");
+    // ===============================
+// VERIFY USER
+// ===============================
 
-    if(verifyBtn){
-        verifyBtn.onclick = function(){
-            if(!currentRow) return;
-            loadAdminPage("verification");
+const verifyBtn =
+    document.querySelector(".verify-btn");
+
+const verifyUserModal =
+    document.getElementById("verifyUserModal");
+
+const verifyUserMessage =
+    document.getElementById("verifyUserMessage");
+
+const verifyUserActions =
+    document.getElementById("verifyUserActions");
+
+
+// ---------------------------------
+// Update Verify User Button
+// ---------------------------------
+
+function updateVerifyUserButton(){
+
+    if(!verifyBtn || !currentRow) return;
+
+    const userId =
+        currentRow.dataset.userid;
+
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = "Verify User";
+    verifyBtn.classList.remove("verified-user-btn");
+
+    sb.from("kyc_submissions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("status", "approved")
+        .limit(1)
+        .maybeSingle()
+
+        .then(({ data, error }) => {
+
+            if(error){
+
+                console.error(
+                    "Failed to check user verification:",
+                    error
+                );
+
+                return;
+            }
+
+            if(data){
+
+                verifyBtn.textContent = "Verified";
+
+                verifyBtn.disabled = true;
+
+                verifyBtn.classList.add(
+                    "verified-user-btn"
+                );
+
+            }
+
+        });
+
+}
+
+
+// ---------------------------------
+// Open Verification Check Modal
+// ---------------------------------
+
+function openVerifyUserCheck(){
+
+    if(!currentRow || !verifyUserModal) return;
+
+    const userId =
+        currentRow.dataset.userid;
+
+    verifyUserModal.style.display = "flex";
+
+    verifyUserMessage.textContent =
+        "Checking whether this user has submitted KYC verification...";
+
+    verifyUserActions.innerHTML = `
+        <button
+            type="button"
+            class="verify-user-close">
+            Close
+        </button>
+    `;
+
+    bindVerifyUserClose();
+
+
+    sb.from("kyc_submissions")
+        .select("id, status, created_at")
+        .eq("user_id", userId)
+        .order("created_at", {
+            ascending: false
+        })
+        .limit(1)
+        .maybeSingle()
+
+        .then(({ data, error }) => {
+
+            if(error){
+
+                verifyUserMessage.textContent =
+                    "Failed to check verification: " +
+                    error.message;
+
+                return;
+            }
+
+
+            // ---------------------------------
+            // No KYC submission
+            // ---------------------------------
+
+            if(!data){
+
+                verifyUserMessage.textContent =
+                    "This user has not submitted KYC verification.";
+
+                verifyUserActions.innerHTML = `
+                    <button
+                        type="button"
+                        class="verify-user-close">
+                        Close
+                    </button>
+                `;
+
+                bindVerifyUserClose();
+
+                return;
+            }
+
+
+            // ---------------------------------
+            // KYC submission exists
+            // ---------------------------------
+
+            verifyUserMessage.textContent =
+                "This user has submitted KYC verification.";
+
+            verifyUserActions.innerHTML = `
+                <button
+                    type="button"
+                    class="verify-user-close">
+                    Close
+                </button>
+
+                <button
+                    type="button"
+                    class="verify-user-confirm">
+                    Verify
+                </button>
+            `;
+
+            bindVerifyUserClose();
+
+
+            const confirmBtn =
+                verifyUserActions.querySelector(
+                    ".verify-user-confirm"
+                );
+
+
+            if(confirmBtn){
+
+                confirmBtn.onclick = function(){
+
+                    /*
+                     * Tell the Verification page which
+                     * user must be displayed.
+                     */
+
+                    window.verificationUserId =
+                        userId;
+
+                    verifyUserModal.style.display =
+                        "none";
+
+                    userModal.style.display =
+                        "none";
+
+                    loadAdminPage("verification");
+
+                };
+
+            }
+
+        });
+
+}
+
+
+// ---------------------------------
+// Close Verification Check Modal
+// ---------------------------------
+
+function bindVerifyUserClose(){
+
+    const closeBtn =
+        verifyUserActions.querySelector(
+            ".verify-user-close"
+        );
+
+    if(closeBtn){
+
+        closeBtn.onclick = function(){
+
+            verifyUserModal.style.display =
+                "none";
+
         };
+
     }
+
+}
+
+
+if(verifyBtn){
+
+    verifyBtn.onclick = function(){
+
+        if(!currentRow) return;
+
+        /*
+         * If the button is already disabled,
+         * the user is verified.
+         */
+
+        if(verifyBtn.disabled) return;
+
+        openVerifyUserCheck();
+
+    };
+
+}
 
 
       // ===============================

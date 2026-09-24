@@ -82,6 +82,8 @@ function initVerification() {
 
                 updateKycStats();
 
+              applyVerificationUserFilter();
+
             });
 
     }
@@ -173,6 +175,77 @@ function initVerification() {
         loadReviewButtons();
 
     }
+
+  // ===============================
+// FILTER VERIFICATION FOR USER
+// ===============================
+
+function applyVerificationUserFilter(){
+
+    const targetUserId =
+        window.verificationUserId;
+
+    if(!targetUserId) return;
+
+
+    const matchingEntries =
+        Object.values(kycData)
+            .filter(entry =>
+                entry.userId === targetUserId
+            );
+
+
+    if(!matchingEntries.length){
+
+        window.verificationUserId = null;
+
+        return;
+    }
+
+
+    const latest =
+        matchingEntries.sort(
+            (a, b) =>
+                new Date(b.createdAt) -
+                new Date(a.createdAt)
+        )[0];
+
+
+    // Select the user's current/latest KYC status tab
+    const targetTab =
+        document.querySelector(
+            `.kyc-tab[data-status="${latest.status}"]`
+        );
+
+    if(targetTab){
+
+        targetTab.click();
+
+    }
+
+
+    // Hide every KYC row that belongs to another user
+    document.querySelectorAll(
+        "#pendingList tbody tr, " +
+        "#approvedList tbody tr, " +
+        "#rejectedList tbody tr"
+    ).forEach(row => {
+
+        const entry =
+            kycData[row.dataset.kycid];
+
+        row.style.display =
+            entry &&
+            entry.userId === targetUserId
+                ? ""
+                : "none";
+
+    });
+
+
+    window.verificationUserId = null;
+
+}
 
   // =========================================================
 // VERIFICATION SEARCH

@@ -4390,6 +4390,151 @@ button{
   margin: 0 auto 15px;
 }
 
+/* =================================
+   VERIFY USER CHECK MODAL
+================================= */
+
+.verify-user-modal{
+
+    display:none;
+
+    position:fixed;
+
+    top:65px;
+    right:40px;
+
+    width:calc(100% - 35px);
+    height:calc(100vh - 65px);
+
+    background:rgba(0,0,0,.55);
+
+    z-index:6000;
+
+    align-items:center;
+    justify-content:center;
+
+    padding:15px;
+
+    box-sizing:border-box;
+
+}
+
+
+.verify-user-content{
+
+    width:360px;
+    max-width:100%;
+
+    background:#fff;
+
+    border-radius:14px;
+
+    padding:22px;
+
+    box-sizing:border-box;
+
+    text-align:center;
+
+}
+
+
+.verify-user-content h3{
+
+    margin:0 0 12px;
+
+    color:#333;
+
+    font-size:18px;
+
+}
+
+
+.verify-user-content p{
+
+    margin:0 0 20px;
+
+    color:#666;
+
+    font-size:14px;
+
+    line-height:1.5;
+
+}
+
+
+.verify-user-actions{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:10px;
+
+}
+
+
+.verify-user-actions button{
+
+    border:none;
+
+    border-radius:8px;
+
+    padding:10px 20px;
+
+    font-size:13px;
+
+    cursor:pointer;
+
+}
+
+
+.verify-user-close{
+
+    background:#edf0f4;
+
+    color:#444;
+
+}
+
+
+.verify-user-confirm{
+
+    background:#1b8ef2;
+
+    color:#fff;
+
+}
+
+
+.verify-user-close:hover,
+.verify-user-confirm:hover{
+
+    opacity:.85;
+
+}
+
+
+/* Verified = read-only */
+
+.verify-btn.verified-user-btn{
+
+    background:#e8f7ee;
+
+    color:#16803c;
+
+    cursor:default;
+
+    opacity:1;
+
+}
+
+
+.verify-btn.verified-user-btn:hover{
+
+    opacity:1;
+
+}
+
 /* ===== css/verification.css ===== */
 /* =================================
 VERIFICATION PAGE
