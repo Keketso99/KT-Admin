@@ -1261,6 +1261,14 @@ const verifyUserActions =
 // Update Verify User Button
 // ---------------------------------
 
+// ---------------------------------
+// Update Verify User Button
+// ---------------------------------
+
+// ---------------------------------
+// Update Verify User Button
+// ---------------------------------
+
 function updateVerifyUserButton(){
 
     if(!verifyBtn || !currentRow) return;
@@ -1268,14 +1276,30 @@ function updateVerifyUserButton(){
     const userId =
         currentRow.dataset.userid;
 
-    verifyBtn.disabled = false;
-    verifyBtn.textContent = "Verify User";
-    verifyBtn.classList.remove("verified-user-btn");
+
+    // ---------------------------------
+    // Loading state
+    // ---------------------------------
+
+    verifyBtn.disabled = true;
+
+    verifyBtn.textContent = "Loading...";
+
+    verifyBtn.classList.remove(
+        "verified-user-btn"
+    );
+
+
+    // ---------------------------------
+    // Get the user's LATEST KYC record
+    // ---------------------------------
 
     sb.from("kyc_submissions")
-        .select("id")
+        .select("id, status, created_at")
         .eq("user_id", userId)
-        .eq("status", "approved")
+        .order("created_at", {
+            ascending: false
+        })
         .limit(1)
         .maybeSingle()
 
@@ -1288,12 +1312,47 @@ function updateVerifyUserButton(){
                     error
                 );
 
+                // Do not incorrectly show Verified
+                verifyBtn.textContent =
+                    "Verify User";
+
+                verifyBtn.disabled = false;
+
+                verifyBtn.classList.remove(
+                    "verified-user-btn"
+                );
+
                 return;
             }
 
-            if(data){
 
-                verifyBtn.textContent = "Verified";
+            // ---------------------------------
+            // No KYC record
+            // ---------------------------------
+
+            if(!data){
+
+                verifyBtn.textContent =
+                    "Verify User";
+
+                verifyBtn.disabled = false;
+
+                verifyBtn.classList.remove(
+                    "verified-user-btn"
+                );
+
+                return;
+            }
+
+
+            // ---------------------------------
+            // Latest KYC record is approved
+            // ---------------------------------
+
+            if(data.status === "approved"){
+
+                verifyBtn.textContent =
+                    "Verified";
 
                 verifyBtn.disabled = true;
 
@@ -1301,7 +1360,40 @@ function updateVerifyUserButton(){
                     "verified-user-btn"
                 );
 
+                return;
             }
+
+
+            // ---------------------------------
+            // Latest KYC record is NOT approved
+            // ---------------------------------
+
+            verifyBtn.textContent =
+                "Verify User";
+
+            verifyBtn.disabled = false;
+
+            verifyBtn.classList.remove(
+                "verified-user-btn"
+            );
+
+        })
+
+        .catch(error => {
+
+            console.error(
+                "Verification status check failed:",
+                error
+            );
+
+            verifyBtn.textContent =
+                "Verify User";
+
+            verifyBtn.disabled = false;
+
+            verifyBtn.classList.remove(
+                "verified-user-btn"
+            );
 
         });
 
