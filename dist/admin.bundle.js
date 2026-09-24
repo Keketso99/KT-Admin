@@ -6152,10 +6152,23 @@ function initVerification() {
 
     function renderRow(entry) {
 
-        const tr = document.createElement("tr");
+    const tr = document.createElement("tr");
 
-        tr.dataset.kycid = entry.id;
-        tr.dataset.status = entry.status;
+    tr.dataset.kycid = entry.id;
+    tr.dataset.status = entry.status;
+
+    // Searchable information
+    tr.dataset.search = [
+        entry.name,
+        entry.email,
+        entry.phone,
+        entry.country,
+        entry.date,
+        entry.status
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
         const buttonLabel =
             entry.status === "pending" ? "Review" : "View";
@@ -6220,6 +6233,43 @@ function initVerification() {
         loadReviewButtons();
 
     }
+
+  // =========================================================
+// VERIFICATION SEARCH
+// =========================================================
+
+const verificationSearch =
+    document.getElementById("verificationSearch");
+
+if (verificationSearch) {
+
+    verificationSearch.addEventListener("input", function () {
+
+        const searchTerm =
+            this.value.trim().toLowerCase();
+
+        const rows = document.querySelectorAll(
+            "#pendingList tbody tr, " +
+            "#approvedList tbody tr, " +
+            "#rejectedList tbody tr"
+        );
+
+        rows.forEach(row => {
+
+            const searchableText =
+                row.dataset.search || "";
+
+            row.style.display =
+                !searchTerm ||
+                searchableText.includes(searchTerm)
+                    ? ""
+                    : "none";
+
+        });
+
+    });
+
+}
 
     // ===============================
     // Update Statistics
@@ -7225,7 +7275,16 @@ function renderNotifications(){
         const row = document.createElement("div");
 
         row.className = "notification-row " + entry.status;
-        row.dataset.id = entry.id;
+row.dataset.id = entry.id;
+
+row.dataset.search = [
+    entry.requesterName,
+    entry.title,
+    entry.fullTime
+]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
         row.innerHTML =
         "<div class=\"notification-icon\">" +
@@ -7258,10 +7317,36 @@ function initNotifications(){
         btn.classList.remove("active");
     });
 
-    document.querySelector(".tab-btn")
-    .classList.add("active");
+    const firstTab = document.querySelector(".tab-btn");
 
-    showNotificationTab("all");
+    if(firstTab){
+        firstTab.classList.add("active");
+    }
+
+    currentNotificationTab = "all";
+    currentNotificationTabButton = firstTab || null;
+
+    // ===============================
+    // NOTIFICATION SEARCH
+    // ===============================
+
+    const notificationSearch =
+        document.getElementById("notificationSearch");
+
+    if(notificationSearch){
+
+        notificationSearch.addEventListener("input", function(){
+
+            showNotificationTab(
+                currentNotificationTab,
+                currentNotificationTabButton
+            );
+
+        });
+
+    }
+
+    showNotificationTab("all", firstTab);
 
 }
 
@@ -7307,21 +7392,33 @@ function showNotificationTab(type,button){
     }
 
     document.querySelectorAll(".notification-row")
-    .forEach(row=>{
+.forEach(row => {
 
-        if(type==="all"){
-            row.style.display="flex";
-        }
-        else if(row.classList.contains(type)){
-            row.style.display="flex";
-        }
-        else{
-            row.style.display="none";
-        }
+    const searchInput =
+        document.getElementById("notificationSearch");
+
+    const searchTerm =
+        searchInput
+            ? searchInput.value.trim().toLowerCase()
+            : "";
+
+    const matchesSearch =
+        !searchTerm ||
+        (row.dataset.search || "").includes(searchTerm);
+
+    const matchesTab =
+        type === "all" ||
+        row.classList.contains(type);
+
+    row.style.display =
+        matchesSearch && matchesTab
+            ? "flex"
+            : "none";
 
     });
 
 }
+
 
 
 // ===============================

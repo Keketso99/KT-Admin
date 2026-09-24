@@ -92,10 +92,23 @@ function initVerification() {
 
     function renderRow(entry) {
 
-        const tr = document.createElement("tr");
+    const tr = document.createElement("tr");
 
-        tr.dataset.kycid = entry.id;
-        tr.dataset.status = entry.status;
+    tr.dataset.kycid = entry.id;
+    tr.dataset.status = entry.status;
+
+    // Searchable information
+    tr.dataset.search = [
+        entry.name,
+        entry.email,
+        entry.phone,
+        entry.country,
+        entry.date,
+        entry.status
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
         const buttonLabel =
             entry.status === "pending" ? "Review" : "View";
@@ -160,6 +173,43 @@ function initVerification() {
         loadReviewButtons();
 
     }
+
+  // =========================================================
+// VERIFICATION SEARCH
+// =========================================================
+
+const verificationSearch =
+    document.getElementById("verificationSearch");
+
+if (verificationSearch) {
+
+    verificationSearch.addEventListener("input", function () {
+
+        const searchTerm =
+            this.value.trim().toLowerCase();
+
+        const rows = document.querySelectorAll(
+            "#pendingList tbody tr, " +
+            "#approvedList tbody tr, " +
+            "#rejectedList tbody tr"
+        );
+
+        rows.forEach(row => {
+
+            const searchableText =
+                row.dataset.search || "";
+
+            row.style.display =
+                !searchTerm ||
+                searchableText.includes(searchTerm)
+                    ? ""
+                    : "none";
+
+        });
+
+    });
+
+}
 
     // ===============================
     // Update Statistics
