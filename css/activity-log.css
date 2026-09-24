@@ -353,15 +353,15 @@
 
 .activity-modal{
     position:fixed;
-    top:0;
+    top:calc(90px + env(safe-area-inset-top));
     left:0;
     width:100%;
-    height:100%;
+    height:calc(100vh - 65px - env(safe-area-inset-top));
     background:rgba(0,0,0,.45);
     display:none;
     align-items:center;
     justify-content:center;
-    padding:20px;
+    padding:10px;
     z-index:9999;
 }
 
@@ -462,6 +462,11 @@ body.activity-modal-open{
     cursor:pointer;
     font-size:14px;
     flex:0 0 auto;
+
+    display:flex;              /* NEW */
+    align-items:center;        /* NEW */
+    justify-content:center;    /* NEW */
+    line-height:normal;  
 }
 
 .activity-modal-close:hover{
