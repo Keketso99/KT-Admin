@@ -1261,14 +1261,6 @@ const verifyUserActions =
 // Update Verify User Button
 // ---------------------------------
 
-// ---------------------------------
-// Update Verify User Button
-// ---------------------------------
-
-// ---------------------------------
-// Update Verify User Button
-// ---------------------------------
-
 function updateVerifyUserButton(){
 
     if(!verifyBtn || !currentRow) return;
@@ -1408,12 +1400,20 @@ function updateVerifyUserButton(){
 // CHECK USER VERIFICATION SUBMISSION
 // =================================
 
+// =================================
+// CHECK USER VERIFICATION SUBMISSION
+// =================================
+
 function openVerifyUserCheck(){
 
     if(!currentRow) return;
 
     const userId =
         currentRow.dataset.userid;
+
+    // =================================
+    // OPEN MODAL
+    // =================================
 
     verifyUserMessage.textContent =
         "Checking verification status...";
@@ -1427,6 +1427,14 @@ function openVerifyUserCheck(){
     `;
 
     verifyUserModal.style.display = "flex";
+
+    // Bind Close immediately
+    bindVerifyUserClose();
+
+
+    // =================================
+    // CHECK LATEST KYC RECORD
+    // =================================
 
     sb.from("kyc_submissions")
         .select(
@@ -1451,8 +1459,10 @@ function openVerifyUserCheck(){
                 verifyUserMessage.textContent =
                     "Failed to check verification status.";
 
+                // Close button is already bound
                 return;
             }
+
 
             // =================================
             // NO KYC RECORD
@@ -1463,15 +1473,14 @@ function openVerifyUserCheck(){
                 verifyUserMessage.textContent =
                     "This user has not submitted KYC verification.";
 
+                // Close button remains available
                 return;
             }
+
 
             // =================================
             // RESET / RESUBMISSION REQUIRED
             // =================================
-            // The old KYC record still exists,
-            // but it is no longer considered a
-            // submitted verification request.
 
             if(
                 data.status === "rejected" &&
@@ -1481,8 +1490,10 @@ function openVerifyUserCheck(){
                 verifyUserMessage.textContent =
                     "This user has not submitted KYC verification.";
 
+                // Close button remains available
                 return;
             }
+
 
             // =================================
             // PENDING
@@ -1507,11 +1518,17 @@ function openVerifyUserCheck(){
                     </button>
                 `;
 
+                // Re-bind because innerHTML replaced the buttons
                 bindVerifyUserClose();
 
-                document
-                    .querySelector(".verify-user-confirm")
-                    .onclick = function(){
+                const confirmBtn =
+                    verifyUserActions.querySelector(
+                        ".verify-user-confirm"
+                    );
+
+                if(confirmBtn){
+
+                    confirmBtn.onclick = function(){
 
                         window.verificationUserId =
                             userId;
@@ -1523,13 +1540,17 @@ function openVerifyUserCheck(){
                             "none";
 
                         loadAdminPage("verification");
+
                     };
+
+                }
 
                 return;
             }
 
+
             // =================================
-            // REJECTED WITHOUT RESUBMISSION FLAG
+            // REJECTED
             // =================================
 
             if(data.status === "rejected"){
@@ -1537,8 +1558,10 @@ function openVerifyUserCheck(){
                 verifyUserMessage.textContent =
                     "This user has not submitted KYC verification.";
 
+                // Close button remains available
                 return;
             }
+
 
             // =================================
             // APPROVED
@@ -1549,18 +1572,10 @@ function openVerifyUserCheck(){
                 verifyUserMessage.textContent =
                     "This user has submitted KYC verification.";
 
-                verifyUserActions.innerHTML = `
-                    <button
-                        type="button"
-                        class="verify-user-close">
-                        Close
-                    </button>
-                `;
-
-                bindVerifyUserClose();
-
+                // Close button already exists and is bound
                 return;
             }
+
 
             // =================================
             // FALLBACK
@@ -1591,24 +1606,28 @@ function openVerifyUserCheck(){
 
 function bindVerifyUserClose(){
 
-    const closeBtn =
-        verifyUserActions.querySelector(
-            ".verify-user-close"
-        );
+    if(!verifyUserActions) return;
 
-    if(closeBtn){
+    verifyUserActions.onclick = function(event){
 
-        closeBtn.onclick = function(){
+        const closeButton =
+            event.target.closest(".verify-user-close");
 
-            verifyUserModal.style.display =
-                "none";
+        if(!closeButton) return;
 
-        };
+        verifyUserModal.style.display = "none";
 
-    }
-
+        if(verifyUserMessage){
+            verifyUserMessage.textContent =
+                "Checking verification status...";
+        }
+    };
 }
 
+
+// =================================
+// VERIFY USER BUTTON CLICK
+// =================================
 
 if(verifyBtn){
 
@@ -1616,11 +1635,7 @@ if(verifyBtn){
 
         if(!currentRow) return;
 
-        /*
-         * If the button is already disabled,
-         * the user is verified.
-         */
-
+        // Do nothing while checking
         if(verifyBtn.disabled) return;
 
         openVerifyUserCheck();
@@ -1629,6 +1644,10 @@ if(verifyBtn){
 
 }
 
+
+// ===============================
+// RESET PASSWORD
+// ===============================
 
       // ===============================
     // RESET PASSWORD (real — request/reset/reject flow)
