@@ -4236,14 +4236,14 @@ function openUserModal(row) {
 
         if(status.classList.contains("active")){
 
-            userModal.style.display="none";
+            
             blockModal.style.display="flex";
 
         }
 
         else{
 
-            userModal.style.display="none";
+            
             renderActivateModal();
             activateModal.style.display="flex";
 
@@ -4749,7 +4749,7 @@ const hiddenData =
     if(creditBtn){
 
         creditBtn.onclick=function(){
-            userModal.style.display="none";
+            
             creditModal.style.display="flex";
         };
 
@@ -4807,7 +4807,7 @@ const hiddenData =
     if(debitBtn){
 
         debitBtn.onclick=function(){
-            userModal.style.display="none";
+            
             debitModal.style.display="flex";
         };
 
@@ -4870,7 +4870,7 @@ const hiddenData =
 
             if(!currentRow) return;
 
-            userModal.style.display="none";
+            
 
             // Populate the dropdown from the real plans table
             sb.from("plans")
@@ -5498,7 +5498,7 @@ if(verifyBtn){
 
         passwordBtn.onclick=function(){
             if(!currentRow) return;
-            userModal.style.display="none";
+          
             renderResetPasswordModal();
             resetPasswordModal.style.display="flex";
         };
@@ -5596,7 +5596,7 @@ if(verifyBtn){
 
         pinResetBtn.onclick=function(){
             if(!currentRow) return;
-            userModal.style.display="none";
+            
             renderResetPinModal();
             resetPinModal.style.display="flex";
         };
