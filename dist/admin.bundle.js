@@ -9095,6 +9095,10 @@ function viewActivityByIndex(index){
 
     modal.classList.add("show");
     document.body.classList.add("activity-modal-open");
+   // Reset after the modal becomes visible
+    requestAnimationFrame(() => {
+        details.scrollTop = 0;
+    });
 }
 
 // Keep compatibility with existing HTML or other page code.
