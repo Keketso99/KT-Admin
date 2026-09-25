@@ -1404,17 +1404,19 @@ function updateVerifyUserButton(){
 // Open Verification Check Modal
 // ---------------------------------
 
+// =================================
+// CHECK USER VERIFICATION SUBMISSION
+// =================================
+
 function openVerifyUserCheck(){
 
-    if(!currentRow || !verifyUserModal) return;
+    if(!currentRow) return;
 
     const userId =
         currentRow.dataset.userid;
 
-    verifyUserModal.style.display = "flex";
-
     verifyUserMessage.textContent =
-        "Checking whether this user has submitted KYC verification...";
+        "Checking verification status...";
 
     verifyUserActions.innerHTML = `
         <button
@@ -1424,11 +1426,12 @@ function openVerifyUserCheck(){
         </button>
     `;
 
-    bindVerifyUserClose();
-
+    verifyUserModal.style.display = "flex";
 
     sb.from("kyc_submissions")
-        .select("id, status, created_at")
+        .select(
+            "id, status, needs_resubmission, created_at"
+        )
         .eq("user_id", userId)
         .order("created_at", {
             ascending: false
@@ -1440,22 +1443,111 @@ function openVerifyUserCheck(){
 
             if(error){
 
+                console.error(
+                    "Failed to check KYC submission:",
+                    error
+                );
+
                 verifyUserMessage.textContent =
-                    "Failed to check verification: " +
-                    error.message;
+                    "Failed to check verification status.";
 
                 return;
             }
 
-
-            // ---------------------------------
-            // No KYC submission
-            // ---------------------------------
+            // =================================
+            // NO KYC RECORD
+            // =================================
 
             if(!data){
 
                 verifyUserMessage.textContent =
                     "This user has not submitted KYC verification.";
+
+                return;
+            }
+
+            // =================================
+            // RESET / RESUBMISSION REQUIRED
+            // =================================
+            // The old KYC record still exists,
+            // but it is no longer considered a
+            // submitted verification request.
+
+            if(
+                data.status === "rejected" &&
+                data.needs_resubmission === true
+            ){
+
+                verifyUserMessage.textContent =
+                    "This user has not submitted KYC verification.";
+
+                return;
+            }
+
+            // =================================
+            // PENDING
+            // =================================
+
+            if(data.status === "pending"){
+
+                verifyUserMessage.textContent =
+                    "This user has submitted KYC verification.";
+
+                verifyUserActions.innerHTML = `
+                    <button
+                        type="button"
+                        class="verify-user-close">
+                        Close
+                    </button>
+
+                    <button
+                        type="button"
+                        class="verify-user-confirm">
+                        Verify
+                    </button>
+                `;
+
+                bindVerifyUserClose();
+
+                document
+                    .querySelector(".verify-user-confirm")
+                    .onclick = function(){
+
+                        window.verificationUserId =
+                            userId;
+
+                        verifyUserModal.style.display =
+                            "none";
+
+                        userModal.style.display =
+                            "none";
+
+                        loadAdminPage("verification");
+                    };
+
+                return;
+            }
+
+            // =================================
+            // REJECTED WITHOUT RESUBMISSION FLAG
+            // =================================
+
+            if(data.status === "rejected"){
+
+                verifyUserMessage.textContent =
+                    "This user has not submitted KYC verification.";
+
+                return;
+            }
+
+            // =================================
+            // APPROVED
+            // =================================
+
+            if(data.status === "approved"){
+
+                verifyUserMessage.textContent =
+                    "This user has submitted KYC verification.";
 
                 verifyUserActions.innerHTML = `
                     <button
@@ -1470,63 +1562,26 @@ function openVerifyUserCheck(){
                 return;
             }
 
-
-            // ---------------------------------
-            // KYC submission exists
-            // ---------------------------------
+            // =================================
+            // FALLBACK
+            // =================================
 
             verifyUserMessage.textContent =
-                "This user has submitted KYC verification.";
+                "This user has not submitted KYC verification.";
 
-            verifyUserActions.innerHTML = `
-                <button
-                    type="button"
-                    class="verify-user-close">
-                    Close
-                </button>
+        })
 
-                <button
-                    type="button"
-                    class="verify-user-confirm">
-                    Verify
-                </button>
-            `;
+        .catch(error => {
 
-            bindVerifyUserClose();
+            console.error(
+                "Verification status check failed:",
+                error
+            );
 
-
-            const confirmBtn =
-                verifyUserActions.querySelector(
-                    ".verify-user-confirm"
-                );
-
-
-            if(confirmBtn){
-
-                confirmBtn.onclick = function(){
-
-                    /*
-                     * Tell the Verification page which
-                     * user must be displayed.
-                     */
-
-                    window.verificationUserId =
-                        userId;
-
-                    verifyUserModal.style.display =
-                        "none";
-
-                    userModal.style.display =
-                        "none";
-
-                    loadAdminPage("verification");
-
-                };
-
-            }
+            verifyUserMessage.textContent =
+                "Failed to check verification status.";
 
         });
-
 }
 
 
