@@ -9872,6 +9872,7 @@ function openIndividualChat(chatId) {
         sb.from("support_messages")
             .select("*")
             .eq("conversation_id", chatId)
+            .eq("hidden_from_admin", false)
             .order("created_at", { ascending: true })
             .then(function (res) {
 
@@ -9920,7 +9921,10 @@ function mapSupportMessageRow(row) {
         type: row.message_type || "text",
         fileUrl: row.attachment_url,
         fileName: row.attachment_name,
-        fileMime: row.attachment_mime
+        fileMime: row.attachment_mime,
+        // Deleted on the USER's own side only — still shown to admin,
+        // but as a placeholder instead of the real content.
+        deletedByOther: !!row.hidden_from_user
     };
 
 }
@@ -10077,6 +10081,17 @@ function renderMessages() {
 
 function createMessageElement(message) {
 
+    if (message.type === "notice") {
+
+        const notice = document.createElement("div");
+        notice.className = "message-notice";
+        notice.dataset.messageId = message.id;
+        notice.textContent = message.text;
+
+        return notice;
+
+    }
+
     const wrapper = document.createElement("div");
     wrapper.className = "message " + (message.sent ? "sent" : "received");
     wrapper.dataset.messageId = message.id;
@@ -10108,6 +10123,28 @@ function createMessageElement(message) {
 
     const content = document.createElement("div");
     content.className = "message-content";
+
+    if (message.deletedByOther) {
+
+        const deletedText = document.createElement("p");
+        deletedText.className = "message-text message-deleted-text";
+        deletedText.innerHTML = '<i class="fa-solid fa-ban"></i> This message was deleted';
+
+        content.appendChild(deletedText);
+
+        const meta = document.createElement("div");
+        meta.className = "message-meta";
+
+        const time = document.createElement("span");
+        time.textContent = message.time || "";
+        meta.appendChild(time);
+
+        content.appendChild(meta);
+        wrapper.appendChild(content);
+
+        return wrapper;
+
+    }
 
     if (message.replyToId) {
 
@@ -10803,7 +10840,7 @@ function confirmDeleteAction() {
 
         const messageId = deleteActionId;
 
-        sb.from("support_messages").delete().eq("id", messageId).then(function (res) {
+        sb.rpc("support_delete_message", { p_message_id: messageId }).then(function (res) {
 
             if (res.error) {
                 alert("Failed to delete message: " + res.error.message);
@@ -10831,7 +10868,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.from("support_conversations").delete().eq("id", chatId).then(function (res) {
+        sb.rpc("support_delete_chat", { p_conversation_id: chatId }).then(function (res) {
 
             if (res.error) {
                 alert("Failed to delete conversation: " + res.error.message);
@@ -10852,11 +10889,14 @@ function confirmDeleteAction() {
 
         const ids = deleteActionIds;
 
-        sb.from("support_conversations").delete().in("id", ids).then(function (res) {
+        Promise.all(ids.map(function (id) {
+            return sb.rpc("support_delete_chat", { p_conversation_id: id });
+        })).then(function (results) {
 
-            if (res.error) {
-                alert("Failed to delete conversations: " + res.error.message);
-                return;
+            const failed = results.find(function (res) { return res.error; });
+
+            if (failed) {
+                alert("Failed to delete conversations: " + failed.error.message);
             }
 
             individualChats = individualChats.filter(function (c) { return !ids.includes(c.id); });
@@ -10873,7 +10913,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.from("support_messages").delete().eq("conversation_id", chatId).then(function (res) {
+        sb.rpc("support_clear_messages", { p_conversation_id: chatId }).then(function (res) {
 
             if (res.error) {
                 alert("Failed to clear messages: " + res.error.message);
@@ -10901,6 +10941,7 @@ function confirmDeleteAction() {
     closeDeleteConfirmation();
 
 }
+
 
 
 // ======================================================
@@ -11464,7 +11505,12 @@ function handleAttachmentFileChange(event, kind) {
     const file = event.target.files && event.target.files[0];
     event.target.value = "";
 
-    if (!file || !currentChat) return;
+    if (!file) return;
+
+    if (!currentChat) {
+        alert("Open a conversation first.");
+        return;
+    }
 
     uploadAndSendAttachment(file, kind);
 
@@ -12179,6 +12225,30 @@ function handleIncomingSupportMessageChange(payload) {
     }
 
     const row = payload.new;
+
+    if (row.hidden_from_admin) {
+
+        // Hidden from admin — either admin's own clear/delete echo, or
+        // a notice meant only for the user's side. Make sure it isn't
+        // sitting in local state (e.g. from before it was hidden).
+        const chat = findIndividualChat(row.conversation_id);
+
+        if (chat && chat.messages) {
+
+            const index = chat.messages.findIndex(function (m) { return m.id === row.id; });
+
+            if (index !== -1) {
+                chat.messages.splice(index, 1);
+                if (currentChat && currentChat.id === chat.id) { renderMessages(); updatePinnedMessageBar(); }
+            }
+
+        }
+
+        loadSupportConversations();
+        return;
+
+    }
+
     const chat = findIndividualChat(row.conversation_id);
 
     if (!chat) { loadSupportConversations(); return; }

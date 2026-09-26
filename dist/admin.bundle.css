@@ -11219,6 +11219,41 @@ body.activity-modal-open{
     color: #f5c400 !important;
 }
 
+/* ============================
+   Notice messages (system-style: "Admin cleared the
+   messages.", "User deleted this chat.") and the
+   deleted-message placeholder shown to whoever DIDN'T
+   delete it themselves.
+   ============================ */
+
+.message-notice{
+
+    width: fit-content;
+    max-width: 80%;
+    margin: 6px auto;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 11px;
+    text-align: center;
+
+}
+
+.message-deleted-text{
+
+    color: #9ca3af;
+    font-style: italic;
+
+}
+
+.message-deleted-text i{
+
+    margin-right: 5px;
+
+}
+
+
 /* ===== css/settings.css ===== */
 /* =========================================================
    KT CLOUD MINING ADMIN
