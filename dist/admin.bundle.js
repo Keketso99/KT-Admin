@@ -11753,18 +11753,15 @@ function renderAvailableUsers(query) {
 
 function startNewConversation(userId) {
 
-    const existing = individualChats.find(function (c) { return c.userId === userId; });
-
-    if (existing) {
-        closeNewChatModal();
-        openIndividualChat(existing.id);
-        return;
-    }
-
+    // Check the DATABASE directly, not the local (already-filtered)
+    // list — a conversation this admin previously deleted is hidden
+    // from individualChats but still exists, and must be reused
+    // (un-hidden) rather than duplicated.
     sb.from("support_conversations")
-        .insert({ user_id: userId, status: "open", assigned_admin: supportAdminId })
         .select("*")
-        .single()
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .then(function (res) {
 
             if (res.error) {
@@ -11772,11 +11769,58 @@ function startNewConversation(userId) {
                 return;
             }
 
-            closeNewChatModal();
+            const existingRow = res.data && res.data.length > 0 ? res.data[0] : null;
 
-            loadSupportConversations();
+            if (existingRow) {
 
-            setTimeout(function () { openIndividualChat(res.data.id); }, 200);
+                closeNewChatModal();
+
+                if (existingRow.hidden_from_admin) {
+
+                    sb.from("support_conversations")
+                        .update({ hidden_from_admin: false })
+                        .eq("id", existingRow.id)
+                        .then(function (unhideRes) {
+
+                            if (unhideRes.error) {
+                                alert("Failed to reopen conversation: " + unhideRes.error.message);
+                                return;
+                            }
+
+                            loadSupportConversations();
+                            setTimeout(function () { openIndividualChat(existingRow.id); }, 200);
+
+                        });
+
+                } else {
+
+                    loadSupportConversations();
+                    openIndividualChat(existingRow.id);
+
+                }
+
+                return;
+
+            }
+
+            sb.from("support_conversations")
+                .insert({ user_id: userId, status: "open", assigned_admin: supportAdminId })
+                .select("*")
+                .single()
+                .then(function (insertRes) {
+
+                    if (insertRes.error) {
+                        alert("Failed to start conversation: " + insertRes.error.message);
+                        return;
+                    }
+
+                    closeNewChatModal();
+
+                    loadSupportConversations();
+
+                    setTimeout(function () { openIndividualChat(insertRes.data.id); }, 200);
+
+                });
 
         });
 
