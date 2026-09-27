@@ -3817,3 +3817,10 @@
     margin-right: 5px;
 
 }
+
+.message-deleted-tag{
+
+    color: #ef4444;
+    font-weight: 600;
+
+}

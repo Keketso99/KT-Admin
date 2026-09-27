@@ -11253,6 +11253,13 @@ body.activity-modal-open{
 
 }
 
+.message-deleted-tag{
+
+    color: #ef4444;
+    font-weight: 600;
+
+}
+
 
 /* ===== css/settings.css ===== */
 /* =========================================================

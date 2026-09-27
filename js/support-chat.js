@@ -541,9 +541,9 @@ function mapSupportMessageRow(row) {
         fileUrl: row.attachment_url,
         fileName: row.attachment_name,
         fileMime: row.attachment_mime,
-        // Deleted on the USER's own side only — still shown to admin,
-        // but as a placeholder instead of the real content.
-        deletedByOther: !!row.hidden_from_user
+        // Never hides the message — just marks it, same idea as "edited".
+        deletedBy: row.deleted_by || null,
+        clearedBy: row.cleared_by || null
     };
 
 }
@@ -743,28 +743,6 @@ function createMessageElement(message) {
     const content = document.createElement("div");
     content.className = "message-content";
 
-    if (message.deletedByOther) {
-
-        const deletedText = document.createElement("p");
-        deletedText.className = "message-text message-deleted-text";
-        deletedText.innerHTML = '<i class="fa-solid fa-ban"></i> This message was deleted';
-
-        content.appendChild(deletedText);
-
-        const meta = document.createElement("div");
-        meta.className = "message-meta";
-
-        const time = document.createElement("span");
-        time.textContent = message.time || "";
-        meta.appendChild(time);
-
-        content.appendChild(meta);
-        wrapper.appendChild(content);
-
-        return wrapper;
-
-    }
-
     if (message.replyToId) {
 
         const replied = currentChat.messages.find(function (m) { return m.id === message.replyToId; });
@@ -863,6 +841,18 @@ function createMessageElement(message) {
         const edited = document.createElement("span");
         edited.textContent = " edited";
         meta.appendChild(edited);
+    }
+
+    if (message.deletedBy) {
+        const deleted = document.createElement("span");
+        deleted.className = "message-deleted-tag";
+        deleted.textContent = " deleted";
+        meta.appendChild(deleted);
+    } else if (message.clearedBy) {
+        const cleared = document.createElement("span");
+        cleared.className = "message-deleted-tag";
+        cleared.textContent = " cleared";
+        meta.appendChild(cleared);
     }
 
     if (message.isPinned) {
@@ -1468,9 +1458,9 @@ function confirmDeleteAction() {
 
             if (currentChat) {
 
-                const index = currentChat.messages.findIndex(function (m) { return m.id === messageId; });
+                const target = currentChat.messages.find(function (m) { return m.id === messageId; });
+                if (target) target.deletedBy = "admin";
 
-                if (index !== -1) currentChat.messages.splice(index, 1);
                 if (replyingToMessage && replyingToMessage.id === messageId) cancelReply();
                 if (editingMessage && editingMessage.id === messageId) cancelEditMessage();
 
@@ -1541,9 +1531,10 @@ function confirmDeleteAction() {
 
             const chat = findIndividualChat(chatId);
 
-            if (chat) {
-                chat.messages = [];
-                chat.lastMessage = "No messages yet";
+            if (chat && chat.messages) {
+                chat.messages.forEach(function (m) {
+                    if (m.type !== "notice") m.clearedBy = "admin";
+                });
             }
 
             if (currentChat && currentChat.id === chatId) {
