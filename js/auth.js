@@ -103,6 +103,45 @@ function getAdminClientInfo(){
     };
 }
 
+
+// =========================================================
+// LOAD ADMIN PROFILE INTO SIDEBAR
+// =========================================================
+
+async function loadAdminSidebarProfile(userId){
+
+    const avatar = document.getElementById("sidebarAdminAvatar");
+    const nameElement = document.getElementById("sidebarAdminName");
+    const surnameElement = document.getElementById("sidebarAdminSurname");
+
+    if(!avatar || !nameElement || !surnameElement || !userId){
+        return;
+    }
+
+    const { data, error } = await sb
+        .from("profiles")
+        .select("username, surname")
+        .eq("id", userId)
+        .maybeSingle();
+
+    if(error){
+        console.warn("Failed to load admin sidebar profile:", error);
+        return;
+    }
+
+    const name = (data?.username || "Admin").trim();
+    const surname = (data?.surname || "").trim();
+
+    const nameInitial = name.charAt(0).toUpperCase();
+    const surnameInitial = surname.charAt(0).toUpperCase();
+
+    avatar.textContent = nameInitial + surnameInitial;
+
+    nameElement.textContent = name;
+
+    surnameElement.textContent = surname;
+}
+
 // =========================================================
 // HANDLE AUTHENTICATED ADMIN-PANEL SESSION
 // =========================================================
@@ -134,10 +173,12 @@ async function handleAuthedSession(session){
 
         hideLoginOverlay();
 
-        if(typeof loadAdminPage === "function"){
-            loadAdminPage("dashboard");
-        }
-        return;
+await loadAdminSidebarProfile(session.user.id);
+
+if(typeof loadAdminPage === "function"){
+    loadAdminPage("dashboard");
+}
+return;
     }
 
     // A real Supabase login succeeded, but this account is not an admin.
