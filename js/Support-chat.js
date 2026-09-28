@@ -247,12 +247,6 @@ function loadSupportConversations() {
 
         individualChats = individualChats.filter(function (c) { return validIds.indexOf(c.id) !== -1; });
 
-        if (!supportChatUsers.length) {
-            supportChatUsers = rows.map(function (row) {
-                return { id: row.user_id, name: fullNameOf(row), phone: row.phone };
-            });
-        }
-
         renderIndividualChats();
         updateUnreadCounts();
 
@@ -500,7 +494,9 @@ function openIndividualChat(chatId) {
                     return;
                 }
 
-                chat.messages = (res.data || []).map(mapSupportMessageRow);
+                chat.messages = (res.data || [])
+                    .filter(function (row) { return row.deleted_by !== "admin" && row.cleared_by !== "admin"; })
+                    .map(mapSupportMessageRow);
                 chat.messagesLoaded = true;
 
                 if (currentChat && currentChat.id === chatId) {
@@ -1003,6 +999,7 @@ function replyToMessage(messageId) {
 
     const message = currentChat.messages.find(function (item) { return item.id === messageId; });
     if (!message) return;
+    if (message.deletedBy || message.clearedBy) return;
 
     if (editingMessage) cancelEditMessage();
 
@@ -1099,6 +1096,7 @@ function startEditMessage(messageId) {
 
     if (!message.sent) return;
     if (message.type === "voice") return;
+    if (message.deletedBy || message.clearedBy) return;
 
     if (replyingToMessage) cancelReply();
 
@@ -1301,10 +1299,18 @@ function showMessageActionMenu(messageElement, messageId) {
 
     if (!targetMessage) return;
 
-    const canEdit = targetMessage.sent && targetMessage.type !== "voice";
+    // A message the other side deleted/cleared no longer exists on their
+    // end, so it can still be read here but not edited or replied to.
+    const isLocked = !!(targetMessage.deletedBy || targetMessage.clearedBy);
+
+    const canEdit = targetMessage.sent && targetMessage.type !== "voice" && !isLocked;
 
     const editButtonMarkup = canEdit
         ? '<button type="button" data-action="edit"><i class="fa-solid fa-pen"></i><span>Edit</span></button>'
+        : "";
+
+    const replyButtonMarkup = !isLocked
+        ? '<button type="button" data-action="reply"><i class="fa-solid fa-reply"></i><span>Reply</span></button>'
         : "";
 
     const pinLabel = targetMessage.isPinned ? "Unpin" : "Pin";
@@ -1314,7 +1320,7 @@ function showMessageActionMenu(messageElement, messageId) {
     menu.className = "message-action-menu";
 
     menu.innerHTML =
-        '<button type="button" data-action="reply"><i class="fa-solid fa-reply"></i><span>Reply</span></button>' +
+        replyButtonMarkup +
         editButtonMarkup +
         '<button type="button" data-action="pin"><i class="' + pinIcon + '"></i><span>' + pinLabel + '</span></button>' +
         '<button type="button" data-action="copy"><i class="fa-solid fa-copy"></i><span>Copy</span></button>' +
@@ -1458,8 +1464,10 @@ function confirmDeleteAction() {
 
             if (currentChat) {
 
-                const target = currentChat.messages.find(function (m) { return m.id === messageId; });
-                if (target) target.deletedBy = "admin";
+                // Gone from admin's own view for good (the user still
+                // sees it, marked deleted and locked from edit/reply).
+                const index = currentChat.messages.findIndex(function (m) { return m.id === messageId; });
+                if (index !== -1) currentChat.messages.splice(index, 1);
 
                 if (replyingToMessage && replyingToMessage.id === messageId) cancelReply();
                 if (editingMessage && editingMessage.id === messageId) cancelEditMessage();
@@ -1532,9 +1540,9 @@ function confirmDeleteAction() {
             const chat = findIndividualChat(chatId);
 
             if (chat && chat.messages) {
-                chat.messages.forEach(function (m) {
-                    if (m.type !== "notice") m.clearedBy = "admin";
-                });
+                // Everything that existed is gone from admin's own view
+                // for good; only notices addressed to admin stay.
+                chat.messages = chat.messages.filter(function (m) { return m.type === "notice"; });
             }
 
             if (currentChat && currentChat.id === chatId) {
@@ -2297,31 +2305,24 @@ function openNewChatModal() {
 
     if (input) input.value = "";
 
-    if (supportChatUsers.length > 0) {
+    sb.from("profiles")
+        .select("id, username, surname, phone")
+        .order("username", { ascending: true })
+        .then(function (res) {
 
-        renderAvailableUsers("");
+            if (res.error) {
+                console.error("Failed to load users:", res.error);
+                alert("Failed to load users: " + res.error.message);
+                return;
+            }
 
-    } else {
-
-        sb.from("profiles")
-            .select("id, username, surname, phone")
-            .order("username", { ascending: true })
-            .then(function (res) {
-
-                if (res.error) {
-                    console.error("Failed to load users:", res.error);
-                    return;
-                }
-
-                supportChatUsers = (res.data || []).map(function (row) {
-                    return { id: row.id, name: fullNameOf(row), phone: row.phone };
-                });
-
-                renderAvailableUsers("");
-
+            supportChatUsers = (res.data || []).map(function (row) {
+                return { id: row.id, name: fullNameOf(row), phone: row.phone };
             });
 
-    }
+            renderAvailableUsers("");
+
+        });
 
     if (modal) modal.classList.remove("hidden");
 
@@ -2880,11 +2881,12 @@ function handleIncomingSupportMessageChange(payload) {
 
     const row = payload.new;
 
-    if (row.hidden_from_admin) {
+    if (row.hidden_from_admin || row.deleted_by === "admin" || row.cleared_by === "admin") {
 
-        // Hidden from admin — either admin's own clear/delete echo, or
-        // a notice meant only for the user's side. Make sure it isn't
-        // sitting in local state (e.g. from before it was hidden).
+        // Hidden from admin — either a notice meant only for the user's
+        // side, or a message admin themselves deleted/cleared (gone from
+        // their own view for good). Make sure it isn't sitting in local
+        // state (e.g. from before it was hidden).
         const chat = findIndividualChat(row.conversation_id);
 
         if (chat && chat.messages) {
