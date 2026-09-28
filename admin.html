@@ -49,101 +49,119 @@ Admin
 </div>
   
 </header>
+  
 <!-- SIDEBAR -->
 <aside id="sidebar">
 
-<!-- ADD THIS DIRECTLY INSIDE <aside id="sidebar">,
-     BEFORE <div class="side-title"> -->
+    <!-- FIXED ADMIN PROFILE -->
+    <div class="sidebar-admin-profile" id="sidebarAdminProfile">
 
-<!-- SIDEBAR ADMIN PROFILE -->
-<div class="sidebar-admin-profile" id="sidebarAdminProfile">
-    <div class="sidebar-admin-avatar" id="sidebarAdminAvatar">A</div>
+        <div class="sidebar-admin-avatar" id="sidebarAdminAvatar">
+            A
+        </div>
 
-    <div class="sidebar-admin-info">
-        <div class="sidebar-admin-name" id="sidebarAdminName">Admin</div>
-        <div class="sidebar-admin-surname" id="sidebarAdminSurname"></div>
+        <div class="sidebar-admin-info">
+            <div class="sidebar-admin-name" id="sidebarAdminName">
+                Admin
+            </div>
+
+            <div class="sidebar-admin-surname" id="sidebarAdminSurname">
+            </div>
+        </div>
+
     </div>
-</div>
-  
-<div class="side-title">
-ADMIN MENU
-</div>
-<div class="side-item active"
-onclick="loadAdminPage('dashboard')">
-<i class="fa-solid fa-chart-line"></i>
-Dashboard
-</div>
-<div class="side-item dropdown">
-<div onclick="toggleMenu(this)">
-<i class="fa-solid fa-wallet"></i>
-Finance
-<i class="fa-solid fa-chevron-down arrow"></i>
-</div>
-<div class="submenu">
-<div onclick="loadAdminPage('deposits')">
-Deposits
-</div>
-<div onclick="loadAdminPage('withdrawals')">
-Withdrawals
-</div>
-<div onclick="loadAdminPage('transactions')">
-Transactions
-</div>
-</div>
-</div>
 
-<div class="side-item"
-onclick="loadAdminPage('plans')">
-<i class="fa-solid fa-coins"></i>
-Manage Plans
-</div>
+    <!-- FIXED SIDEBAR TITLE -->
+    <div class="side-title">
+        ADMIN MENU
+    </div>
 
-<div class="side-item"
-onclick="loadAdminPage('users')">
-<i class="fa-solid fa-users"></i>
-Users
-</div>
+    <!-- SCROLLABLE MENU ONLY -->
+    <div class="sidebar-menu-scroll">
 
-<div class="side-item"
-onclick="loadAdminPage('verification')">
-<i class="fa-solid fa-id-card"></i>
-Verification
-</div>
+        <div class="side-item active"
+        onclick="loadAdminPage('dashboard')">
+            <i class="fa-solid fa-chart-line"></i>
+            Dashboard
+        </div>
 
-<div class="side-item"
-onclick="loadAdminPage('exchange')">
-<i class="fa-solid fa-money-bill-transfer"></i>
-Exchange Rates
-</div>
-<div class="side-item"
-onclick="loadAdminPage('support-chat')">
-<i class="fa-solid fa-comments"></i>
-Support Chat
-</div>
-<div class="side-item"
-onclick="loadAdminPage('notifications')">
-<i class="fa-solid fa-bell"></i>
-Notifications
-</div>
-<div class="side-item"
-onclick="loadAdminPage('activity-log')">
-<i class="fa-solid fa-clock-rotate-left"></i>
-Activity Logs
-</div>
+        <div class="side-item dropdown">
+            <div onclick="toggleMenu(this)">
+                <i class="fa-solid fa-wallet"></i>
+                Finance
+                <i class="fa-solid fa-chevron-down arrow"></i>
+            </div>
 
-<div class="side-item"
-onclick="loadAdminPage('settings')">
-<i class="fa-solid fa-gear"></i>
-Settings
-</div>
+            <div class="submenu">
+                <div onclick="loadAdminPage('deposits')">
+                    Deposits
+                </div>
 
-<!-- LOGOUT -->
-<div class="side-item side-logout-item"
-onclick="openLogoutModal()">
-<i class="fa-solid fa-right-from-bracket"></i>
-Logout
-</div>
+                <div onclick="loadAdminPage('withdrawals')">
+                    Withdrawals
+                </div>
 
+                <div onclick="loadAdminPage('transactions')">
+                    Transactions
+                </div>
+            </div>
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('plans')">
+            <i class="fa-solid fa-coins"></i>
+            Manage Plans
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('users')">
+            <i class="fa-solid fa-users"></i>
+            Users
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('verification')">
+            <i class="fa-solid fa-id-card"></i>
+            Verification
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('exchange')">
+            <i class="fa-solid fa-money-bill-transfer"></i>
+            Exchange Rates
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('support-chat')">
+            <i class="fa-solid fa-comments"></i>
+            Support Chat
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('notifications')">
+            <i class="fa-solid fa-bell"></i>
+            Notifications
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('activity-log')">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            Activity Logs
+        </div>
+
+        <div class="side-item"
+        onclick="loadAdminPage('settings')">
+            <i class="fa-solid fa-gear"></i>
+            Settings
+        </div>
+
+        <div class="side-item side-logout-item"
+        onclick="openLogoutModal()">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            Logout
+        </div>
+
+    </div>
 
 </aside>
 
