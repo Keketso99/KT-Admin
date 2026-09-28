@@ -684,7 +684,6 @@ body {
 =================================== */
 
 .sidebar-admin-profile{
-    position: fixed;
     display:flex;
     align-items:center;
     gap:15px;
