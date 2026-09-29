@@ -10877,7 +10877,7 @@ function confirmDeleteAction() {
 
         const messageId = deleteActionId;
 
-        sb.rpc("support_delete_message", { p_message_id: messageId }).then(function (res) {
+        sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 alert("Failed to delete message: " + res.error.message);
@@ -10907,7 +10907,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.rpc("support_delete_chat", { p_conversation_id: chatId }).then(function (res) {
+        sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 alert("Failed to delete conversation: " + res.error.message);
@@ -10929,7 +10929,7 @@ function confirmDeleteAction() {
         const ids = deleteActionIds;
 
         Promise.all(ids.map(function (id) {
-            return sb.rpc("support_delete_chat", { p_conversation_id: id });
+            return sb.rpc("support_delete_chat", { p_conversation_id: id, p_side: "admin" });
         })).then(function (results) {
 
             const failed = results.find(function (res) { return res.error; });
@@ -10952,7 +10952,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.rpc("support_clear_messages", { p_conversation_id: chatId }).then(function (res) {
+        sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 alert("Failed to clear messages: " + res.error.message);
@@ -10961,10 +10961,10 @@ function confirmDeleteAction() {
 
             const chat = findIndividualChat(chatId);
 
-            if (chat && chat.messages) {
-                // Everything that existed is gone from admin's own view
-                // for good; only notices addressed to admin stay.
-                chat.messages = chat.messages.filter(function (m) { return m.type === "notice"; });
+            if (chat) {
+                // Everything (notices included) is gone from admin's own
+                // view for good.
+                chat.messages = [];
             }
 
             if (currentChat && currentChat.id === chatId) {
