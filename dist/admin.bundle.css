@@ -11350,6 +11350,64 @@ body.activity-modal-open{
 }
 
 
+/* ============================
+   Chat loading overlay (opening a chat, or
+   refreshing the list after closing one) —
+   same spinner design as the global page loader.
+   ============================ */
+
+.chat-loading-overlay{
+
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(255, 255, 255, .85);
+
+    z-index: 50;
+
+}
+
+.chat-loading-overlay.hidden{
+
+    display: none;
+
+}
+
+.chat-loading-spinner{
+
+    width: 38px;
+    height: 38px;
+
+    border: 4px solid #e5e7eb;
+    border-top-color: #FDB913;
+
+    border-radius: 50%;
+
+    animation: chat-loading-spin .75s linear infinite;
+
+}
+
+@keyframes chat-loading-spin{
+
+    from{ transform: rotate(0deg); }
+    to{ transform: rotate(360deg); }
+
+}
+
+.chat-list-loading{
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+
+}
+
+
 /* ===== css/settings.css ===== */
 /* =========================================================
    KT CLOUD MINING ADMIN

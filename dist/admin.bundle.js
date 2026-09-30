@@ -9628,12 +9628,27 @@ function showIndividualChats() {
 // LOAD CONVERSATIONS
 // ======================================================
 
-function loadSupportConversations() {
+function showChatLoadingOverlay() {
+
+    const overlay = supportChatElement("chatLoadingOverlay");
+    if (overlay) overlay.classList.remove("hidden");
+
+}
+
+function hideChatLoadingOverlay() {
+
+    const overlay = supportChatElement("chatLoadingOverlay");
+    if (overlay) overlay.classList.add("hidden");
+
+}
+
+function loadSupportConversations(onDone) {
 
     sb.rpc("admin_list_support_conversations").then(function (res) {
 
         if (res.error) {
             console.error("Failed to load support conversations:", res.error);
+            if (typeof onDone === "function") onDone();
             return;
         }
 
@@ -9680,6 +9695,8 @@ function loadSupportConversations() {
                 renderCurrentChat();
             }
         }
+
+        if (typeof onDone === "function") onDone();
 
     });
 
@@ -9904,12 +9921,16 @@ function openIndividualChat(chatId) {
 
     if (!chat.messagesLoaded) {
 
+        showChatLoadingOverlay();
+
         sb.from("support_messages")
             .select("*")
             .eq("conversation_id", chatId)
             .eq("hidden_from_admin", false)
             .order("created_at", { ascending: true })
             .then(function (res) {
+
+                hideChatLoadingOverlay();
 
                 if (res.error) {
                     console.error("Failed to load messages:", res.error);
@@ -9931,6 +9952,7 @@ function openIndividualChat(chatId) {
 
     } else {
 
+        hideChatLoadingOverlay();
         renderMessages();
         updatePinnedMessageBar();
         scrollMessagesToBottom();
@@ -10017,6 +10039,9 @@ function closeChat() {
     cancelReply();
     cancelEditMessage();
     closeChatMenu();
+
+    showChatLoadingOverlay();
+    loadSupportConversations(hideChatLoadingOverlay);
 
 }
 
@@ -12249,9 +12274,9 @@ function setupChatSelectionOutsideClick() {
 
         const insideAny =
             (bar && bar.contains(event.target)) ||
-            (actionsModal && !actionsModal.classList.contains("hidden") && actionsModal.contains(event.target)) ||
-            (deleteModal && !deleteModal.classList.contains("hidden") && deleteModal.contains(event.target)) ||
-            (priorityModal && !priorityModal.classList.contains("hidden") && priorityModal.contains(event.target)) ||
+            (actionsModal && actionsModal.contains(event.target)) ||
+            (deleteModal && deleteModal.contains(event.target)) ||
+            (priorityModal && priorityModal.contains(event.target)) ||
             event.target.closest(".chat-list-item");
 
         if (insideAny) return;
