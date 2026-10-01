@@ -12182,7 +12182,36 @@ function exitChatSelectionMode() {
 function openChatActionsModal(chatId) {
 
     const modal = supportChatElement("chatActionsModal");
-    if (modal) { modal.dataset.chatId = chatId; modal.classList.remove("hidden"); }
+    const priorityBtn = supportChatElement("chatActionsPriorityBtn");
+
+    const chat = findIndividualChat(chatId);
+
+    if (!modal || !chat) return;
+
+    modal.dataset.chatId = chatId;
+
+    // Update the button depending on the current priority state
+    if (priorityBtn) {
+
+        if (chat.priority) {
+
+            priorityBtn.innerHTML =
+                '<i class="fa-solid fa-star"></i> Remove Priority';
+
+            priorityBtn.classList.add("remove-priority-action");
+
+        } else {
+
+            priorityBtn.innerHTML =
+                '<i class="fa-solid fa-star"></i> Add Priority';
+
+            priorityBtn.classList.remove("remove-priority-action");
+
+        }
+
+    }
+
+    modal.classList.remove("hidden");
 
 }
 
@@ -12201,6 +12230,20 @@ function chooseBulkDeleteMode() {
 
 }
 
+function resetPrioritySelectionStar() {
+
+    const priorityBtn = supportChatElement("chatSelectionPriorityBtn");
+
+    if (!priorityBtn) return;
+
+    const star = priorityBtn.querySelector("i.fa-star");
+
+    if (star) {
+        star.style.color = "";
+    }
+
+}
+
 function chooseBulkPriorityMode() {
 
     const modal = supportChatElement("chatActionsModal");
@@ -12210,6 +12253,33 @@ function chooseBulkPriorityMode() {
     pendingBulkAction = "priority";
     pendingPriorityMode = anchorChat && anchorChat.priority ? "remove" : "add";
 
+    // =========================================
+// TEMPORARY PRIORITY STAR COLOR
+// =========================================
+
+const priorityBtn =
+    supportChatElement("chatSelectionPriorityBtn");
+
+if (priorityBtn) {
+
+    const star = priorityBtn.querySelector("i.fa-star");
+
+    if (star) {
+
+        if (pendingPriorityMode === "add") {
+
+            star.style.color = "#FDB913";
+
+        } else {
+
+            star.style.color = "";
+
+        }
+
+    }
+
+}
+  
     closeChatActionsModal();
     refreshChatSelectionUI();
 
@@ -12238,6 +12308,8 @@ function closePriorityConfirmation() {
 
     const modal = supportChatElement("priorityConfirmModal");
     if (modal) modal.classList.add("hidden");
+
+   resetPrioritySelectionStar();
 
 }
 

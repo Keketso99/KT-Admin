@@ -7957,26 +7957,38 @@ body.activity-modal-open{
 .chat-list-empty button{
 
     display:flex;
-
     align-items:center;
+    justify-content:center;
 
     gap:6px;
 
-    padding:1px 14px;
+    min-width:100px;
+    height:34px;
+
+    padding:0 14px;
 
     border:none;
-
     border-radius:7px;
 
     background:#FDB913;
-
     color:#ffffff;
 
     font-family:inherit;
+    font-size:11px;
+    font-weight:600;
+
+    box-sizing:border-box;
+}
+
+.chat-list-empty button i{
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
 
     font-size:11px;
 
-    font-weight:600;
+    line-height:1;
 
 }
 
