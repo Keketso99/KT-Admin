@@ -3909,7 +3909,37 @@ function initUsers(){
 
                 updateStatistics();
 
+                applyPendingProfileFilter();
+
             });
+
+    }
+
+    // ===============================
+    // OPEN A SPECIFIC USER FROM ELSEWHERE
+    // (e.g. Support Chat's "View Full Profile")
+    // ===============================
+
+    function applyPendingProfileFilter(){
+
+        const pendingUserId = sessionStorage.getItem("pendingProfileUserId");
+
+        if(!pendingUserId) return;
+
+        sessionStorage.removeItem("pendingProfileUserId");
+
+        const row = usersList.querySelector('tr[data-userid="' + pendingUserId + '"]');
+
+        if(!row) return;
+
+        const nameEl = row.querySelector("h4");
+
+        if(searchInput && nameEl){
+            searchInput.value = nameEl.textContent.trim();
+            searchInput.dispatchEvent(new Event("keyup"));
+        }
+
+        openUserModal(row);
 
     }
 
@@ -11854,15 +11884,17 @@ function startNewConversation(userId) {
                                 return;
                             }
 
-                            loadSupportConversations();
-                            setTimeout(function () { openIndividualChat(existingRow.id); }, 200);
+                            loadSupportConversations(function () {
+                                openIndividualChat(existingRow.id);
+                            });
 
                         });
 
                 } else {
 
-                    loadSupportConversations();
-                    openIndividualChat(existingRow.id);
+                    loadSupportConversations(function () {
+                        openIndividualChat(existingRow.id);
+                    });
 
                 }
 
@@ -11883,9 +11915,9 @@ function startNewConversation(userId) {
 
                     closeNewChatModal();
 
-                    loadSupportConversations();
-
-                    setTimeout(function () { openIndividualChat(insertRes.data.id); }, 200);
+                    loadSupportConversations(function () {
+                        openIndividualChat(insertRes.data.id);
+                    });
 
                 });
 

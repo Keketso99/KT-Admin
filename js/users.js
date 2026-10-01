@@ -123,7 +123,37 @@ function initUsers(){
 
                 updateStatistics();
 
+                applyPendingProfileFilter();
+
             });
+
+    }
+
+    // ===============================
+    // OPEN A SPECIFIC USER FROM ELSEWHERE
+    // (e.g. Support Chat's "View Full Profile")
+    // ===============================
+
+    function applyPendingProfileFilter(){
+
+        const pendingUserId = sessionStorage.getItem("pendingProfileUserId");
+
+        if(!pendingUserId) return;
+
+        sessionStorage.removeItem("pendingProfileUserId");
+
+        const row = usersList.querySelector('tr[data-userid="' + pendingUserId + '"]');
+
+        if(!row) return;
+
+        const nameEl = row.querySelector("h4");
+
+        if(searchInput && nameEl){
+            searchInput.value = nameEl.textContent.trim();
+            searchInput.dispatchEvent(new Event("keyup"));
+        }
+
+        openUserModal(row);
 
     }
 
