@@ -13,11 +13,15 @@ function showLoginOverlay(message){
     } else {
         errEl.style.display = "none";
     }
+
+    if(typeof ktHideSplash === "function") ktHideSplash();
 }
 
 function hideLoginOverlay(){
     document.getElementById("login-overlay").style.display = "none";
     document.getElementById("admin-app").style.display = "";
+
+    if(typeof ktHideSplash === "function") ktHideSplash();
 }
 
 async function checkIsAdmin(userId){

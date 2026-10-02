@@ -16,8 +16,41 @@
 <link 
 href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
 rel="stylesheet">
+<style>
+/* KT startup splash — identical on every phone (logo + app name) */
+#kt-splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483647;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .3s ease}
+#kt-splash.kt-hide{opacity:0;pointer-events:none}
+#kt-splash img{width:128px;height:128px;object-fit:contain;display:block;margin-top:-6vh}
+#kt-splash .kt-splash-name{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 11vh);text-align:center;font-family:Roboto,"Segoe UI",system-ui,-apple-system,Arial,sans-serif;font-size:22px;font-weight:400;letter-spacing:.2px;color:#202124}
+</style>
 </head>
 <body>
+
+<div id="kt-splash" aria-hidden="true">
+  <img src="icons/icon-512.png" alt="">
+  <div class="kt-splash-name">KT Cloud Mining</div>
+</div>
+<script>
+(function(){
+  var shownAt = Date.now();
+  var MIN_MS = 700;        // never flash by
+  var MAX_MS = 6000;       // never get stuck
+  var done = false;
+  function remove(){
+    var el = document.getElementById("kt-splash");
+    if(!el) return;
+    el.classList.add("kt-hide");
+    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 350);
+  }
+  window.ktHideSplash = function(){
+    if(done) return;
+    done = true;
+    var wait = Math.max(0, MIN_MS - (Date.now() - shownAt));
+    setTimeout(remove, wait);
+  };
+  setTimeout(function(){ window.ktHideSplash(); }, MAX_MS);
+})();
+</script>
 
 <div id="login-overlay">
   <form id="login-form" onsubmit="loginSubmit(event)">
