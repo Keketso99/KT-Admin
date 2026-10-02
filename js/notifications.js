@@ -24,7 +24,8 @@ const NOTIFICATION_ICONS = {
     payment_methods_change_requested: "fa-solid fa-credit-card",
     kyc_verification_requested: "fa-solid fa-id-card",
     kyc_resubmission_requested: "fa-solid fa-file-circle-question",
-    unblock_requested: "fa-solid fa-user-check"
+    unblock_requested: "fa-solid fa-user-check",
+    support_message_received: "fa-solid fa-comments"
 };
 
 const NOTIFICATION_LABELS = {
@@ -37,7 +38,8 @@ const NOTIFICATION_LABELS = {
     payment_methods_change_requested: "Payment Method Change Request",
     kyc_verification_requested: "KYC Verification Request",
     kyc_resubmission_requested: "KYC Resubmission Request",
-    unblock_requested: "Account Reactivation Request"
+    unblock_requested: "Account Reactivation Request",
+    support_message_received: "New Support Message"
 };
 
 const AUDIENCE_LABELS = {
@@ -148,6 +150,10 @@ function messageForEntry(row, name){
         case "unblock_requested":
             return who + " requested account reactivation.";
 
+        case "support_message_received":
+            return who + ": " + (meta.preview || "sent you a message") +
+                (Number(meta.count) > 1 ? " (" + meta.count + " new messages)" : "");
+
         default:
             return labelForAction(row.action);
 
@@ -188,6 +194,11 @@ function detailRowsForEntry(entry){
 
         if(entry.action === "kyc_verification_requested" && meta.country){
             rows.push({ label: "Country", value: meta.country });
+        }
+
+        if(entry.action === "support_message_received"){
+            rows.push({ label: "Latest message", value: meta.preview || "—" });
+            rows.push({ label: "New messages", value: String(meta.count || 1) });
         }
 
     }

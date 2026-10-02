@@ -20,7 +20,10 @@ window.sb = supabase.createClient(
 //    (debounced, never while a modal is open, so nothing you are working
 //    on is disturbed).
 //  - Sidebar badges (pending counts + unread support) stay live.
-//  - New requests pop a small toast (+ optional beep).
+//  - New requests pop a small toast (+ optional beep). Pop-ups are driven by
+//    the NOTIFICATION RECORDS (activity_log, category REQUESTS) — the same
+//    records the Notifications page and push notifications use.
+//  - Online presence: tells the support chat which users have the app open.
 //  - After a dropped connection / phone sleep, everything refetches once.
 //
 // Loaded after supabase-client.js. Requires `sb` and `loadAdminPage`.
@@ -160,6 +163,16 @@ window.sb = supabase.createClient(
                                      (r.unblock_requests_pending || 0));
         });
 
+        sb.from("activity_log")
+            .select("id", { count: "exact", head: true })
+            .eq("category", "REQUESTS")
+            .eq("is_read", false)
+            .neq("action", "notification_sent")
+            .then(function(res){
+                if(res.error) return;
+                setBadge("notifications", res.count || 0);
+            });
+
         sb.rpc("admin_list_support_conversations").then(function(res){
             if(res.error || !res.data) return;
             var unread = 0;
@@ -249,26 +262,70 @@ window.sb = supabase.createClient(
         logout.parentNode.insertBefore(i, logout);
     }
 
-    function announce(table, payload){
-        if(payload.eventType !== "INSERT") return;
-        var row = payload.new || {};
+    var PAGE_FOR_ACTION = {
+        deposit_requested: "deposits",
+        withdrawal_requested: "withdrawals",
+        kyc_verification_requested: "verification",
+        kyc_resubmission_requested: "verification",
+        password_reset_requested: "users",
+        withdrawal_pin_reset_requested: "users",
+        personal_info_change_requested: "users",
+        payment_methods_change_requested: "users",
+        unblock_requested: "users",
+        support_message_received: "support-chat"
+    };
 
-        if(table === "deposits"){
-            toast("New deposit request", "A user submitted a deposit.", "deposits");
-        } else if(table === "withdrawals"){
-            toast("New withdrawal request", "A user submitted a withdrawal.", "withdrawals");
-        } else if(table === "kyc_submissions"){
-            toast("New verification request", "A user submitted KYC documents.", "verification");
-        } else if(table === "account_reset_requests"){
-            if(row.kind === "password")      toast("Password reset request", "A user needs a password reset.", "users");
-            else if(row.kind === "pin")      toast("PIN reset request", "A user needs a withdrawal PIN reset.", "users");
-            else if(row.kind === "kyc")      toast("KYC resubmission request", "A user asked to resubmit KYC.", "verification");
-            else if(row.kind === "unblock")  toast("Reactivation request", "A blocked user asked to be reactivated.", "users");
-        } else if(table === "support_messages"){
-            if(row.sender_type === "user" && currentPage !== "support-chat"){
-                toast("New support message", "A user sent you a message.", "support-chat");
-            }
+    var nameCache = {};
+
+    function lookupName(userId){
+        if(!userId) return Promise.resolve(null);
+        if(nameCache[userId]) return Promise.resolve(nameCache[userId]);
+        return sb.from("profiles").select("username, surname").eq("id", userId).maybeSingle()
+            .then(function(res){
+                if(res.error || !res.data) return null;
+                var n = ((res.data.username || "") + " " + (res.data.surname || "")).trim();
+                if(n) nameCache[userId] = n;
+                return n || null;
+            });
+    }
+
+    // Pop-ups come from the notification records (activity_log / REQUESTS),
+    // using the same wording as the Notifications page.
+    function announceRecord(payload){
+        var row = payload.new;
+        if(!row || row.category !== "REQUESTS" || row.action === "notification_sent") return;
+
+        var isChat = row.action === "support_message_received";
+
+        if(payload.eventType === "UPDATE"){
+            // Only a refreshed (still unread) chat record is news; reading it is not.
+            if(!isChat || row.is_read) return;
+        } else if(payload.eventType !== "INSERT"){
+            return;
         }
+
+        // Do not alert for the conversation that is open on screen right now.
+        if(isChat && currentPage === "support-chat" &&
+           typeof window.getOpenSupportChatId === "function" &&
+           window.getOpenSupportChatId() === row.target_id){
+            return;
+        }
+
+        lookupName(row.actor_id).then(function(name){
+            var title, text;
+            if(isChat){
+                title = name || "New support message";
+                text  = (row.metadata && row.metadata.preview) || "Sent you a message";
+            } else {
+                title = (typeof labelForAction === "function") ? labelForAction(row.action) : "New request";
+                text  = (typeof messageForEntry === "function") ? messageForEntry(row, name) : "A user sent a request.";
+            }
+            toast(title, text, PAGE_FOR_ACTION[row.action] || "notifications");
+        });
+    }
+
+    function announce(table, payload){
+        if(table === "activity_log") announceRecord(payload);
     }
 
     // ---------------------------------------------------------
@@ -299,6 +356,7 @@ window.sb = supabase.createClient(
 
         injectStyles();
         installSoundToggle();
+        startPresence();
 
         channel = sb.channel("kt-admin-live");
 
@@ -340,6 +398,79 @@ window.sb = supabase.createClient(
         hiddenAt = 0;
     }
 
+    // ---------------------------------------------------------
+    // Online presence (who has the user app open)
+    // Keys are SHA-256 hashes of user ids, so no real id is ever shared
+    // between devices on the presence channel.
+    // ---------------------------------------------------------
+
+    var presenceChannel = null;
+    var onlineKeys = {};
+    var presenceListeners = [];
+    var hashCache = {};
+
+    function hashId(id){
+        if(hashCache[id]) return Promise.resolve(hashCache[id]);
+        if(!window.crypto || !crypto.subtle) return Promise.resolve(null);
+        return crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(id)))
+            .then(function(buf){
+                var hex = Array.prototype.map.call(new Uint8Array(buf), function(b){
+                    return ("0" + b.toString(16)).slice(-2);
+                }).join("").slice(0, 32);
+                hashCache[id] = hex;
+                return hex;
+            });
+    }
+
+    function readPresence(){
+        if(!presenceChannel) return;
+        var state = presenceChannel.presenceState() || {};
+        var keys = {};
+        Object.keys(state).forEach(function(k){ keys[k] = true; });
+        onlineKeys = keys;
+        presenceListeners.forEach(function(fn){ safeCall(fn); });
+    }
+
+    function startPresence(){
+        if(presenceChannel || typeof sb === "undefined") return;
+
+        sb.auth.getSession().then(function(res){
+            var session = res && res.data && res.data.session;
+            if(!session || presenceChannel) return;
+
+            hashId(session.user.id).then(function(h){
+                if(!h || presenceChannel) return;
+
+                presenceChannel = sb.channel("kt-presence", { config: { presence: { key: "a-" + h } } });
+                presenceChannel
+                    .on("presence", { event: "sync" }, readPresence)
+                    .subscribe(function(status){
+                        if(status === "SUBSCRIBED"){
+                            presenceChannel.track({ r: "a", at: Date.now() });
+                        }
+                    });
+            });
+        });
+    }
+
+    function stopPresence(){
+        if(presenceChannel){
+            try{ sb.removeChannel(presenceChannel); }catch(e){}
+            presenceChannel = null;
+        }
+        onlineKeys = {};
+    }
+
+    function isUserOnline(userId){
+        return hashId(userId).then(function(h){
+            return !!(h && onlineKeys["u-" + h]);
+        });
+    }
+
+    function onPresence(fn){
+        if(typeof fn === "function") presenceListeners.push(fn);
+    }
+
     function stop(){
         if(!started) return;
         started = false;
@@ -347,6 +478,7 @@ window.sb = supabase.createClient(
         wasDown = false;
         try{ if(channel) sb.removeChannel(channel); }catch(e){}
         channel = null;
+        stopPresence();
         clearTimeout(refreshTimer); refreshTimer = null;
         clearTimeout(badgeTimer);   badgeTimer = null;
         clearInterval(heartbeat);   heartbeat = null;
@@ -376,7 +508,9 @@ window.sb = supabase.createClient(
         stop: stop,
         setPage: setPage,
         register: register,
-        toast: toast
+        toast: toast,
+        isUserOnline: isUserOnline,
+        onPresence: onPresence
     };
 
     // Safety net: if the admin signs out by any route, tear down.
@@ -385,6 +519,180 @@ window.sb = supabase.createClient(
             if(event === "SIGNED_OUT") stop();
         });
     }
+
+})();
+
+
+/* ===== js/push.js ===== */
+// =========================================================
+// KT ADMIN — PUSH NOTIFICATIONS (device side)
+// Lets an admin device receive notifications even when the app is closed.
+// The notifications themselves are built on the server from the
+// notification records (see supabase/functions/send-push).
+//
+// Header bell:   bell = on,  bell-slash = off.   Tap to turn on / off.
+// Loaded after realtime.js. Requires `sb`.
+// =========================================================
+
+(function(){
+
+    var VAPID_PUBLIC_KEY = "BEX5orXdHfmARKoe42fYAZIoMShjsZHKBi-lXnp_54dorhTg6neqCoUi53vB1_Im-fO6WydHf1c0xLtRgWgOk-M";
+
+    function supported(){
+        return ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window);
+    }
+
+    function toBytes(b64u){
+        var pad = "=".repeat((4 - b64u.length % 4) % 4);
+        var b64 = (b64u + pad).replace(/-/g, "+").replace(/_/g, "/");
+        var raw = atob(b64);
+        var out = new Uint8Array(raw.length);
+        for(var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+    }
+
+    function say(title, text){
+        if(window.KTRealtime && KTRealtime.toast) KTRealtime.toast(title, text, null);
+        else alert(title + "\n" + text);
+    }
+
+    function getRegistration(){
+        return navigator.serviceWorker.ready;
+    }
+
+    function currentSubscription(){
+        return getRegistration().then(function(reg){ return reg.pushManager.getSubscription(); });
+    }
+
+    function saveSubscription(sub){
+        return sb.auth.getSession().then(function(res){
+            var session = res && res.data && res.data.session;
+            if(!session) return false;
+
+            var json = sub.toJSON();
+            var keys = json.keys || {};
+
+            return sb.from("admin_push_subscriptions")
+                .upsert({
+                    user_id: session.user.id,
+                    endpoint: sub.endpoint,
+                    p256dh: keys.p256dh,
+                    auth: keys.auth,
+                    user_agent: navigator.userAgent,
+                    last_seen_at: new Date().toISOString()
+                }, { onConflict: "endpoint" })
+                .then(function(r){
+                    if(r.error){ console.warn("[KTPush] save failed", r.error); return false; }
+                    return true;
+                });
+        });
+    }
+
+    function subscribe(){
+        return getRegistration().then(function(reg){
+            return reg.pushManager.getSubscription().then(function(existing){
+                if(existing) return existing;
+                return reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: toBytes(VAPID_PUBLIC_KEY)
+                });
+            });
+        });
+    }
+
+    // ---- header bell ------------------------------------------------
+    var bell = null;
+
+    function paint(on){
+        if(!bell) return;
+        bell.className = "fa-solid " + (on ? "fa-bell" : "fa-bell-slash");
+        bell.style.color = on ? "" : "#9aa3b2";
+        bell.title = on ? "Notifications are on (tap to turn off)" : "Turn on notifications";
+    }
+
+    function refreshBell(){
+        if(!supported()){ paint(false); return Promise.resolve(false); }
+        if(Notification.permission !== "granted"){ paint(false); return Promise.resolve(false); }
+        return currentSubscription().then(function(sub){
+            paint(!!sub);
+            return !!sub;
+        }).catch(function(){ paint(false); return false; });
+    }
+
+    function enable(){
+        if(!supported()){
+            say("Notifications unavailable",
+                "This browser cannot show push notifications. On iPhone, add the app to the Home Screen first.");
+            return Promise.resolve(false);
+        }
+        if(Notification.permission === "denied"){
+            say("Notifications are blocked", "Allow notifications for this app in your phone / browser settings, then try again.");
+            return Promise.resolve(false);
+        }
+
+        return Notification.requestPermission().then(function(permission){
+            if(permission !== "granted"){
+                paint(false);
+                say("Notifications not allowed", "Permission was not granted.");
+                return false;
+            }
+            return subscribe().then(saveSubscription).then(function(ok){
+                paint(ok);
+                say(ok ? "Notifications on" : "Could not turn on notifications",
+                    ok ? "You will be alerted even when the app is closed." : "Please try again.");
+                return ok;
+            });
+        }).catch(function(e){
+            console.warn("[KTPush] enable failed", e);
+            say("Could not turn on notifications", "Please try again.");
+            return false;
+        });
+    }
+
+    function disable(){
+        return currentSubscription().then(function(sub){
+            if(!sub) return true;
+            var endpoint = sub.endpoint;
+            return sub.unsubscribe().then(function(){
+                return sb.from("admin_push_subscriptions").delete().eq("endpoint", endpoint);
+            }).then(function(){ return true; });
+        }).then(function(){
+            paint(false);
+            say("Notifications off", "This device will no longer get alerts while the app is closed.");
+        }).catch(function(e){ console.warn("[KTPush] disable failed", e); });
+    }
+
+    function installBell(){
+        if(document.getElementById("kt-push-toggle")) return;
+        var logout = document.getElementById("logout-btn");
+        if(!logout || !logout.parentNode) return;
+
+        bell = document.createElement("i");
+        bell.id = "kt-push-toggle";
+        bell.style.cssText = "margin-left:12px;cursor:pointer;";
+        bell.addEventListener("click", function(){
+            refreshBell().then(function(on){ return on ? disable() : enable(); });
+        });
+        logout.parentNode.insertBefore(bell, logout);
+        paint(false);
+    }
+
+    // Call once after sign-in.
+    function init(){
+        installBell();
+        if(!supported()) return;
+
+        // Already allowed on this device: make sure the subscription exists and is saved.
+        if(Notification.permission === "granted"){
+            subscribe().then(saveSubscription).then(refreshBell).catch(function(e){
+                console.warn("[KTPush] sync failed", e);
+            });
+        } else {
+            refreshBell();
+        }
+    }
+
+    window.KTPush = { init: init, enable: enable, disable: disable };
 
 })();
 
@@ -572,12 +880,28 @@ async function handleAuthedSession(session){
 await loadAdminSidebarProfile(session.user.id);
 
 if(typeof loadAdminPage === "function"){
-    loadAdminPage("dashboard");
+    // A tapped push notification opens the app on the relevant page.
+    var startPage = "dashboard";
+    try{
+        var requestedPage = new URLSearchParams(location.search).get("page");
+        if(requestedPage && /^[a-z-]+$/.test(requestedPage)){
+            startPage = requestedPage;
+        }
+        if(requestedPage){
+            history.replaceState(null, "", location.pathname);
+        }
+    }catch(e){}
+    loadAdminPage(startPage);
 }
 
 // Live updates (realtime) — safe to call more than once.
 if(window.KTRealtime){
     KTRealtime.start();
+}
+
+// Push notifications (header bell) — safe to call more than once.
+if(window.KTPush){
+    KTPush.init();
 }
 return;
     }
@@ -1497,6 +1821,26 @@ window.onload = ()=>{
     }
 
 };
+
+// ==================================================
+// OPEN A PAGE WHEN A PUSH NOTIFICATION IS TAPPED
+// (the service worker posts the page name to the open app)
+// ==================================================
+
+if("serviceWorker" in navigator){
+    navigator.serviceWorker.addEventListener("message", function(event){
+        var data = event.data;
+        if(!data || data.type !== "kt-open-page") return;
+
+        var app = document.getElementById("admin-app");
+        if(!app || app.style.display === "none") return;   // not signed in
+
+        if(typeof loadAdminPage === "function" && /^[a-z-]+$/.test(String(data.page))){
+            loadAdminPage(data.page);
+        }
+    });
+}
+
 
 /* ===== js/withdrawals.js ===== */
 // =====================================
@@ -7951,7 +8295,8 @@ const NOTIFICATION_ICONS = {
     payment_methods_change_requested: "fa-solid fa-credit-card",
     kyc_verification_requested: "fa-solid fa-id-card",
     kyc_resubmission_requested: "fa-solid fa-file-circle-question",
-    unblock_requested: "fa-solid fa-user-check"
+    unblock_requested: "fa-solid fa-user-check",
+    support_message_received: "fa-solid fa-comments"
 };
 
 const NOTIFICATION_LABELS = {
@@ -7964,7 +8309,8 @@ const NOTIFICATION_LABELS = {
     payment_methods_change_requested: "Payment Method Change Request",
     kyc_verification_requested: "KYC Verification Request",
     kyc_resubmission_requested: "KYC Resubmission Request",
-    unblock_requested: "Account Reactivation Request"
+    unblock_requested: "Account Reactivation Request",
+    support_message_received: "New Support Message"
 };
 
 const AUDIENCE_LABELS = {
@@ -8075,6 +8421,10 @@ function messageForEntry(row, name){
         case "unblock_requested":
             return who + " requested account reactivation.";
 
+        case "support_message_received":
+            return who + ": " + (meta.preview || "sent you a message") +
+                (Number(meta.count) > 1 ? " (" + meta.count + " new messages)" : "");
+
         default:
             return labelForAction(row.action);
 
@@ -8115,6 +8465,11 @@ function detailRowsForEntry(entry){
 
         if(entry.action === "kyc_verification_requested" && meta.country){
             rows.push({ label: "Country", value: meta.country });
+        }
+
+        if(entry.action === "support_message_received"){
+            rows.push({ label: "Latest message", value: meta.preview || "—" });
+            rows.push({ label: "New messages", value: String(meta.count || 1) });
         }
 
     }
@@ -9948,6 +10303,20 @@ let supportChatUsers = [];
 let individualChats = [];
 
 let currentChat = null;
+
+// ---- Live chat extras: typing, online, read ticks ----
+let typingChannel = null;
+let userTypingTimer = null;
+let chatUserTyping = false;
+let chatUserOnline = false;
+let lastTypingSentAt = 0;
+let presenceHooked = false;
+
+// Lets the live-updates module know which chat is on screen right now
+// (so it does not pop up an alert for a conversation you are reading).
+window.getOpenSupportChatId = function () {
+    return currentChat ? currentChat.id : null;
+};
 let currentChatType = "individual";
 let currentUser = null;
 
@@ -10188,6 +10557,8 @@ function loadSupportConversations(onDone) {
             }
         }
 
+        refreshUserReadTimes();
+
         if (typeof onDone === "function") onDone();
 
     });
@@ -10399,6 +10770,11 @@ function openIndividualChat(chatId) {
     const chat = findIndividualChat(chatId);
     if (!chat) return;
 
+    // Switching straight from another open chat: mark that one read.
+    if (currentChat && currentChat.id !== chat.id) {
+        markConversationRead(currentChat.id);
+    }
+
     if (chatSelectionMode) exitChatSelectionMode();
     closeMessageSearch();
     cancelReply();
@@ -10408,8 +10784,18 @@ function openIndividualChat(chatId) {
     currentChatType = "individual";
     currentUser = { id: chat.userId, name: chat.name, phone: chat.phone };
 
+    chatUserTyping = false;
+    chatUserOnline = false;
+    startTypingChannel(chat.id);
+
+    if (!presenceHooked && window.KTRealtime && typeof KTRealtime.onPresence === "function") {
+        presenceHooked = true;
+        KTRealtime.onPresence(refreshChatUserOnline);
+    }
+
     openChatWindow();
     renderCurrentChat();
+    refreshChatUserOnline();
 
     if (!chat.messagesLoaded) {
 
@@ -10480,7 +10866,7 @@ function mapSupportMessageRow(row) {
 
 }
 
-function markConversationRead(chatId) {
+function markConversationRead(chatId, onDone) {
 
     sb.from("support_conversations")
         .update({ admin_last_read_at: new Date().toISOString() })
@@ -10489,6 +10875,7 @@ function markConversationRead(chatId) {
 
             if (res.error) {
                 console.error("Failed to mark conversation read:", res.error);
+                if (typeof onDone === "function") onDone();
                 return;
             }
 
@@ -10497,6 +10884,151 @@ function markConversationRead(chatId) {
 
             renderIndividualChats();
             updateUnreadCounts();
+
+            if (typeof onDone === "function") onDone();
+
+        });
+
+}
+
+// ======================================================
+// LIVE EXTRAS — typing indicator, online status, read ticks
+// ======================================================
+
+function updateChatHeaderStatus() {
+
+    if (!currentChat) return;
+
+    const statusEl = supportChatElement("chatStatus");
+    const onlineDot = supportChatElement("chatOnlineStatus");
+
+    const base = currentChat.phone + (currentChat.isBlocked ? " · Blocked" : "");
+
+    if (statusEl) {
+        if (chatUserTyping) statusEl.textContent = "typing…";
+        else statusEl.textContent = (chatUserOnline ? "Online · " : "") + base;
+    }
+
+    if (onlineDot) onlineDot.style.display = chatUserOnline ? "" : "none";
+
+}
+
+function refreshChatUserOnline() {
+
+    if (!currentChat || !window.KTRealtime || typeof KTRealtime.isUserOnline !== "function") {
+        chatUserOnline = false;
+        updateChatHeaderStatus();
+        return;
+    }
+
+    const id = currentChat.id;
+
+    KTRealtime.isUserOnline(currentChat.userId).then(function (online) {
+        if (!currentChat || currentChat.id !== id) return;
+        if (online !== chatUserOnline) {
+            chatUserOnline = online;
+            updateChatHeaderStatus();
+        }
+    });
+
+}
+
+function stopTypingChannel() {
+
+    if (typingChannel) {
+        try { sb.removeChannel(typingChannel); } catch (e) { /* ignore */ }
+        typingChannel = null;
+    }
+
+    clearTimeout(userTypingTimer);
+    chatUserTyping = false;
+
+}
+
+function startTypingChannel(chatId) {
+
+    stopTypingChannel();
+
+    typingChannel = sb.channel("typing-" + chatId, { config: { broadcast: { self: false } } });
+
+    typingChannel
+        .on("broadcast", { event: "typing" }, function (msg) {
+
+            if (!msg || !msg.payload || msg.payload.from !== "user") return;
+            if (!currentChat || currentChat.id !== chatId) return;
+
+            chatUserTyping = true;
+            updateChatHeaderStatus();
+
+            clearTimeout(userTypingTimer);
+            userTypingTimer = setTimeout(function () {
+                chatUserTyping = false;
+                updateChatHeaderStatus();
+            }, 4000);
+
+        })
+        .subscribe();
+
+}
+
+function sendTypingSignal() {
+
+    if (!typingChannel || !currentChat) return;
+
+    const now = Date.now();
+    if (now - lastTypingSentAt < 2000) return;
+    lastTypingSentAt = now;
+
+    typingChannel.send({ type: "broadcast", event: "typing", payload: { from: "admin" } });
+
+}
+
+// Updates the ticks of messages already on screen (no re-render, no scroll jump).
+function updateReadTicks() {
+
+    if (!currentChat) return;
+
+    const readAt = currentChat.userLastReadAt ? new Date(currentChat.userLastReadAt).getTime() : 0;
+
+    (currentChat.messages || []).forEach(function (message) {
+
+        if (!message.sent) return;
+
+        const wrapper = document.querySelector('#messages [data-message-id="' + message.id + '"]');
+        const tick = wrapper ? wrapper.querySelector(".msg-tick") : null;
+        if (!tick) return;
+
+        const read = readAt && new Date(message.createdAt).getTime() <= readAt;
+        tick.className = (read ? "fa-solid fa-check-double" : "fa-solid fa-check") + " msg-tick";
+        tick.style.color = read ? "" : "#94a3b8";
+
+    });
+
+}
+
+function refreshUserReadTimes() {
+
+    sb.from("support_conversations")
+        .select("id, user_last_read_at")
+        .then(function (res) {
+
+            if (res.error || !res.data) return;
+
+            let openChanged = false;
+
+            res.data.forEach(function (row) {
+
+                const chat = findIndividualChat(row.id);
+                if (!chat) return;
+
+                if (chat.userLastReadAt !== row.user_last_read_at) {
+                    chat.userLastReadAt = row.user_last_read_at;
+                    if (currentChat && currentChat.id === chat.id) openChanged = true;
+                }
+
+            });
+
+            if (openChanged) updateReadTicks();
 
         });
 
@@ -10524,6 +11056,11 @@ function closeChat() {
     if (chatWindow) chatWindow.classList.add("hidden");
     if (chatMain) chatMain.classList.remove("chat-open");
 
+    const closingChatId = currentChat ? currentChat.id : null;
+
+    stopTypingChannel();
+    chatUserOnline = false;
+
     currentChat = null;
     currentUser = null;
 
@@ -10533,7 +11070,15 @@ function closeChat() {
     closeChatMenu();
 
     showChatLoadingOverlay();
-    loadSupportConversations(hideChatLoadingOverlay);
+
+    if (closingChatId) {
+        // Everything on screen while the chat was open has been seen.
+        markConversationRead(closingChatId, function () {
+            loadSupportConversations(hideChatLoadingOverlay);
+        });
+    } else {
+        loadSupportConversations(hideChatLoadingOverlay);
+    }
 
 }
 
@@ -10548,7 +11093,7 @@ function renderCurrentChat() {
     const onlineDot = supportChatElement("chatOnlineStatus");
 
     if (nameEl) nameEl.textContent = currentChat.name;
-    if (statusEl) statusEl.textContent = currentChat.phone + (currentChat.isBlocked ? " · Blocked" : "");
+    updateChatHeaderStatus();
 
     if (avatarImg) avatarImg.style.display = "none";
 
@@ -10556,8 +11101,6 @@ function renderCurrentChat() {
         avatarInitials.classList.remove("hidden");
         avatarInitials.textContent = getInitials(currentChat.name);
     }
-
-    if (onlineDot) onlineDot.style.display = "none";
 
     renderMessages();
     updatePinnedMessageBar();
@@ -10798,7 +11341,10 @@ function createMessageElement(message) {
 
     if (message.sent) {
         const status = document.createElement("i");
-        status.className = "fa-solid fa-check";
+        const userRead = !!(currentChat && currentChat.userLastReadAt) &&
+            new Date(message.createdAt).getTime() <= new Date(currentChat.userLastReadAt).getTime();
+        status.className = (userRead ? "fa-solid fa-check-double" : "fa-solid fa-check") + " msg-tick";
+        if (!userRead) status.style.color = "#94a3b8";
         meta.appendChild(status);
     }
 
@@ -10863,6 +11409,8 @@ function setupComposerEvents() {
 
         input.style.height = "auto";
         input.style.height = Math.min(input.scrollHeight, 120) + "px";
+
+        if (input.value.trim().length > 0) sendTypingSignal();
 
     });
 
@@ -12921,7 +13469,10 @@ function handleIncomingSupportMessageChange(payload) {
     const chat = findIndividualChat(row.conversation_id);
 
     if (!chat) { loadSupportConversations(); return; }
-    if (!chat.messagesLoaded) return;
+
+    // Messages not loaded yet (chat never opened this session): the thread
+    // itself needs nothing, but the list / unread badge must still update.
+    if (!chat.messagesLoaded) { loadSupportConversations(); return; }
 
     const existingIndex = chat.messages.findIndex(function (m) { return m.id === row.id; });
 
@@ -12938,6 +13489,17 @@ function handleIncomingSupportMessageChange(payload) {
 
         if (row.sender_type === "user") {
             scrollMessagesToBottom();
+
+            chatUserTyping = false;
+            updateChatHeaderStatus();
+
+            // Admin is looking at this chat right now: it counts as read.
+            // Mark it first (server stamps the time), then refresh the list,
+            // so the unread badge never flashes for a message being viewed.
+            if (payload.eventType === "INSERT" && !document.hidden) {
+                markConversationRead(chat.id, function () { loadSupportConversations(); });
+                return;
+            }
         }
 
     }

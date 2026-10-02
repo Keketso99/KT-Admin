@@ -180,12 +180,28 @@ async function handleAuthedSession(session){
 await loadAdminSidebarProfile(session.user.id);
 
 if(typeof loadAdminPage === "function"){
-    loadAdminPage("dashboard");
+    // A tapped push notification opens the app on the relevant page.
+    var startPage = "dashboard";
+    try{
+        var requestedPage = new URLSearchParams(location.search).get("page");
+        if(requestedPage && /^[a-z-]+$/.test(requestedPage)){
+            startPage = requestedPage;
+        }
+        if(requestedPage){
+            history.replaceState(null, "", location.pathname);
+        }
+    }catch(e){}
+    loadAdminPage(startPage);
 }
 
 // Live updates (realtime) — safe to call more than once.
 if(window.KTRealtime){
     KTRealtime.start();
+}
+
+// Push notifications (header bell) — safe to call more than once.
+if(window.KTPush){
+    KTPush.init();
 }
 return;
     }

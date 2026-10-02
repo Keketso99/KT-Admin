@@ -7,7 +7,10 @@
 //    (debounced, never while a modal is open, so nothing you are working
 //    on is disturbed).
 //  - Sidebar badges (pending counts + unread support) stay live.
-//  - New requests pop a small toast (+ optional beep).
+//  - New requests pop a small toast (+ optional beep). Pop-ups are driven by
+//    the NOTIFICATION RECORDS (activity_log, category REQUESTS) — the same
+//    records the Notifications page and push notifications use.
+//  - Online presence: tells the support chat which users have the app open.
 //  - After a dropped connection / phone sleep, everything refetches once.
 //
 // Loaded after supabase-client.js. Requires `sb` and `loadAdminPage`.
@@ -147,6 +150,16 @@
                                      (r.unblock_requests_pending || 0));
         });
 
+        sb.from("activity_log")
+            .select("id", { count: "exact", head: true })
+            .eq("category", "REQUESTS")
+            .eq("is_read", false)
+            .neq("action", "notification_sent")
+            .then(function(res){
+                if(res.error) return;
+                setBadge("notifications", res.count || 0);
+            });
+
         sb.rpc("admin_list_support_conversations").then(function(res){
             if(res.error || !res.data) return;
             var unread = 0;
@@ -236,26 +249,70 @@
         logout.parentNode.insertBefore(i, logout);
     }
 
-    function announce(table, payload){
-        if(payload.eventType !== "INSERT") return;
-        var row = payload.new || {};
+    var PAGE_FOR_ACTION = {
+        deposit_requested: "deposits",
+        withdrawal_requested: "withdrawals",
+        kyc_verification_requested: "verification",
+        kyc_resubmission_requested: "verification",
+        password_reset_requested: "users",
+        withdrawal_pin_reset_requested: "users",
+        personal_info_change_requested: "users",
+        payment_methods_change_requested: "users",
+        unblock_requested: "users",
+        support_message_received: "support-chat"
+    };
 
-        if(table === "deposits"){
-            toast("New deposit request", "A user submitted a deposit.", "deposits");
-        } else if(table === "withdrawals"){
-            toast("New withdrawal request", "A user submitted a withdrawal.", "withdrawals");
-        } else if(table === "kyc_submissions"){
-            toast("New verification request", "A user submitted KYC documents.", "verification");
-        } else if(table === "account_reset_requests"){
-            if(row.kind === "password")      toast("Password reset request", "A user needs a password reset.", "users");
-            else if(row.kind === "pin")      toast("PIN reset request", "A user needs a withdrawal PIN reset.", "users");
-            else if(row.kind === "kyc")      toast("KYC resubmission request", "A user asked to resubmit KYC.", "verification");
-            else if(row.kind === "unblock")  toast("Reactivation request", "A blocked user asked to be reactivated.", "users");
-        } else if(table === "support_messages"){
-            if(row.sender_type === "user" && currentPage !== "support-chat"){
-                toast("New support message", "A user sent you a message.", "support-chat");
-            }
+    var nameCache = {};
+
+    function lookupName(userId){
+        if(!userId) return Promise.resolve(null);
+        if(nameCache[userId]) return Promise.resolve(nameCache[userId]);
+        return sb.from("profiles").select("username, surname").eq("id", userId).maybeSingle()
+            .then(function(res){
+                if(res.error || !res.data) return null;
+                var n = ((res.data.username || "") + " " + (res.data.surname || "")).trim();
+                if(n) nameCache[userId] = n;
+                return n || null;
+            });
+    }
+
+    // Pop-ups come from the notification records (activity_log / REQUESTS),
+    // using the same wording as the Notifications page.
+    function announceRecord(payload){
+        var row = payload.new;
+        if(!row || row.category !== "REQUESTS" || row.action === "notification_sent") return;
+
+        var isChat = row.action === "support_message_received";
+
+        if(payload.eventType === "UPDATE"){
+            // Only a refreshed (still unread) chat record is news; reading it is not.
+            if(!isChat || row.is_read) return;
+        } else if(payload.eventType !== "INSERT"){
+            return;
         }
+
+        // Do not alert for the conversation that is open on screen right now.
+        if(isChat && currentPage === "support-chat" &&
+           typeof window.getOpenSupportChatId === "function" &&
+           window.getOpenSupportChatId() === row.target_id){
+            return;
+        }
+
+        lookupName(row.actor_id).then(function(name){
+            var title, text;
+            if(isChat){
+                title = name || "New support message";
+                text  = (row.metadata && row.metadata.preview) || "Sent you a message";
+            } else {
+                title = (typeof labelForAction === "function") ? labelForAction(row.action) : "New request";
+                text  = (typeof messageForEntry === "function") ? messageForEntry(row, name) : "A user sent a request.";
+            }
+            toast(title, text, PAGE_FOR_ACTION[row.action] || "notifications");
+        });
+    }
+
+    function announce(table, payload){
+        if(table === "activity_log") announceRecord(payload);
     }
 
     // ---------------------------------------------------------
@@ -286,6 +343,7 @@
 
         injectStyles();
         installSoundToggle();
+        startPresence();
 
         channel = sb.channel("kt-admin-live");
 
@@ -327,6 +385,79 @@
         hiddenAt = 0;
     }
 
+    // ---------------------------------------------------------
+    // Online presence (who has the user app open)
+    // Keys are SHA-256 hashes of user ids, so no real id is ever shared
+    // between devices on the presence channel.
+    // ---------------------------------------------------------
+
+    var presenceChannel = null;
+    var onlineKeys = {};
+    var presenceListeners = [];
+    var hashCache = {};
+
+    function hashId(id){
+        if(hashCache[id]) return Promise.resolve(hashCache[id]);
+        if(!window.crypto || !crypto.subtle) return Promise.resolve(null);
+        return crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(id)))
+            .then(function(buf){
+                var hex = Array.prototype.map.call(new Uint8Array(buf), function(b){
+                    return ("0" + b.toString(16)).slice(-2);
+                }).join("").slice(0, 32);
+                hashCache[id] = hex;
+                return hex;
+            });
+    }
+
+    function readPresence(){
+        if(!presenceChannel) return;
+        var state = presenceChannel.presenceState() || {};
+        var keys = {};
+        Object.keys(state).forEach(function(k){ keys[k] = true; });
+        onlineKeys = keys;
+        presenceListeners.forEach(function(fn){ safeCall(fn); });
+    }
+
+    function startPresence(){
+        if(presenceChannel || typeof sb === "undefined") return;
+
+        sb.auth.getSession().then(function(res){
+            var session = res && res.data && res.data.session;
+            if(!session || presenceChannel) return;
+
+            hashId(session.user.id).then(function(h){
+                if(!h || presenceChannel) return;
+
+                presenceChannel = sb.channel("kt-presence", { config: { presence: { key: "a-" + h } } });
+                presenceChannel
+                    .on("presence", { event: "sync" }, readPresence)
+                    .subscribe(function(status){
+                        if(status === "SUBSCRIBED"){
+                            presenceChannel.track({ r: "a", at: Date.now() });
+                        }
+                    });
+            });
+        });
+    }
+
+    function stopPresence(){
+        if(presenceChannel){
+            try{ sb.removeChannel(presenceChannel); }catch(e){}
+            presenceChannel = null;
+        }
+        onlineKeys = {};
+    }
+
+    function isUserOnline(userId){
+        return hashId(userId).then(function(h){
+            return !!(h && onlineKeys["u-" + h]);
+        });
+    }
+
+    function onPresence(fn){
+        if(typeof fn === "function") presenceListeners.push(fn);
+    }
+
     function stop(){
         if(!started) return;
         started = false;
@@ -334,6 +465,7 @@
         wasDown = false;
         try{ if(channel) sb.removeChannel(channel); }catch(e){}
         channel = null;
+        stopPresence();
         clearTimeout(refreshTimer); refreshTimer = null;
         clearTimeout(badgeTimer);   badgeTimer = null;
         clearInterval(heartbeat);   heartbeat = null;
@@ -363,7 +495,9 @@
         stop: stop,
         setPage: setPage,
         register: register,
-        toast: toast
+        toast: toast,
+        isUserOnline: isUserOnline,
+        onPresence: onPresence
     };
 
     // Safety net: if the admin signs out by any route, tear down.

@@ -34,6 +34,20 @@ let supportChatUsers = [];
 let individualChats = [];
 
 let currentChat = null;
+
+// ---- Live chat extras: typing, online, read ticks ----
+let typingChannel = null;
+let userTypingTimer = null;
+let chatUserTyping = false;
+let chatUserOnline = false;
+let lastTypingSentAt = 0;
+let presenceHooked = false;
+
+// Lets the live-updates module know which chat is on screen right now
+// (so it does not pop up an alert for a conversation you are reading).
+window.getOpenSupportChatId = function () {
+    return currentChat ? currentChat.id : null;
+};
 let currentChatType = "individual";
 let currentUser = null;
 
@@ -274,6 +288,8 @@ function loadSupportConversations(onDone) {
             }
         }
 
+        refreshUserReadTimes();
+
         if (typeof onDone === "function") onDone();
 
     });
@@ -499,8 +515,18 @@ function openIndividualChat(chatId) {
     currentChatType = "individual";
     currentUser = { id: chat.userId, name: chat.name, phone: chat.phone };
 
+    chatUserTyping = false;
+    chatUserOnline = false;
+    startTypingChannel(chat.id);
+
+    if (!presenceHooked && window.KTRealtime && typeof KTRealtime.onPresence === "function") {
+        presenceHooked = true;
+        KTRealtime.onPresence(refreshChatUserOnline);
+    }
+
     openChatWindow();
     renderCurrentChat();
+    refreshChatUserOnline();
 
     if (!chat.messagesLoaded) {
 
@@ -596,6 +622,149 @@ function markConversationRead(chatId, onDone) {
 
 }
 
+// ======================================================
+// LIVE EXTRAS — typing indicator, online status, read ticks
+// ======================================================
+
+function updateChatHeaderStatus() {
+
+    if (!currentChat) return;
+
+    const statusEl = supportChatElement("chatStatus");
+    const onlineDot = supportChatElement("chatOnlineStatus");
+
+    const base = currentChat.phone + (currentChat.isBlocked ? " · Blocked" : "");
+
+    if (statusEl) {
+        if (chatUserTyping) statusEl.textContent = "typing…";
+        else statusEl.textContent = (chatUserOnline ? "Online · " : "") + base;
+    }
+
+    if (onlineDot) onlineDot.style.display = chatUserOnline ? "" : "none";
+
+}
+
+function refreshChatUserOnline() {
+
+    if (!currentChat || !window.KTRealtime || typeof KTRealtime.isUserOnline !== "function") {
+        chatUserOnline = false;
+        updateChatHeaderStatus();
+        return;
+    }
+
+    const id = currentChat.id;
+
+    KTRealtime.isUserOnline(currentChat.userId).then(function (online) {
+        if (!currentChat || currentChat.id !== id) return;
+        if (online !== chatUserOnline) {
+            chatUserOnline = online;
+            updateChatHeaderStatus();
+        }
+    });
+
+}
+
+function stopTypingChannel() {
+
+    if (typingChannel) {
+        try { sb.removeChannel(typingChannel); } catch (e) { /* ignore */ }
+        typingChannel = null;
+    }
+
+    clearTimeout(userTypingTimer);
+    chatUserTyping = false;
+
+}
+
+function startTypingChannel(chatId) {
+
+    stopTypingChannel();
+
+    typingChannel = sb.channel("typing-" + chatId, { config: { broadcast: { self: false } } });
+
+    typingChannel
+        .on("broadcast", { event: "typing" }, function (msg) {
+
+            if (!msg || !msg.payload || msg.payload.from !== "user") return;
+            if (!currentChat || currentChat.id !== chatId) return;
+
+            chatUserTyping = true;
+            updateChatHeaderStatus();
+
+            clearTimeout(userTypingTimer);
+            userTypingTimer = setTimeout(function () {
+                chatUserTyping = false;
+                updateChatHeaderStatus();
+            }, 4000);
+
+        })
+        .subscribe();
+
+}
+
+function sendTypingSignal() {
+
+    if (!typingChannel || !currentChat) return;
+
+    const now = Date.now();
+    if (now - lastTypingSentAt < 2000) return;
+    lastTypingSentAt = now;
+
+    typingChannel.send({ type: "broadcast", event: "typing", payload: { from: "admin" } });
+
+}
+
+// Updates the ticks of messages already on screen (no re-render, no scroll jump).
+function updateReadTicks() {
+
+    if (!currentChat) return;
+
+    const readAt = currentChat.userLastReadAt ? new Date(currentChat.userLastReadAt).getTime() : 0;
+
+    (currentChat.messages || []).forEach(function (message) {
+
+        if (!message.sent) return;
+
+        const wrapper = document.querySelector('#messages [data-message-id="' + message.id + '"]');
+        const tick = wrapper ? wrapper.querySelector(".msg-tick") : null;
+        if (!tick) return;
+
+        const read = readAt && new Date(message.createdAt).getTime() <= readAt;
+        tick.className = (read ? "fa-solid fa-check-double" : "fa-solid fa-check") + " msg-tick";
+        tick.style.color = read ? "" : "#94a3b8";
+
+    });
+
+}
+
+function refreshUserReadTimes() {
+
+    sb.from("support_conversations")
+        .select("id, user_last_read_at")
+        .then(function (res) {
+
+            if (res.error || !res.data) return;
+
+            let openChanged = false;
+
+            res.data.forEach(function (row) {
+
+                const chat = findIndividualChat(row.id);
+                if (!chat) return;
+
+                if (chat.userLastReadAt !== row.user_last_read_at) {
+                    chat.userLastReadAt = row.user_last_read_at;
+                    if (currentChat && currentChat.id === chat.id) openChanged = true;
+                }
+
+            });
+
+            if (openChanged) updateReadTicks();
+
+        });
+
+}
+
 function openChatWindow() {
 
     const emptyChat = supportChatElement("emptyChat");
@@ -619,6 +788,9 @@ function closeChat() {
     if (chatMain) chatMain.classList.remove("chat-open");
 
     const closingChatId = currentChat ? currentChat.id : null;
+
+    stopTypingChannel();
+    chatUserOnline = false;
 
     currentChat = null;
     currentUser = null;
@@ -652,7 +824,7 @@ function renderCurrentChat() {
     const onlineDot = supportChatElement("chatOnlineStatus");
 
     if (nameEl) nameEl.textContent = currentChat.name;
-    if (statusEl) statusEl.textContent = currentChat.phone + (currentChat.isBlocked ? " · Blocked" : "");
+    updateChatHeaderStatus();
 
     if (avatarImg) avatarImg.style.display = "none";
 
@@ -660,8 +832,6 @@ function renderCurrentChat() {
         avatarInitials.classList.remove("hidden");
         avatarInitials.textContent = getInitials(currentChat.name);
     }
-
-    if (onlineDot) onlineDot.style.display = "none";
 
     renderMessages();
     updatePinnedMessageBar();
@@ -902,7 +1072,10 @@ function createMessageElement(message) {
 
     if (message.sent) {
         const status = document.createElement("i");
-        status.className = "fa-solid fa-check";
+        const userRead = !!(currentChat && currentChat.userLastReadAt) &&
+            new Date(message.createdAt).getTime() <= new Date(currentChat.userLastReadAt).getTime();
+        status.className = (userRead ? "fa-solid fa-check-double" : "fa-solid fa-check") + " msg-tick";
+        if (!userRead) status.style.color = "#94a3b8";
         meta.appendChild(status);
     }
 
@@ -967,6 +1140,8 @@ function setupComposerEvents() {
 
         input.style.height = "auto";
         input.style.height = Math.min(input.scrollHeight, 120) + "px";
+
+        if (input.value.trim().length > 0) sendTypingSignal();
 
     });
 
@@ -3045,6 +3220,9 @@ function handleIncomingSupportMessageChange(payload) {
 
         if (row.sender_type === "user") {
             scrollMessagesToBottom();
+
+            chatUserTyping = false;
+            updateChatHeaderStatus();
 
             // Admin is looking at this chat right now: it counts as read.
             // Mark it first (server stamps the time), then refresh the list,

@@ -750,3 +750,22 @@ window.onload = ()=>{
     }
 
 };
+
+// ==================================================
+// OPEN A PAGE WHEN A PUSH NOTIFICATION IS TAPPED
+// (the service worker posts the page name to the open app)
+// ==================================================
+
+if("serviceWorker" in navigator){
+    navigator.serviceWorker.addEventListener("message", function(event){
+        var data = event.data;
+        if(!data || data.type !== "kt-open-page") return;
+
+        var app = document.getElementById("admin-app");
+        if(!app || app.style.display === "none") return;   // not signed in
+
+        if(typeof loadAdminPage === "function" && /^[a-z-]+$/.test(String(data.page))){
+            loadAdminPage(data.page);
+        }
+    });
+}
