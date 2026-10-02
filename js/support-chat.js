@@ -485,6 +485,11 @@ function openIndividualChat(chatId) {
     const chat = findIndividualChat(chatId);
     if (!chat) return;
 
+    // Switching straight from another open chat: mark that one read.
+    if (currentChat && currentChat.id !== chat.id) {
+        markConversationRead(currentChat.id);
+    }
+
     if (chatSelectionMode) exitChatSelectionMode();
     closeMessageSearch();
     cancelReply();
@@ -566,7 +571,7 @@ function mapSupportMessageRow(row) {
 
 }
 
-function markConversationRead(chatId) {
+function markConversationRead(chatId, onDone) {
 
     sb.from("support_conversations")
         .update({ admin_last_read_at: new Date().toISOString() })
@@ -575,6 +580,7 @@ function markConversationRead(chatId) {
 
             if (res.error) {
                 console.error("Failed to mark conversation read:", res.error);
+                if (typeof onDone === "function") onDone();
                 return;
             }
 
@@ -583,6 +589,8 @@ function markConversationRead(chatId) {
 
             renderIndividualChats();
             updateUnreadCounts();
+
+            if (typeof onDone === "function") onDone();
 
         });
 
@@ -610,6 +618,8 @@ function closeChat() {
     if (chatWindow) chatWindow.classList.add("hidden");
     if (chatMain) chatMain.classList.remove("chat-open");
 
+    const closingChatId = currentChat ? currentChat.id : null;
+
     currentChat = null;
     currentUser = null;
 
@@ -619,7 +629,15 @@ function closeChat() {
     closeChatMenu();
 
     showChatLoadingOverlay();
-    loadSupportConversations(hideChatLoadingOverlay);
+
+    if (closingChatId) {
+        // Everything on screen while the chat was open has been seen.
+        markConversationRead(closingChatId, function () {
+            loadSupportConversations(hideChatLoadingOverlay);
+        });
+    } else {
+        loadSupportConversations(hideChatLoadingOverlay);
+    }
 
 }
 
@@ -3007,7 +3025,10 @@ function handleIncomingSupportMessageChange(payload) {
     const chat = findIndividualChat(row.conversation_id);
 
     if (!chat) { loadSupportConversations(); return; }
-    if (!chat.messagesLoaded) return;
+
+    // Messages not loaded yet (chat never opened this session): the thread
+    // itself needs nothing, but the list / unread badge must still update.
+    if (!chat.messagesLoaded) { loadSupportConversations(); return; }
 
     const existingIndex = chat.messages.findIndex(function (m) { return m.id === row.id; });
 
@@ -3024,6 +3045,14 @@ function handleIncomingSupportMessageChange(payload) {
 
         if (row.sender_type === "user") {
             scrollMessagesToBottom();
+
+            // Admin is looking at this chat right now: it counts as read.
+            // Mark it first (server stamps the time), then refresh the list,
+            // so the unread badge never flashes for a message being viewed.
+            if (payload.eventType === "INSERT" && !document.hidden) {
+                markConversationRead(chat.id, function () { loadSupportConversations(); });
+                return;
+            }
         }
 
     }
