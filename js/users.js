@@ -28,7 +28,7 @@ function initUsers(){
 
     const blockedUsersEl = document.getElementById("blockedUsers");
 
-    const vipUsersEl = document.getElementById("vipUsers");
+    const requestUsersEl = document.getElementById("requestUsers");
 
     // ===============================
     // CURRENT USER
@@ -102,22 +102,65 @@ function initUsers(){
     // LOAD USERS FROM SUPABASE
     // ===============================
 
+    // A user "has a request" when any of these is open:
+    //   - password / PIN / KYC reset or reactivation request (account_reset_requests, pending)
+    //   - personal information change request
+    //   - payment methods change request
+    function markRequests(row, user, resetKinds){
+
+        const labels = [];
+
+        resetKinds.forEach(kind => {
+            if(kind === "password") labels.push("Password reset");
+            else if(kind === "pin") labels.push("PIN reset");
+            else if(kind === "kyc") labels.push("KYC reset");
+            else if(kind === "unblock") labels.push("Reactivation");
+        });
+
+        if(user.change_requested) labels.push("Personal info change");
+        if(user.payment_methods_change_requested) labels.push("Payment methods change");
+
+        if(labels.length){
+            row.dataset.hasRequest = "1";
+            row.title = "Requests: " + labels.join(", ");
+        }
+
+    }
+
     function loadUsers(){
 
-        sb.rpc("admin_list_users")
+        Promise.all([
+            sb.rpc("admin_list_users"),
+            sb.from("account_reset_requests").select("user_id, kind").eq("status", "pending")
+        ])
 
-            .then(({ data, error }) => {
+            .then(([usersRes, requestsRes]) => {
+
+                const { data, error } = usersRes;
 
                 if(error){
                     console.error("Failed to load users:", error);
                     return;
                 }
 
+                // If the requests lookup fails, users still load (flags only).
+                const resetKindsByUser = {};
+
+                if(!requestsRes.error && requestsRes.data){
+                    requestsRes.data.forEach(r => {
+                        (resetKindsByUser[r.user_id] = resetKindsByUser[r.user_id] || []).push(r.kind);
+                    });
+                }
+
                 usersList.innerHTML = "";
 
                 data.forEach(user => {
 
-                    usersList.appendChild(createUserRow(user));
+                    const row = createUserRow(user);
+
+                    markRequests(row, user, resetKindsByUser[user.id] || []);
+
+                    usersList.appendChild(row);
 
                 });
 
@@ -134,6 +177,10 @@ function initUsers(){
 
                 applyPendingProfileFilter();
 
+            })
+
+            .catch(err => {
+                console.error("Failed to load users:", err);
             });
 
     }
@@ -180,7 +227,7 @@ function initUsers(){
 
         let blocked = 0;
 
-        let vip = 0;
+        let requests = 0;
 
         rows.forEach(row=>{
 
@@ -190,7 +237,8 @@ function initUsers(){
 
             let text = status.textContent.trim().toLowerCase();
 
-            if(text==="active"){
+            // VIP users are active accounts, so they count as Active.
+            if(text==="active" || text==="vip"){
 
                 active++;
 
@@ -202,9 +250,9 @@ function initUsers(){
 
             }
 
-            else if(text==="vip"){
+            if(row.dataset.hasRequest === "1"){
 
-                vip++;
+                requests++;
 
             }
 
@@ -216,7 +264,7 @@ function initUsers(){
 
         blockedUsersEl.textContent = blocked;
 
-        vipUsersEl.textContent = vip;
+        if(requestUsersEl) requestUsersEl.textContent = requests;
 
     }
 
@@ -276,6 +324,25 @@ function initUsers(){
                 if(value==="all"){
 
                     row.style.display="table-row";
+
+                }
+
+                else if(value==="requests"){
+
+                    row.style.display =
+                    row.dataset.hasRequest === "1"
+                    ? "table-row"
+                    : "none";
+
+                }
+
+                else if(value==="active"){
+
+                    // VIP users are active accounts too.
+                    row.style.display =
+                    (status==="active" || status==="vip")
+                    ? "table-row"
+                    : "none";
 
                 }
 
