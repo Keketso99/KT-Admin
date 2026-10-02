@@ -140,7 +140,47 @@ function renderPendingCounts(counts){
 }
 
 
+// =====================================
+// SUPPORT CHAT — number of chats with unread messages
+// (counts chats, not messages)
+// =====================================
+
+function loadSupportChatCount(){
+
+    const cell = document.getElementById("pendingSupportChats");
+
+    if(!cell) return;
+
+    sb.rpc("admin_list_support_conversations")
+
+        .then(({ data, error }) => {
+
+            if(error){
+                throw error;
+            }
+
+            const chats = (data || []).filter(row => (row.unread_count || 0) > 0).length;
+
+            const target = document.getElementById("pendingSupportChats");
+
+            if(target){
+                target.textContent = formatNumber(chats);
+            }
+
+        })
+
+        .catch(error => {
+
+            console.warn("Support chat count request failed:", error);
+
+        });
+
+}
+
+
 function loadPendingCounts(){
+
+    loadSupportChatCount();
 
     sb.rpc("get_pending_counts")
 
@@ -189,7 +229,7 @@ function initDashboard(){
     if(window.KTRealtime){
         KTRealtime.register(
             "dashboard",
-            ["deposits","withdrawals","kyc_submissions","account_reset_requests","profile_signals","transactions"],
+            ["deposits","withdrawals","kyc_submissions","account_reset_requests","profile_signals","transactions","support_messages","support_conversations"],
             function(){
                 loadDashboardStats();
                 loadPendingCounts();
