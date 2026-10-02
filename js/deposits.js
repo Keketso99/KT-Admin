@@ -98,6 +98,10 @@ function initDeposits(){
 
     loadDeposits();
 
+    if(window.KTRealtime){
+        KTRealtime.register("deposits", ["deposits"], loadDeposits);
+    }
+
 
     // Show Pending by default
 

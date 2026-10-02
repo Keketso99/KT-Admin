@@ -83,6 +83,10 @@ function initPlans(){
 
     loadPlans();
 
+    if(window.KTRealtime){
+        KTRealtime.register("plans", ["plans"], loadPlans);
+    }
+
     const modal = document.getElementById("planModal");
 
     const addButton = document.querySelector(".plan-add-btn");

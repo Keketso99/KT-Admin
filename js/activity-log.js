@@ -430,11 +430,18 @@ function buildSearchText(row){
 // LOAD FULL ACTIVITY RECORDS
 // =========================================================
 
+// Set by the live-updates refresh so the table updates in place
+// without flashing the "Loading..." row.
+let activitySilentRefresh = false;
+
 async function loadActivityLogs(){
 
     const list = document.getElementById("activityList");
 
-    if(list){
+    const silentRefresh = activitySilentRefresh;
+    activitySilentRefresh = false;
+
+    if(list && !silentRefresh){
         list.innerHTML = `
             <tr>
                 <td colspan="4" class="activity-empty">
@@ -540,6 +547,14 @@ function initActivityLogs(){
     activitySearchValue = "";
 
     loadActivityLogs();
+
+    if(window.KTRealtime){
+        KTRealtime.register("activity-log", ["activity_log"], function(){
+            activitySilentRefresh = true;
+            loadActivityLogs();
+        });
+    }
+
     setupActivitySearch();
     setupActivityModal();
 }

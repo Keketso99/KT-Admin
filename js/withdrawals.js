@@ -96,6 +96,10 @@ function initWithdrawals(){
 
     loadWithdrawals();
 
+    if(window.KTRealtime){
+        KTRealtime.register("withdrawals", ["withdrawals"], loadWithdrawals);
+    }
+
 
     // Show Pending by default
 

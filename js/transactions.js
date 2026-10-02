@@ -150,6 +150,10 @@ function getTransactionIntegrity(row){
 // LOAD TRANSACTIONS
 // =====================================
 
+// Set by the live-updates refresh so the list updates in place
+// without flashing the "Loading..." row.
+let transactionsSilentRefresh = false;
+
 async function loadTransactions(){
 
     const filter = document.getElementById("transactionFilter");
@@ -158,11 +162,16 @@ async function loadTransactions(){
 
     if(!filter || !search || !list) return;
 
-    list.innerHTML = `
-        <tr>
-            <td colspan="4" class="transaction-loading">Loading transactions...</td>
-        </tr>
-    `;
+    const silent = transactionsSilentRefresh;
+    transactionsSilentRefresh = false;
+
+    if(!silent){
+        list.innerHTML = `
+            <tr>
+                <td colspan="4" class="transaction-loading">Loading transactions...</td>
+            </tr>
+        `;
+    }
 
     const type = filter.value || "all";
     const searchValue = search.value.trim();
@@ -239,6 +248,13 @@ function initTransactions(){
     if(!filter || !search || !list) return;
 
     loadTransactions();
+
+    if(window.KTRealtime){
+        KTRealtime.register("transactions", ["transactions"], function(){
+            transactionsSilentRefresh = true;
+            loadTransactions();
+        });
+    }
 
     filter.addEventListener("change", loadTransactions);
 

@@ -186,4 +186,15 @@ function initDashboard(){
     loadDashboardStats();
     loadPendingCounts();
 
+    if(window.KTRealtime){
+        KTRealtime.register(
+            "dashboard",
+            ["deposits","withdrawals","kyc_submissions","account_reset_requests","profile_signals","transactions"],
+            function(){
+                loadDashboardStats();
+                loadPendingCounts();
+            }
+        );
+    }
+
 }

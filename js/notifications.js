@@ -372,6 +372,10 @@ function initNotifications(){
 
     loadNotifications();
 
+    if(window.KTRealtime){
+        KTRealtime.register("notifications", ["activity_log"], loadNotifications);
+    }
+
     document.querySelectorAll(".tab-btn")
     .forEach(btn=>{
         btn.classList.remove("active");

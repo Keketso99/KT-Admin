@@ -123,6 +123,15 @@ function initUsers(){
 
                 updateStatistics();
 
+                // Keep any search / status filter the admin has applied
+                // (matters for live refreshes while they are filtering).
+                if(statusFilter && statusFilter.value && statusFilter.value.toLowerCase() !== "all"){
+                    statusFilter.dispatchEvent(new Event("change"));
+                }
+                if(searchInput && searchInput.value){
+                    searchInput.dispatchEvent(new Event("keyup"));
+                }
+
                 applyPendingProfileFilter();
 
             });
@@ -212,6 +221,10 @@ function initUsers(){
     }
 
     loadUsers();
+
+    if(window.KTRealtime){
+        KTRealtime.register("users", ["profile_signals","kyc_submissions"], loadUsers);
+    }
 
     // ===============================
     // SEARCH USERS

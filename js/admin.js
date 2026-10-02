@@ -268,6 +268,12 @@ function loadAdminPage(page){
         // INITIALIZE PAGE SCRIPTS
         // ==================================================
 
+        // Live updates: forget the previous page's refresh hook; the
+        // page's own init function below registers its own.
+        if(window.KTRealtime){
+            KTRealtime.setPage(page);
+        }
+
         switch(page){
 
             case "transactions":

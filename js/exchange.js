@@ -84,6 +84,10 @@ function initExchangeRates() {
 
     loadRates();
 
+    if(window.KTRealtime){
+        KTRealtime.register("exchange", ["exchange_rates"], loadRates);
+    }
+
 }
 
 // =================================

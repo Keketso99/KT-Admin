@@ -31,6 +31,7 @@ const CSS_ORDER = [
 
 const JS_ORDER = [
     "js/supabase-client.js",
+    "js/realtime.js",
     "js/auth.js",
     "js/admin.js",
     "js/withdrawals.js",

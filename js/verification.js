@@ -309,6 +309,10 @@ if (verificationSearch) {
 
     loadKyc();
 
+    if(window.KTRealtime){
+        KTRealtime.register("verification", ["kyc_submissions","account_reset_requests"], loadKyc);
+    }
+
     // ===============================
     // Tabs
     // ===============================

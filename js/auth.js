@@ -178,6 +178,11 @@ await loadAdminSidebarProfile(session.user.id);
 if(typeof loadAdminPage === "function"){
     loadAdminPage("dashboard");
 }
+
+// Live updates (realtime) — safe to call more than once.
+if(window.KTRealtime){
+    KTRealtime.start();
+}
 return;
     }
 
