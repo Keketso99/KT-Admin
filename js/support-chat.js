@@ -1190,7 +1190,7 @@ function sendMessage() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to send message: " + res.error.message);
+                KTUI.notify("Failed to send message: " + res.error.message);
                 return;
             }
 
@@ -1399,7 +1399,7 @@ function saveEditedMessage() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to save edit: " + res.error.message);
+                KTUI.notify("Failed to save edit: " + res.error.message);
                 return;
             }
 
@@ -1410,6 +1410,8 @@ function saveEditedMessage() {
                 target.edited = !!res.data.edited_at;
                 renderMessages();
             }
+
+            KTUI.success("Message updated.");
 
             loadSupportConversations();
 
@@ -1610,7 +1612,9 @@ function copyMessage(messageId) {
     const text = message.text || "";
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(function () { fallbackCopyMessage(text); });
+        navigator.clipboard.writeText(text)
+            .then(function () { KTUI.success("Message copied."); })
+            .catch(function () { fallbackCopyMessage(text); });
     } else {
         fallbackCopyMessage(text);
     }
@@ -1626,9 +1630,13 @@ function fallbackCopyMessage(text) {
     document.body.appendChild(textarea);
     textarea.select();
 
-    try { document.execCommand("copy"); } catch (e) { /* no-op */ }
+    let copied = false;
+    try { copied = document.execCommand("copy"); } catch (e) { /* no-op */ }
 
     document.body.removeChild(textarea);
+
+    if (copied) KTUI.success("Message copied.");
+    else KTUI.warning("Could not copy the message. Press and hold the text to copy it.");
 
 }
 
@@ -1676,7 +1684,7 @@ function confirmDeleteAction() {
         sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
-                alert("Failed to delete message: " + res.error.message);
+                KTUI.notify("Failed to delete message: " + res.error.message);
                 return;
             }
 
@@ -1695,6 +1703,8 @@ function confirmDeleteAction() {
 
             }
 
+            KTUI.success("Message deleted.");
+
             loadSupportConversations();
 
         });
@@ -1706,7 +1716,7 @@ function confirmDeleteAction() {
         sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
-                alert("Failed to delete conversation: " + res.error.message);
+                KTUI.notify("Failed to delete conversation: " + res.error.message);
                 return;
             }
 
@@ -1717,6 +1727,8 @@ function confirmDeleteAction() {
 
             renderIndividualChats();
             updateUnreadCounts();
+
+            KTUI.success("Conversation deleted.");
 
         });
 
@@ -1731,7 +1743,9 @@ function confirmDeleteAction() {
             const failed = results.find(function (res) { return res.error; });
 
             if (failed) {
-                alert("Failed to delete conversations: " + failed.error.message);
+                KTUI.notify("Failed to delete conversations: " + failed.error.message);
+            } else {
+                KTUI.success(ids.length === 1 ? "Conversation deleted." : ids.length + " conversations deleted.");
             }
 
             individualChats = individualChats.filter(function (c) { return !ids.includes(c.id); });
@@ -1751,7 +1765,7 @@ function confirmDeleteAction() {
         sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
-                alert("Failed to clear messages: " + res.error.message);
+                KTUI.notify("Failed to clear messages: " + res.error.message);
                 return;
             }
 
@@ -1767,6 +1781,8 @@ function confirmDeleteAction() {
                 renderMessages();
                 updatePinnedMessageBar();
             }
+
+            KTUI.success("Messages cleared.");
 
             loadSupportConversations();
 
@@ -1794,9 +1810,11 @@ function markChatUnread() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to mark as unread: " + res.error.message);
+                KTUI.notify("Failed to mark as unread: " + res.error.message);
                 return;
             }
+
+            KTUI.success("Marked as unread.");
 
             loadSupportConversations();
 
@@ -1942,7 +1960,7 @@ function createPinnedMessage() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to pin message: " + res.error.message);
+                KTUI.notify("Failed to pin message: " + res.error.message);
                 return;
             }
 
@@ -1953,6 +1971,7 @@ function createPinnedMessage() {
             scrollMessagesToBottom();
 
             closeWritePinMessage();
+            KTUI.success("Message pinned.");
             loadSupportConversations();
 
         });
@@ -2025,7 +2044,7 @@ function pinSelectedMessages() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to pin messages: " + res.error.message);
+                KTUI.notify("Failed to pin messages: " + res.error.message);
                 return;
             }
 
@@ -2035,6 +2054,8 @@ function pinSelectedMessages() {
 
             cancelPinMessageSelection();
             updatePinnedMessageBar();
+
+            KTUI.success(ids.length === 1 ? "Message pinned." : ids.length + " messages pinned.");
 
         });
 
@@ -2050,7 +2071,7 @@ function toggleSingleMessagePin(messageId, pin) {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to update pin: " + res.error.message);
+                KTUI.notify("Failed to update pin: " + res.error.message);
                 return;
             }
 
@@ -2059,6 +2080,8 @@ function toggleSingleMessagePin(messageId, pin) {
 
             renderMessages();
             updatePinnedMessageBar();
+
+            KTUI.success(pin ? "Message pinned." : "Message unpinned.");
 
         });
 
@@ -2344,7 +2367,7 @@ function handleAttachmentFileChange(event, kind) {
     if (!file) return;
 
     if (!currentChat) {
-        alert("Open a conversation first.");
+        KTUI.notify("Open a conversation first.");
         return;
     }
 
@@ -2359,7 +2382,7 @@ function uploadAndSendAttachment(file, kind) {
     sb.storage.from("support-chat").upload(path, file).then(function (uploadRes) {
 
         if (uploadRes.error) {
-            alert("Failed to upload file: " + uploadRes.error.message);
+            KTUI.notify("Failed to upload file: " + uploadRes.error.message);
             return;
         }
 
@@ -2385,7 +2408,7 @@ function uploadAndSendAttachment(file, kind) {
             .then(function (res) {
 
                 if (res.error) {
-                    alert("Failed to send attachment: " + res.error.message);
+                    KTUI.notify("Failed to send attachment: " + res.error.message);
                     return;
                 }
 
@@ -2413,7 +2436,7 @@ function startVoiceMessage() {
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Voice recording is not supported in this browser.");
+        KTUI.notify("Voice recording is not supported in this browser.");
         return;
     }
 
@@ -2448,7 +2471,7 @@ function startVoiceMessage() {
         if (btn) btn.classList.add("recording");
 
     }).catch(function () {
-        alert("Microphone access was denied.");
+        KTUI.notify("Microphone access was denied.");
     });
 
 }
@@ -2473,7 +2496,7 @@ function uploadAndSendVoiceMessage(blob) {
     sb.storage.from("support-chat").upload(path, blob, { contentType: "audio/webm" }).then(function (uploadRes) {
 
         if (uploadRes.error) {
-            alert("Failed to upload voice message: " + uploadRes.error.message);
+            KTUI.notify("Failed to upload voice message: " + uploadRes.error.message);
             return;
         }
 
@@ -2496,7 +2519,7 @@ function uploadAndSendVoiceMessage(blob) {
             .then(function (res) {
 
                 if (res.error) {
-                    alert("Failed to send voice message: " + res.error.message);
+                    KTUI.notify("Failed to send voice message: " + res.error.message);
                     return;
                 }
 
@@ -2530,7 +2553,7 @@ function openNewChatModal() {
 
             if (res.error) {
                 console.error("Failed to load users:", res.error);
-                alert("Failed to load users: " + res.error.message);
+                KTUI.notify("Failed to load users: " + res.error.message);
                 return;
             }
 
@@ -2603,7 +2626,7 @@ function startNewConversation(userId) {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to start conversation: " + res.error.message);
+                KTUI.notify("Failed to start conversation: " + res.error.message);
                 return;
             }
 
@@ -2621,7 +2644,7 @@ function startNewConversation(userId) {
                         .then(function (unhideRes) {
 
                             if (unhideRes.error) {
-                                alert("Failed to reopen conversation: " + unhideRes.error.message);
+                                KTUI.notify("Failed to reopen conversation: " + unhideRes.error.message);
                                 return;
                             }
 
@@ -2650,7 +2673,7 @@ function startNewConversation(userId) {
                 .then(function (insertRes) {
 
                     if (insertRes.error) {
-                        alert("Failed to start conversation: " + insertRes.error.message);
+                        KTUI.notify("Failed to start conversation: " + insertRes.error.message);
                         return;
                     }
 
@@ -3089,7 +3112,7 @@ function confirmPriorityAction() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to update priority: " + res.error.message);
+                KTUI.notify("Failed to update priority: " + res.error.message);
                 return;
             }
 
@@ -3101,6 +3124,12 @@ function confirmPriorityAction() {
             renderIndividualChats();
             exitChatSelectionMode();
             closePriorityConfirmation();
+
+            KTUI.success(
+                makePriority
+                    ? (ids.length === 1 ? "Marked as priority." : ids.length + " chats marked as priority.")
+                    : (ids.length === 1 ? "Priority removed." : "Priority removed from " + ids.length + " chats.")
+            );
 
         });
 

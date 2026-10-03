@@ -566,11 +566,12 @@ function openUserModal(row) {
                         sb.rpc("admin_activate_user", { p_user_id: userId })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to activate user: " + error.message);
+                                    KTUI.notify("Failed to activate user: " + error.message);
                                     return;
                                 }
                                 applyActivatedUI();
                                 activateModal.style.display = "none";
+                                KTUI.success("User activated successfully.");
                             });
                     };
                 }
@@ -581,9 +582,10 @@ function openUserModal(row) {
                         sb.rpc("admin_reject_unblock_request", { p_user_id: userId })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to reject request: " + error.message);
+                                    KTUI.notify("Failed to reject request: " + error.message);
                                     return;
                                 }
+                                KTUI.success("Reactivation request rejected.");
                                 renderActivateModal();
                             });
                     };
@@ -629,7 +631,7 @@ function openUserModal(row) {
                 .then(({ error }) => {
 
                     if(error){
-                        alert("Failed to block user: " + error.message);
+                        KTUI.notify("Failed to block user: " + error.message);
                         return;
                     }
 
@@ -645,7 +647,7 @@ function openUserModal(row) {
 
                     blockModal.style.display="none";
 
-                    alert("User blocked successfully");
+                    KTUI.notify("User blocked successfully");
 
                 });
 
@@ -961,7 +963,7 @@ if(changeApproveBtn){
 
             if(error){
 
-    alert(
+    KTUI.notify(
         "Failed to approve changes: " +
         error.message
     );
@@ -1052,7 +1054,7 @@ showChangeRequestToast(
 
             if(error){
 
-    alert(
+    KTUI.notify(
         "Failed to reject changes: " +
         error.message
     );
@@ -1129,7 +1131,7 @@ const hiddenData =
             let amount = Number(document.getElementById("creditAmount").value);
 
             if(amount <= 0){
-                alert("Enter a valid amount");
+                KTUI.notify("Enter a valid amount");
                 return;
             }
 
@@ -1142,7 +1144,7 @@ const hiddenData =
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to credit balance: " + error.message);
+                    KTUI.notify("Failed to credit balance: " + error.message);
                     return;
                 }
 
@@ -1151,7 +1153,7 @@ const hiddenData =
 
                 loadUsers();
 
-                alert("Balance credited successfully");
+                KTUI.notify("Balance credited successfully");
 
             });
 
@@ -1187,7 +1189,7 @@ const hiddenData =
             let amount = Number(document.getElementById("debitAmount").value);
 
             if(amount <= 0){
-                alert("Enter a valid amount");
+                KTUI.notify("Enter a valid amount");
                 return;
             }
 
@@ -1200,7 +1202,7 @@ const hiddenData =
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to debit balance: " + error.message);
+                    KTUI.notify("Failed to debit balance: " + error.message);
                     return;
                 }
 
@@ -1209,7 +1211,7 @@ const hiddenData =
 
                 loadUsers();
 
-                alert("Balance debited successfully");
+                KTUI.notify("Balance debited successfully");
 
             });
 
@@ -1269,7 +1271,7 @@ const hiddenData =
             let newPlanId = planSelect.value;
 
             if(newPlanId === ""){
-                alert("Select a plan");
+                KTUI.notify("Select a plan");
                 return;
             }
 
@@ -1281,7 +1283,7 @@ const hiddenData =
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to update plan: " + error.message);
+                    KTUI.notify("Failed to update plan: " + error.message);
                     return;
                 }
 
@@ -1292,7 +1294,7 @@ const hiddenData =
 
                 planModal.style.display="none";
 
-                alert("Mining plan updated successfully");
+                KTUI.notify("Mining plan updated successfully");
 
             });
 
@@ -1312,33 +1314,44 @@ const hiddenData =
 
             if(!currentRow) return;
 
-            let bonus = prompt("Enter bonus amount");
+            const bonusUserId = currentRow.dataset.userid;
 
-            if(bonus === null) return;
-
-            bonus = Number(bonus);
-
-            if(isNaN(bonus) || bonus <= 0){
-                alert("Invalid amount");
-                return;
-            }
-
-            sb.rpc("admin_add_bonus", {
-                p_user_id: currentRow.dataset.userid,
-                p_amount: bonus,
-                p_note: "Bonus added by admin"
-            })
-
-            .then(({ error }) => {
-
-                if(error){
-                    alert("Failed to add bonus: " + error.message);
-                    return;
+            KTUI.prompt("Enter the bonus amount to add to this user's balance.", {
+                title: "Add Bonus",
+                placeholder: "0.00",
+                inputMode: "decimal",
+                confirmText: "Add Bonus",
+                validate: function(value){
+                    const n = Number(String(value).trim());
+                    if(String(value).trim() === "" || isNaN(n) || n <= 0){
+                        return "Enter a valid amount greater than 0.";
+                    }
+                    return null;
                 }
+            }).then(function(value){
 
-                loadUsers();
+                if(value === null) return;
 
-                alert("Bonus added successfully");
+                const bonus = Number(String(value).trim());
+
+                sb.rpc("admin_add_bonus", {
+                    p_user_id: bonusUserId,
+                    p_amount: bonus,
+                    p_note: "Bonus added by admin"
+                })
+
+                .then(({ error }) => {
+
+                    if(error){
+                        KTUI.notify("Failed to add bonus: " + error.message);
+                        return;
+                    }
+
+                    loadUsers();
+
+                    KTUI.notify("Bonus added successfully");
+
+                });
 
             });
 
@@ -1825,10 +1838,15 @@ if(verifyBtn){
                     sb.rpc("admin_reset_password", { p_user_id: userId })
                         .then(({ data, error }) => {
                             if(error){
-                                alert("Failed to reset password: " + error.message);
+                                KTUI.notify("Failed to reset password: " + error.message);
                                 return;
                             }
-                            alert("Password reset. New password: " + data);
+                            KTUI.alert("The password was reset. Give this new password to the user:", {
+                                type: "success",
+                                title: "Password Reset",
+                                value: String(data),
+                                okText: "Done"
+                            });
                             renderResetPasswordModal();
                         });
                 };
@@ -1840,9 +1858,10 @@ if(verifyBtn){
                     sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "password" })
                         .then(({ error }) => {
                             if(error){
-                                alert("Failed to reject request: " + error.message);
+                                KTUI.notify("Failed to reject request: " + error.message);
                                 return;
                             }
+                            KTUI.success("Password reset request rejected.");
                             renderResetPasswordModal();
                         });
                 };
@@ -1930,10 +1949,10 @@ if(verifyBtn){
                         sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to reset PIN: " + error.message);
+                                    KTUI.notify("Failed to reset PIN: " + error.message);
                                     return;
                                 }
-                                alert("Withdrawal PIN reset — the user can add a new one.");
+                                KTUI.notify("Withdrawal PIN reset — the user can add a new one.");
                                 renderResetPinModal();
                             });
                     };
@@ -1945,9 +1964,10 @@ if(verifyBtn){
                         sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "pin" })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to reject request: " + error.message);
+                                    KTUI.notify("Failed to reject request: " + error.message);
                                     return;
                                 }
+                                KTUI.success("PIN reset request rejected.");
                                 renderResetPinModal();
                             });
                     };
@@ -2763,7 +2783,7 @@ if(withdrawBtn){
     if(referralBtn){
         referralBtn.onclick=function(){
             if(!currentRow) return;
-            alert("Referral list feature is not available yet");
+            KTUI.notify("Referral list feature is not available yet");
         };
     }
 
@@ -2806,14 +2826,14 @@ if(withdrawBtn){
                     deleteModal.style.display="none";
 
                     if(error){
-                        alert("Failed to delete user: " + error.message);
+                        KTUI.notify("Failed to delete user: " + error.message);
                         return;
                     }
 
                     currentRow.remove();
                     currentRow = null;
 
-                    alert("User deleted.");
+                    KTUI.notify("User deleted.");
 
                 });
 

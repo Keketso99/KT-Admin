@@ -476,11 +476,13 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to approve: " + error.message);
+                    KTUI.notify("Failed to approve: " + error.message);
                     return;
                 }
 
                 modal.style.display = "none";
+
+                KTUI.success("Verification approved successfully.");
 
                 loadKyc();
 
@@ -504,11 +506,13 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to reject: " + error.message);
+                    KTUI.notify("Failed to reject: " + error.message);
                     return;
                 }
 
                 modal.style.display = "none";
+
+                KTUI.success("Verification rejected.");
 
                 loadKyc();
 
@@ -533,7 +537,7 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to reset: " + error.message);
+                    KTUI.notify("Failed to reset: " + error.message);
                     return Promise.reject(error);
                 }
 
@@ -550,7 +554,9 @@ if (verificationSearch) {
             .then((result) => {
 
                 if (result && result.error) {
-                    alert("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
+                    KTUI.notify("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
+                } else {
+                    KTUI.success("Verification reset successfully. The user can submit new documents.");
                 }
 
                 modal.style.display = "none";
@@ -581,11 +587,11 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to send request: " + error.message);
+                    KTUI.notify("Failed to send request: " + error.message);
                     return;
                 }
 
-                alert("Request for additional documents has been sent.");
+                KTUI.notify("Request for additional documents has been sent.");
 
                 modal.style.display = "none";
 
@@ -644,11 +650,11 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if (error) {
-                    alert("Failed to reject resubmission: " + error.message);
+                    KTUI.notify("Failed to reject resubmission: " + error.message);
                     return;
                 }
 
-                alert("Resubmission request rejected — the user has been notified.");
+                KTUI.notify("Resubmission request rejected — the user has been notified.");
 
                 refreshResubmissionStatus(entry.userId);
 

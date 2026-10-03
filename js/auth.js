@@ -245,6 +245,18 @@ async function loginSubmit(event){
     const password = document.getElementById("login-password").value;
     const btn = document.getElementById("login-submit-btn");
 
+    // In-app validation (the browser's own "fill out this field" bubble is off).
+    if(!email || !password){
+        const missingEl = document.getElementById("login-error");
+        if(missingEl){
+            missingEl.textContent = !email
+                ? "Please enter your email address."
+                : "Please enter your password.";
+            missingEl.style.display = "block";
+        }
+        return;
+    }
+
     btn.disabled = true;
     btn.textContent = "Signing in...";
 

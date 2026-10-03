@@ -122,7 +122,7 @@ function saveRate() {
 
     let newRate = document.getElementById("newRate").value;
     if (newRate === "") {
-        alert("Please enter rate");
+        KTUI.notify("Please enter rate");
         return;
     }
 
@@ -135,11 +135,13 @@ function saveRate() {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to save rate: " + error.message);
+                    KTUI.notify("Failed to save rate: " + error.message);
                     return;
                 }
 
                 closeRateModal();
+
+                KTUI.success("Exchange rate saved successfully.");
 
                 loadRates();
 
@@ -189,14 +191,14 @@ function addCurrencyPair() {
     let rate = document.getElementById("newCurrencyRate").value;
 
     if (pair === "" || rate === "") {
-        alert("Please fill all fields");
+        KTUI.notify("Please fill all fields");
         return;
     }
 
     const parts = pair.split("/");
 
     if(parts.length !== 2 || parts[0].trim() === "" || parts[1].trim() === ""){
-        alert('Enter the pair like "ZAR/USD"');
+        KTUI.notify('Enter the pair like "ZAR/USD"');
         return;
     }
 
@@ -215,15 +217,17 @@ function addCurrencyPair() {
                 if(error){
 
                     if(error.code === "23505"){
-                        alert("That currency pair already exists.");
+                        KTUI.notify("That currency pair already exists.");
                     } else {
-                        alert("Failed to add pair: " + error.message);
+                        KTUI.notify("Failed to add pair: " + error.message);
                     }
 
                     return;
                 }
 
                 closeAddRateModal();
+
+                KTUI.success("Currency pair added successfully.");
 
                 loadRates();
 
@@ -281,13 +285,15 @@ function confirmDelete() {
         .then(({ error }) => {
 
             if(error){
-                alert("Failed to delete pair: " + error.message);
+                KTUI.notify("Failed to delete pair: " + error.message);
                 closeConfirmDeleteModal();
                 return;
             }
 
             closeRateModal();
             closeConfirmDeleteModal();
+
+            KTUI.success("Currency pair deleted.");
 
             loadRates();
 

@@ -219,7 +219,7 @@ function initPlans(){
         const status = document.getElementById("planStatus").value;
 
         if(name === ""){
-            alert("Enter plan name");
+            KTUI.notify("Enter plan name");
             return;
         }
 
@@ -243,11 +243,13 @@ function initPlans(){
                 .then(({ error }) => {
 
                     if(error){
-                        alert("Failed to create plan: " + error.message);
+                        KTUI.notify("Failed to create plan: " + error.message);
                         return;
                     }
 
                     modal.style.display = "none";
+
+                    KTUI.success("Plan created successfully.");
 
                     loadPlans();
 
@@ -264,11 +266,13 @@ function initPlans(){
                 .then(({ error }) => {
 
                     if(error){
-                        alert("Failed to update plan: " + error.message);
+                        KTUI.notify("Failed to update plan: " + error.message);
                         return;
                     }
 
                     modal.style.display = "none";
+
+                    KTUI.success("Plan updated successfully.");
 
                     loadPlans();
 
@@ -321,7 +325,7 @@ function initPlans(){
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to update status: " + error.message);
+                    KTUI.notify("Failed to update status: " + error.message);
                     return;
                 }
 
@@ -332,6 +336,8 @@ function initPlans(){
                 toggleButton.innerText = newActive ? "Deactivate" : "Activate";
 
                 document.getElementById("planStatus").value = newActive ? "active" : "disabled";
+
+                KTUI.success(newActive ? "Plan activated." : "Plan deactivated.");
 
                 loadPlans();
 
@@ -360,9 +366,9 @@ function initPlans(){
                     // Postgres error 23503 = foreign key violation —
                     // this plan still has subscribers referencing it
                     if(error.code === "23503"){
-                        alert("Can't delete this plan — it still has users subscribed to it. Deactivate it instead.");
+                        KTUI.notify("Can't delete this plan — it still has users subscribed to it. Deactivate it instead.");
                     } else {
-                        alert("Failed to delete plan: " + error.message);
+                        KTUI.notify("Failed to delete plan: " + error.message);
                     }
 
                     return;
@@ -372,6 +378,8 @@ function initPlans(){
                 currentPlan = null;
 
                 modal.style.display = "none";
+
+                KTUI.success("Plan deleted.");
 
                 loadPlans();
 

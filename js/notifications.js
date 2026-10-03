@@ -571,11 +571,13 @@ function markNotificationUnread(){
         .then(({ error }) => {
 
             if(error){
-                alert("Failed to update: " + error.message);
+                KTUI.notify("Failed to update: " + error.message);
                 return;
             }
 
             closeNotificationModal();
+
+            KTUI.success("Marked as unread.");
 
             loadNotifications();
 
@@ -613,9 +615,11 @@ function confirmDeleteNotification(){
             closeNotificationModal();
 
             if(error){
-                alert("Failed to delete: " + error.message);
+                KTUI.notify("Failed to delete: " + error.message);
                 return;
             }
+
+            KTUI.success("Notification deleted.");
 
             loadNotifications();
 
@@ -648,7 +652,7 @@ function sendNotification(){
     const audience = document.getElementById("notificationAudience").value;
 
     if(title==="" || message===""){
-        alert("Please complete all fields.");
+        KTUI.notify("Please complete all fields.");
         return;
     }
 
@@ -673,13 +677,13 @@ function sendNotification(){
             }
 
             if(error){
-                alert("Failed to send notification: " + error.message);
+                KTUI.notify("Failed to send notification: " + error.message);
                 return;
             }
 
             const count = Number(data || 0);
 
-            alert("Notification sent to " + count + (count === 1 ? " user." : " users."));
+            KTUI.notify("Notification sent to " + count + (count === 1 ? " user." : " users."));
 
             document.getElementById("notificationTitle").value="";
             document.getElementById("notificationMessage").value="";

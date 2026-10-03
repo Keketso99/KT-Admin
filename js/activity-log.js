@@ -1236,27 +1236,9 @@ async function confirmDeleteActivityRecords(){
          * Show a small notification if the global notification
          * function exists in the Admin app.
          */
-        if(typeof showToast === "function"){
-
-            showToast(
-                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`,
-                "success"
-            );
-
-        }else if(typeof showNotification === "function"){
-
-            showNotification(
-                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`,
-                "success"
-            );
-
-        }else{
-
-            console.log(
-                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`
-            );
-
-        }
+        KTUI.success(
+            `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`
+        );
 
     }catch(error){
 
@@ -1265,7 +1247,7 @@ async function confirmDeleteActivityRecords(){
             error
         );
 
-        alert(
+        KTUI.error(
             error?.message ||
             "Failed to delete activity records."
         );

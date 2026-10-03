@@ -850,7 +850,7 @@ function approveDeposit(id){
 
             if(error){
 
-                alert("Failed to approve deposit: " + error.message);
+                KTUI.notify("Failed to approve deposit: " + error.message);
 
                 return;
 
@@ -861,6 +861,8 @@ function approveDeposit(id){
             showDepositTab("pending");
 
             loadDeposits();
+
+            KTUI.success("Deposit approved successfully.");
 
             console.log("Deposit approved:", id);
 
@@ -882,7 +884,7 @@ function rejectDeposit(id){
 
             if(error){
 
-                alert("Failed to reject deposit: " + error.message);
+                KTUI.notify("Failed to reject deposit: " + error.message);
 
                 return;
 
@@ -893,6 +895,8 @@ function rejectDeposit(id){
             showDepositTab("pending");
 
             loadDeposits();
+
+            KTUI.success("Deposit rejected.");
 
             console.log("Deposit rejected:", id);
 

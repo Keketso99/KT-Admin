@@ -245,10 +245,10 @@ function saveSettingsVideo(event) {
     const videoFile = document.getElementById("videoFile");
     const thumbnailInput = document.getElementById("videoThumbnail");
 
-    if (!title) { alert("Please enter a video title."); return; }
+    if (!title) { KTUI.notify("Please enter a video title."); return; }
 
     if (!editId && (!videoFile || videoFile.files.length === 0)) {
-        alert("Please choose a video file.");
+        KTUI.notify("Please choose a video file.");
         return;
     }
 
@@ -290,18 +290,18 @@ function saveSettingsVideo(event) {
         .then(({ error }) => {
 
             if (error) {
-                alert("Failed to save video: " + error.message);
+                KTUI.notify("Failed to save video: " + error.message);
                 return;
             }
 
             loadSettingsData();
             closeVideoModal();
-            showSettingsToast("Video uploaded successfully");
+            KTUI.success(editId ? "Video updated successfully." : "Video uploaded successfully.");
 
         })
 
         .catch(error => {
-            alert("Upload failed: " + error.message);
+            KTUI.notify("Upload failed: " + error.message);
         });
 
 }
@@ -441,8 +441,8 @@ function saveSettingsGuide(event) {
     const category = document.getElementById("guideCategory").value;
     const status = document.getElementById("guideStatus").value;
 
-    if (!title) { alert("Please enter a guide title."); return; }
-    if (!category) { alert("Please select a guide category."); return; }
+    if (!title) { KTUI.notify("Please enter a guide title."); return; }
+    if (!category) { KTUI.notify("Please select a guide category."); return; }
 
     const imageInput = document.getElementById("guideImage");
     const videoInput = document.getElementById("guideVideoFile");
@@ -452,7 +452,7 @@ function saveSettingsGuide(event) {
         : (imageInput && imageInput.files.length > 0);
 
     if (!editId && !hasNewFile) {
-        alert(status === "video" ? "Please choose a guide video." : "Please choose a guide photo.");
+        KTUI.notify(status === "video" ? "Please choose a guide video." : "Please choose a guide photo.");
         return;
     }
 
@@ -487,17 +487,17 @@ function saveSettingsGuide(event) {
         .then(({ error }) => {
 
             if (error) {
-                alert("Failed to save guide: " + error.message);
+                KTUI.notify("Failed to save guide: " + error.message);
                 return;
             }
 
             loadSettingsData();
             closeGuideModal();
-            alert(editId ? "Guide updated successfully." : "Guide added successfully.");
+            KTUI.notify(editId ? "Guide updated successfully." : "Guide added successfully.");
 
         })
 
-        .catch(error => alert("Upload failed: " + error.message));
+        .catch(error => KTUI.notify("Upload failed: " + error.message));
 
 }
 
@@ -624,17 +624,17 @@ function saveSettingsDownload(event) {
     const title = document.getElementById("downloadTitle").value.trim();
     const fileInput = document.getElementById("downloadFile");
 
-    if (!title) { alert("Please enter a file name."); return; }
+    if (!title) { KTUI.notify("Please enter a file name."); return; }
 
     const file = fileInput && fileInput.files.length > 0 ? fileInput.files[0] : null;
 
     if (!editId && !file) {
-        alert("Please choose a PDF file.");
+        KTUI.notify("Please choose a PDF file.");
         return;
     }
 
     if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-        alert("Only PDF files are supported.");
+        KTUI.notify("Only PDF files are supported.");
         return;
     }
 
@@ -670,17 +670,17 @@ function saveSettingsDownload(event) {
         .then(({ error }) => {
 
             if (error) {
-                alert("Failed to save download: " + error.message);
+                KTUI.notify("Failed to save download: " + error.message);
                 return;
             }
 
             loadSettingsData();
             closeDownloadModal();
-            alert(editId ? "Download updated successfully." : "Download added successfully.");
+            KTUI.notify(editId ? "Download updated successfully." : "Download added successfully.");
 
         })
 
-        .catch(error => alert("Upload failed: " + error.message));
+        .catch(error => KTUI.notify("Upload failed: " + error.message));
 
 }
 
@@ -795,9 +795,13 @@ function confirmSettingsDelete() {
             closeSettingsDeleteModal();
 
             if (error) {
-                alert("Failed to delete: " + error.message);
+                KTUI.notify("Failed to delete: " + error.message);
                 return;
             }
+
+            KTUI.success(
+                (type === "video" ? "Video" : type === "guide" ? "Guide" : "Download") + " deleted."
+            );
 
             loadSettingsData();
 

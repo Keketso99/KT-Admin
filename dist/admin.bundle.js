@@ -10,6 +10,415 @@ window.sb = supabase.createClient(
 );
 
 
+/* ===== js/dialogs.js ===== */
+// =========================================================
+// KT ADMIN — IN-APP DIALOGS (replaces alert / confirm / prompt)
+//
+// Nothing in the admin app should ever open a browser dialog.
+// Everything the admin sees — success messages, errors, warnings,
+// confirmations and amount prompts — is drawn by the app itself.
+//
+//   KTUI.toast(message, type, ms)        small message that fades away
+//   KTUI.success / error / warning / info(message)
+//   KTUI.alert(message, options)         modal with OK         -> Promise
+//   KTUI.confirm(message, options)       modal Yes / No        -> Promise<boolean>
+//   KTUI.prompt(message, options)        modal with an input   -> Promise<string|null>
+//   KTUI.notify(message, options)        picks toast or modal by itself
+//
+// window.alert is also routed here as a safety net, so even a call
+// that was missed can never open the browser's own pop-up.
+//
+// Messages are always inserted as text (never HTML).
+// =========================================================
+
+(function(){
+
+    var STYLE_ID = "kt-ui-style";
+    var TOAST_ID = "kt-ui-toasts";
+
+    var COLORS = {
+        success: "#16a34a",
+        error:   "#dc2626",
+        warning: "#d97706",
+        info:    "#2563eb"
+    };
+
+    var ICONS = {
+        success: "\u2713",
+        error:   "\u2715",
+        warning: "!",
+        info:    "i"
+    };
+
+    var TITLES = {
+        success: "Done",
+        error:   "Something went wrong",
+        warning: "Please note",
+        info:    "Notice"
+    };
+
+    var DURATION = { success: 3500, info: 4000, warning: 5500, error: 7000 };
+
+    // ---------------------------------------------------------
+    // Styles (injected once, so no CSS file needs to change)
+    // ---------------------------------------------------------
+
+    function injectStyles(){
+        if(document.getElementById(STYLE_ID)) return;
+
+        var css =
+        "#" + TOAST_ID + "{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2147483000;pointer-events:none;padding:0 12px}" +
+        ".kt-ui-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;width:100%;max-width:420px;background:#fff;color:#1f2937;border-radius:12px;padding:11px 14px;box-shadow:0 8px 28px rgba(15,23,42,.28);border-left:5px solid var(--kt-c);font-family:Arial,sans-serif;font-size:14px;line-height:1.35;cursor:pointer;opacity:0;transform:translateY(10px);transition:opacity .2s ease,transform .2s ease;-webkit-user-select:none;user-select:none}" +
+        ".kt-ui-toast.kt-in{opacity:1;transform:translateY(0)}" +
+        ".kt-ui-badge{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--kt-c);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px}" +
+        ".kt-ui-toast-text{flex:1 1 auto;word-break:break-word;white-space:pre-wrap}" +
+
+        ".kt-ui-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483100;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .15s ease}" +
+        ".kt-ui-overlay.kt-in{opacity:1}" +
+        ".kt-ui-card{background:#fff;color:#1f2937;width:100%;max-width:360px;border-radius:16px;padding:20px 18px 16px;box-shadow:0 18px 50px rgba(0,0,0,.35);font-family:Arial,sans-serif;transform:scale(.96);transition:transform .15s ease;max-height:86vh;overflow:auto}" +
+        ".kt-ui-overlay.kt-in .kt-ui-card{transform:scale(1)}" +
+        ".kt-ui-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}" +
+        ".kt-ui-head .kt-ui-badge{width:28px;height:28px;font-size:16px;margin:0}" +
+        ".kt-ui-title{font-size:17px;font-weight:700;color:#111827}" +
+        ".kt-ui-msg{font-size:14px;line-height:1.5;color:#374151;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}" +
+        ".kt-ui-value{margin-top:12px;display:flex;gap:8px;align-items:stretch}" +
+        ".kt-ui-value code{flex:1 1 auto;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-family:Consolas,Menlo,monospace;font-size:15px;word-break:break-all;-webkit-user-select:text;user-select:text;color:#111827}" +
+        ".kt-ui-input{width:100%;margin-top:12px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px;outline:none;font-family:Arial,sans-serif;-webkit-user-select:text;user-select:text;background:#fff;color:#111827}" +
+        ".kt-ui-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.18)}" +
+        ".kt-ui-error{min-height:18px;margin-top:6px;font-size:12.5px;color:#dc2626}" +
+        ".kt-ui-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}" +
+        ".kt-ui-btn{border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif}" +
+        ".kt-ui-btn:disabled{opacity:.6}" +
+        ".kt-ui-btn.kt-secondary{background:#e5e7eb;color:#111827}" +
+        ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}";
+
+        var style = document.createElement("style");
+        style.id = STYLE_ID;
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    function el(tag, className, text){
+        var node = document.createElement(tag);
+        if(className) node.className = className;
+        if(text !== undefined && text !== null) node.textContent = text;
+        return node;
+    }
+
+    function normalizeType(type){
+        return COLORS[type] ? type : "info";
+    }
+
+    // ---------------------------------------------------------
+    // Toasts
+    // ---------------------------------------------------------
+
+    function toast(message, type, ms){
+        injectStyles();
+        type = normalizeType(type);
+
+        var wrap = document.getElementById(TOAST_ID);
+        if(!wrap){
+            wrap = el("div");
+            wrap.id = TOAST_ID;
+            wrap.setAttribute("aria-live", "polite");
+            document.body.appendChild(wrap);
+        }
+
+        var node = el("div", "kt-ui-toast");
+        node.style.setProperty("--kt-c", COLORS[type]);
+        node.setAttribute("role", type === "error" ? "alert" : "status");
+        node.appendChild(el("span", "kt-ui-badge", ICONS[type]));
+        node.appendChild(el("span", "kt-ui-toast-text", String(message)));
+
+        var gone = false;
+        function dismiss(){
+            if(gone) return;
+            gone = true;
+            node.classList.remove("kt-in");
+            setTimeout(function(){ if(node.parentNode) node.parentNode.removeChild(node); }, 220);
+        }
+        node.addEventListener("click", dismiss);
+
+        wrap.appendChild(node);
+        requestAnimationFrame(function(){ node.classList.add("kt-in"); });
+        setTimeout(dismiss, ms || DURATION[type]);
+
+        while(wrap.children.length > 4){
+            wrap.removeChild(wrap.firstChild);
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Modal engine
+    // ---------------------------------------------------------
+
+    function copyToClipboard(text){
+        try{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+                return navigator.clipboard.writeText(text);
+            }
+        }catch(e){}
+        return new Promise(function(resolve, reject){
+            try{
+                var ta = document.createElement("textarea");
+                ta.value = text;
+                ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                var ok = document.execCommand("copy");
+                document.body.removeChild(ta);
+                ok ? resolve() : reject(new Error("copy failed"));
+            }catch(e){ reject(e); }
+        });
+    }
+
+    // config: { type, title, message, value, okText, cancelText, showCancel,
+    //           input:{...}, danger }
+    // resolves with { ok: boolean, text: string }
+    function openModal(config){
+        injectStyles();
+
+        return new Promise(function(resolve){
+
+            var type = normalizeType(config.type);
+            var color = config.danger ? COLORS.error : COLORS[type];
+
+            var overlay = el("div", "kt-ui-overlay");
+            overlay.style.setProperty("--kt-c", color);
+
+            var card = el("div", "kt-ui-card");
+            card.setAttribute("role", "dialog");
+            card.setAttribute("aria-modal", "true");
+
+            var head = el("div", "kt-ui-head");
+            head.appendChild(el("span", "kt-ui-badge", config.danger ? "!" : ICONS[type]));
+            head.appendChild(el("div", "kt-ui-title", config.title || TITLES[type]));
+            card.appendChild(head);
+
+            if(config.message){
+                card.appendChild(el("div", "kt-ui-msg", String(config.message)));
+            }
+
+            if(config.value){
+                var box = el("div", "kt-ui-value");
+                box.appendChild(el("code", null, String(config.value)));
+                var copyBtn = el("button", "kt-ui-btn kt-secondary", "Copy");
+                copyBtn.type = "button";
+                copyBtn.addEventListener("click", function(){
+                    copyToClipboard(String(config.value)).then(function(){
+                        copyBtn.textContent = "Copied";
+                    }).catch(function(){
+                        copyBtn.textContent = "Select & copy";
+                    });
+                });
+                box.appendChild(copyBtn);
+                card.appendChild(box);
+            }
+
+            var input = null;
+            var errorLine = null;
+
+            if(config.input){
+                input = el("input", "kt-ui-input");
+                input.type = config.input.type || "text";
+                if(config.input.inputMode) input.setAttribute("inputmode", config.input.inputMode);
+                if(config.input.placeholder) input.placeholder = config.input.placeholder;
+                if(config.input.value !== undefined) input.value = String(config.input.value);
+                input.setAttribute("autocomplete", "off");
+                card.appendChild(input);
+
+                errorLine = el("div", "kt-ui-error", "");
+                card.appendChild(errorLine);
+            }
+
+            var actions = el("div", "kt-ui-actions");
+            var cancelBtn = null;
+
+            if(config.showCancel){
+                cancelBtn = el("button", "kt-ui-btn kt-secondary", config.cancelText || "Cancel");
+                cancelBtn.type = "button";
+                actions.appendChild(cancelBtn);
+            }
+
+            var okBtn = el("button", "kt-ui-btn kt-primary", config.okText || "OK");
+            okBtn.type = "button";
+            actions.appendChild(okBtn);
+            card.appendChild(actions);
+
+            overlay.appendChild(card);
+
+            var previousFocus = document.activeElement;
+            var closed = false;
+
+            function close(ok){
+                if(closed) return;
+                closed = true;
+                document.removeEventListener("keydown", onKey, true);
+                overlay.classList.remove("kt-in");
+                var text = input ? input.value : "";
+                setTimeout(function(){
+                    if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                    try{ if(previousFocus && previousFocus.focus) previousFocus.focus(); }catch(e){}
+                }, 160);
+                resolve({ ok: ok, text: text });
+            }
+
+            function submit(){
+                if(input && config.input && typeof config.input.validate === "function"){
+                    var problem = config.input.validate(input.value);
+                    if(problem){
+                        errorLine.textContent = problem;
+                        input.focus();
+                        return;
+                    }
+                }
+                close(true);
+            }
+
+            function onKey(e){
+                if(e.key === "Escape"){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    close(false);
+                } else if(e.key === "Enter" && input && document.activeElement === input){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    submit();
+                } else if(e.key === "Tab"){
+                    var items = Array.prototype.slice.call(card.querySelectorAll("input,button"));
+                    if(items.length){
+                        var first = items[0], last = items[items.length - 1];
+                        if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+                        else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+                    }
+                }
+            }
+
+            okBtn.addEventListener("click", submit);
+            if(cancelBtn) cancelBtn.addEventListener("click", function(){ close(false); });
+            overlay.addEventListener("click", function(e){
+                // tap outside = cancel (only for dialogs that can be cancelled)
+                if(e.target === overlay && config.showCancel) close(false);
+            });
+            document.addEventListener("keydown", onKey, true);
+
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function(){
+                overlay.classList.add("kt-in");
+                try{ (input || okBtn).focus(); }catch(e){}
+            });
+        });
+    }
+
+    // ---------------------------------------------------------
+    // Public dialogs
+    // ---------------------------------------------------------
+
+    function alertDialog(message, options){
+        options = options || {};
+        return openModal({
+            type: options.type,
+            title: options.title,
+            message: message,
+            value: options.value,
+            okText: options.okText || "OK",
+            showCancel: false
+        }).then(function(){ return undefined; });
+    }
+
+    function confirmDialog(message, options){
+        options = options || {};
+        return openModal({
+            type: options.type || (options.danger ? "warning" : "info"),
+            title: options.title || "Please confirm",
+            message: message,
+            okText: options.confirmText || "Confirm",
+            cancelText: options.cancelText || "Cancel",
+            danger: !!options.danger,
+            showCancel: true
+        }).then(function(r){ return r.ok; });
+    }
+
+    function promptDialog(message, options){
+        options = options || {};
+        return openModal({
+            type: options.type || "info",
+            title: options.title || "Enter a value",
+            message: message,
+            okText: options.confirmText || "OK",
+            cancelText: options.cancelText || "Cancel",
+            showCancel: true,
+            input: {
+                type: options.inputType || "text",
+                inputMode: options.inputMode,
+                placeholder: options.placeholder,
+                value: options.value,
+                validate: options.validate
+            }
+        }).then(function(r){ return r.ok ? r.text : null; });
+    }
+
+    // ---------------------------------------------------------
+    // Smart notify: choose type, then toast or modal
+    // ---------------------------------------------------------
+
+    function classify(message){
+        var m = String(message == null ? "" : message).trim();
+
+        var hasSuccess = /succe(ed|ss)/i.test(m);
+        var hasFailed  = /\bfailed\b|upload failed|\berror\b/i.test(m);
+
+        if(hasSuccess && hasFailed) return "warning";
+        if(hasFailed) return "error";
+        if(/can't|cannot|denied|not supported/i.test(m)) return "warning";
+        if(/^(please|enter|select|invalid|only|open a|choose)/i.test(m)) return "warning";
+        if(/already exists/i.test(m)) return "warning";
+        if(/not available/i.test(m)) return "info";
+        if(/success|\bsent\b|deleted|added|updated|credited|debited|blocked|rejected|approved|saved|created|\breset\b|activated|cleared/i.test(m)) return "success";
+        return "info";
+    }
+
+    function notify(message, options){
+        options = options || {};
+        var text = String(message == null ? "" : message);
+        var type = options.type ? normalizeType(options.type) : classify(text);
+
+        var needsModal = options.modal === true || !!options.value || text.length > 110 || text.indexOf("\n") !== -1;
+
+        if(needsModal && options.modal !== false){
+            return alertDialog(text, { type: type, title: options.title, value: options.value });
+        }
+        toast(text, type);
+        return undefined;
+    }
+
+    // ---------------------------------------------------------
+    // Export + safety net
+    // ---------------------------------------------------------
+
+    window.KTUI = {
+        toast: toast,
+        success: function(m, ms){ toast(m, "success", ms); },
+        error:   function(m, ms){ toast(m, "error", ms); },
+        warning: function(m, ms){ toast(m, "warning", ms); },
+        info:    function(m, ms){ toast(m, "info", ms); },
+        alert: alertDialog,
+        confirm: confirmDialog,
+        prompt: promptDialog,
+        notify: notify,
+        _classify: classify
+    };
+
+    // Any stray alert() can never open the browser's own pop-up again.
+    window.alert = function(message){
+        notify(message);
+    };
+
+})();
+
+
 /* ===== js/realtime.js ===== */
 // =========================================================
 // KT ADMIN — LIVE UPDATES (realtime)
@@ -553,7 +962,7 @@ window.sb = supabase.createClient(
 
     function say(title, text){
         if(window.KTRealtime && KTRealtime.toast) KTRealtime.toast(title, text, null);
-        else alert(title + "\n" + text);
+        else if(window.KTUI) KTUI.notify(title + ": " + text);
     }
 
     function getRegistration(){
@@ -944,6 +1353,18 @@ async function loginSubmit(event){
     const email = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value;
     const btn = document.getElementById("login-submit-btn");
+
+    // In-app validation (the browser's own "fill out this field" bubble is off).
+    if(!email || !password){
+        const missingEl = document.getElementById("login-error");
+        if(missingEl){
+            missingEl.textContent = !email
+                ? "Please enter your email address."
+                : "Please enter your password.";
+            missingEl.style.display = "block";
+        }
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = "Signing in...";
@@ -2708,7 +3129,7 @@ function approveWithdrawal(id){
 
             if(error){
 
-                alert("Failed to approve withdrawal: " + error.message);
+                KTUI.notify("Failed to approve withdrawal: " + error.message);
 
                 return;
 
@@ -2719,6 +3140,8 @@ function approveWithdrawal(id){
             showWithdrawalTab("pending");
 
             loadWithdrawals();
+
+            KTUI.success("Withdrawal approved successfully.");
 
             console.log("Withdrawal approved:", id);
 
@@ -2740,7 +3163,7 @@ function rejectWithdrawal(id){
 
             if(error){
 
-                alert("Failed to reject withdrawal: " + error.message);
+                KTUI.notify("Failed to reject withdrawal: " + error.message);
 
                 return;
 
@@ -2751,6 +3174,8 @@ function rejectWithdrawal(id){
             showWithdrawalTab("pending");
 
             loadWithdrawals();
+
+            KTUI.success("Withdrawal rejected.");
 
             console.log("Withdrawal rejected:", id);
 
@@ -3663,7 +4088,7 @@ function approveDeposit(id){
 
             if(error){
 
-                alert("Failed to approve deposit: " + error.message);
+                KTUI.notify("Failed to approve deposit: " + error.message);
 
                 return;
 
@@ -3674,6 +4099,8 @@ function approveDeposit(id){
             showDepositTab("pending");
 
             loadDeposits();
+
+            KTUI.success("Deposit approved successfully.");
 
             console.log("Deposit approved:", id);
 
@@ -3695,7 +4122,7 @@ function rejectDeposit(id){
 
             if(error){
 
-                alert("Failed to reject deposit: " + error.message);
+                KTUI.notify("Failed to reject deposit: " + error.message);
 
                 return;
 
@@ -3706,6 +4133,8 @@ function rejectDeposit(id){
             showDepositTab("pending");
 
             loadDeposits();
+
+            KTUI.success("Deposit rejected.");
 
             console.log("Deposit rejected:", id);
 
@@ -4386,7 +4815,7 @@ function initPlans(){
         const status = document.getElementById("planStatus").value;
 
         if(name === ""){
-            alert("Enter plan name");
+            KTUI.notify("Enter plan name");
             return;
         }
 
@@ -4410,11 +4839,13 @@ function initPlans(){
                 .then(({ error }) => {
 
                     if(error){
-                        alert("Failed to create plan: " + error.message);
+                        KTUI.notify("Failed to create plan: " + error.message);
                         return;
                     }
 
                     modal.style.display = "none";
+
+                    KTUI.success("Plan created successfully.");
 
                     loadPlans();
 
@@ -4431,11 +4862,13 @@ function initPlans(){
                 .then(({ error }) => {
 
                     if(error){
-                        alert("Failed to update plan: " + error.message);
+                        KTUI.notify("Failed to update plan: " + error.message);
                         return;
                     }
 
                     modal.style.display = "none";
+
+                    KTUI.success("Plan updated successfully.");
 
                     loadPlans();
 
@@ -4488,7 +4921,7 @@ function initPlans(){
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to update status: " + error.message);
+                    KTUI.notify("Failed to update status: " + error.message);
                     return;
                 }
 
@@ -4499,6 +4932,8 @@ function initPlans(){
                 toggleButton.innerText = newActive ? "Deactivate" : "Activate";
 
                 document.getElementById("planStatus").value = newActive ? "active" : "disabled";
+
+                KTUI.success(newActive ? "Plan activated." : "Plan deactivated.");
 
                 loadPlans();
 
@@ -4527,9 +4962,9 @@ function initPlans(){
                     // Postgres error 23503 = foreign key violation —
                     // this plan still has subscribers referencing it
                     if(error.code === "23503"){
-                        alert("Can't delete this plan — it still has users subscribed to it. Deactivate it instead.");
+                        KTUI.notify("Can't delete this plan — it still has users subscribed to it. Deactivate it instead.");
                     } else {
-                        alert("Failed to delete plan: " + error.message);
+                        KTUI.notify("Failed to delete plan: " + error.message);
                     }
 
                     return;
@@ -4539,6 +4974,8 @@ function initPlans(){
                 currentPlan = null;
 
                 modal.style.display = "none";
+
+                KTUI.success("Plan deleted.");
 
                 loadPlans();
 
@@ -5118,11 +5555,12 @@ function openUserModal(row) {
                         sb.rpc("admin_activate_user", { p_user_id: userId })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to activate user: " + error.message);
+                                    KTUI.notify("Failed to activate user: " + error.message);
                                     return;
                                 }
                                 applyActivatedUI();
                                 activateModal.style.display = "none";
+                                KTUI.success("User activated successfully.");
                             });
                     };
                 }
@@ -5133,9 +5571,10 @@ function openUserModal(row) {
                         sb.rpc("admin_reject_unblock_request", { p_user_id: userId })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to reject request: " + error.message);
+                                    KTUI.notify("Failed to reject request: " + error.message);
                                     return;
                                 }
+                                KTUI.success("Reactivation request rejected.");
                                 renderActivateModal();
                             });
                     };
@@ -5181,7 +5620,7 @@ function openUserModal(row) {
                 .then(({ error }) => {
 
                     if(error){
-                        alert("Failed to block user: " + error.message);
+                        KTUI.notify("Failed to block user: " + error.message);
                         return;
                     }
 
@@ -5197,7 +5636,7 @@ function openUserModal(row) {
 
                     blockModal.style.display="none";
 
-                    alert("User blocked successfully");
+                    KTUI.notify("User blocked successfully");
 
                 });
 
@@ -5513,7 +5952,7 @@ if(changeApproveBtn){
 
             if(error){
 
-    alert(
+    KTUI.notify(
         "Failed to approve changes: " +
         error.message
     );
@@ -5604,7 +6043,7 @@ showChangeRequestToast(
 
             if(error){
 
-    alert(
+    KTUI.notify(
         "Failed to reject changes: " +
         error.message
     );
@@ -5681,7 +6120,7 @@ const hiddenData =
             let amount = Number(document.getElementById("creditAmount").value);
 
             if(amount <= 0){
-                alert("Enter a valid amount");
+                KTUI.notify("Enter a valid amount");
                 return;
             }
 
@@ -5694,7 +6133,7 @@ const hiddenData =
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to credit balance: " + error.message);
+                    KTUI.notify("Failed to credit balance: " + error.message);
                     return;
                 }
 
@@ -5703,7 +6142,7 @@ const hiddenData =
 
                 loadUsers();
 
-                alert("Balance credited successfully");
+                KTUI.notify("Balance credited successfully");
 
             });
 
@@ -5739,7 +6178,7 @@ const hiddenData =
             let amount = Number(document.getElementById("debitAmount").value);
 
             if(amount <= 0){
-                alert("Enter a valid amount");
+                KTUI.notify("Enter a valid amount");
                 return;
             }
 
@@ -5752,7 +6191,7 @@ const hiddenData =
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to debit balance: " + error.message);
+                    KTUI.notify("Failed to debit balance: " + error.message);
                     return;
                 }
 
@@ -5761,7 +6200,7 @@ const hiddenData =
 
                 loadUsers();
 
-                alert("Balance debited successfully");
+                KTUI.notify("Balance debited successfully");
 
             });
 
@@ -5821,7 +6260,7 @@ const hiddenData =
             let newPlanId = planSelect.value;
 
             if(newPlanId === ""){
-                alert("Select a plan");
+                KTUI.notify("Select a plan");
                 return;
             }
 
@@ -5833,7 +6272,7 @@ const hiddenData =
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to update plan: " + error.message);
+                    KTUI.notify("Failed to update plan: " + error.message);
                     return;
                 }
 
@@ -5844,7 +6283,7 @@ const hiddenData =
 
                 planModal.style.display="none";
 
-                alert("Mining plan updated successfully");
+                KTUI.notify("Mining plan updated successfully");
 
             });
 
@@ -5864,33 +6303,44 @@ const hiddenData =
 
             if(!currentRow) return;
 
-            let bonus = prompt("Enter bonus amount");
+            const bonusUserId = currentRow.dataset.userid;
 
-            if(bonus === null) return;
-
-            bonus = Number(bonus);
-
-            if(isNaN(bonus) || bonus <= 0){
-                alert("Invalid amount");
-                return;
-            }
-
-            sb.rpc("admin_add_bonus", {
-                p_user_id: currentRow.dataset.userid,
-                p_amount: bonus,
-                p_note: "Bonus added by admin"
-            })
-
-            .then(({ error }) => {
-
-                if(error){
-                    alert("Failed to add bonus: " + error.message);
-                    return;
+            KTUI.prompt("Enter the bonus amount to add to this user's balance.", {
+                title: "Add Bonus",
+                placeholder: "0.00",
+                inputMode: "decimal",
+                confirmText: "Add Bonus",
+                validate: function(value){
+                    const n = Number(String(value).trim());
+                    if(String(value).trim() === "" || isNaN(n) || n <= 0){
+                        return "Enter a valid amount greater than 0.";
+                    }
+                    return null;
                 }
+            }).then(function(value){
 
-                loadUsers();
+                if(value === null) return;
 
-                alert("Bonus added successfully");
+                const bonus = Number(String(value).trim());
+
+                sb.rpc("admin_add_bonus", {
+                    p_user_id: bonusUserId,
+                    p_amount: bonus,
+                    p_note: "Bonus added by admin"
+                })
+
+                .then(({ error }) => {
+
+                    if(error){
+                        KTUI.notify("Failed to add bonus: " + error.message);
+                        return;
+                    }
+
+                    loadUsers();
+
+                    KTUI.notify("Bonus added successfully");
+
+                });
 
             });
 
@@ -6377,10 +6827,15 @@ if(verifyBtn){
                     sb.rpc("admin_reset_password", { p_user_id: userId })
                         .then(({ data, error }) => {
                             if(error){
-                                alert("Failed to reset password: " + error.message);
+                                KTUI.notify("Failed to reset password: " + error.message);
                                 return;
                             }
-                            alert("Password reset. New password: " + data);
+                            KTUI.alert("The password was reset. Give this new password to the user:", {
+                                type: "success",
+                                title: "Password Reset",
+                                value: String(data),
+                                okText: "Done"
+                            });
                             renderResetPasswordModal();
                         });
                 };
@@ -6392,9 +6847,10 @@ if(verifyBtn){
                     sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "password" })
                         .then(({ error }) => {
                             if(error){
-                                alert("Failed to reject request: " + error.message);
+                                KTUI.notify("Failed to reject request: " + error.message);
                                 return;
                             }
+                            KTUI.success("Password reset request rejected.");
                             renderResetPasswordModal();
                         });
                 };
@@ -6482,10 +6938,10 @@ if(verifyBtn){
                         sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to reset PIN: " + error.message);
+                                    KTUI.notify("Failed to reset PIN: " + error.message);
                                     return;
                                 }
-                                alert("Withdrawal PIN reset — the user can add a new one.");
+                                KTUI.notify("Withdrawal PIN reset — the user can add a new one.");
                                 renderResetPinModal();
                             });
                     };
@@ -6497,9 +6953,10 @@ if(verifyBtn){
                         sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "pin" })
                             .then(({ error }) => {
                                 if(error){
-                                    alert("Failed to reject request: " + error.message);
+                                    KTUI.notify("Failed to reject request: " + error.message);
                                     return;
                                 }
+                                KTUI.success("PIN reset request rejected.");
                                 renderResetPinModal();
                             });
                     };
@@ -7315,7 +7772,7 @@ if(withdrawBtn){
     if(referralBtn){
         referralBtn.onclick=function(){
             if(!currentRow) return;
-            alert("Referral list feature is not available yet");
+            KTUI.notify("Referral list feature is not available yet");
         };
     }
 
@@ -7358,14 +7815,14 @@ if(withdrawBtn){
                     deleteModal.style.display="none";
 
                     if(error){
-                        alert("Failed to delete user: " + error.message);
+                        KTUI.notify("Failed to delete user: " + error.message);
                         return;
                     }
 
                     currentRow.remove();
                     currentRow = null;
 
-                    alert("User deleted.");
+                    KTUI.notify("User deleted.");
 
                 });
 
@@ -7853,11 +8310,13 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to approve: " + error.message);
+                    KTUI.notify("Failed to approve: " + error.message);
                     return;
                 }
 
                 modal.style.display = "none";
+
+                KTUI.success("Verification approved successfully.");
 
                 loadKyc();
 
@@ -7881,11 +8340,13 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to reject: " + error.message);
+                    KTUI.notify("Failed to reject: " + error.message);
                     return;
                 }
 
                 modal.style.display = "none";
+
+                KTUI.success("Verification rejected.");
 
                 loadKyc();
 
@@ -7910,7 +8371,7 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to reset: " + error.message);
+                    KTUI.notify("Failed to reset: " + error.message);
                     return Promise.reject(error);
                 }
 
@@ -7927,7 +8388,9 @@ if (verificationSearch) {
             .then((result) => {
 
                 if (result && result.error) {
-                    alert("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
+                    KTUI.notify("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
+                } else {
+                    KTUI.success("Verification reset successfully. The user can submit new documents.");
                 }
 
                 modal.style.display = "none";
@@ -7958,11 +8421,11 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to send request: " + error.message);
+                    KTUI.notify("Failed to send request: " + error.message);
                     return;
                 }
 
-                alert("Request for additional documents has been sent.");
+                KTUI.notify("Request for additional documents has been sent.");
 
                 modal.style.display = "none";
 
@@ -8021,11 +8484,11 @@ if (verificationSearch) {
             .then(({ error }) => {
 
                 if (error) {
-                    alert("Failed to reject resubmission: " + error.message);
+                    KTUI.notify("Failed to reject resubmission: " + error.message);
                     return;
                 }
 
-                alert("Resubmission request rejected — the user has been notified.");
+                KTUI.notify("Resubmission request rejected — the user has been notified.");
 
                 refreshResubmissionStatus(entry.userId);
 
@@ -8161,7 +8624,7 @@ function saveRate() {
 
     let newRate = document.getElementById("newRate").value;
     if (newRate === "") {
-        alert("Please enter rate");
+        KTUI.notify("Please enter rate");
         return;
     }
 
@@ -8174,11 +8637,13 @@ function saveRate() {
             .then(({ error }) => {
 
                 if(error){
-                    alert("Failed to save rate: " + error.message);
+                    KTUI.notify("Failed to save rate: " + error.message);
                     return;
                 }
 
                 closeRateModal();
+
+                KTUI.success("Exchange rate saved successfully.");
 
                 loadRates();
 
@@ -8228,14 +8693,14 @@ function addCurrencyPair() {
     let rate = document.getElementById("newCurrencyRate").value;
 
     if (pair === "" || rate === "") {
-        alert("Please fill all fields");
+        KTUI.notify("Please fill all fields");
         return;
     }
 
     const parts = pair.split("/");
 
     if(parts.length !== 2 || parts[0].trim() === "" || parts[1].trim() === ""){
-        alert('Enter the pair like "ZAR/USD"');
+        KTUI.notify('Enter the pair like "ZAR/USD"');
         return;
     }
 
@@ -8254,15 +8719,17 @@ function addCurrencyPair() {
                 if(error){
 
                     if(error.code === "23505"){
-                        alert("That currency pair already exists.");
+                        KTUI.notify("That currency pair already exists.");
                     } else {
-                        alert("Failed to add pair: " + error.message);
+                        KTUI.notify("Failed to add pair: " + error.message);
                     }
 
                     return;
                 }
 
                 closeAddRateModal();
+
+                KTUI.success("Currency pair added successfully.");
 
                 loadRates();
 
@@ -8320,13 +8787,15 @@ function confirmDelete() {
         .then(({ error }) => {
 
             if(error){
-                alert("Failed to delete pair: " + error.message);
+                KTUI.notify("Failed to delete pair: " + error.message);
                 closeConfirmDeleteModal();
                 return;
             }
 
             closeRateModal();
             closeConfirmDeleteModal();
+
+            KTUI.success("Currency pair deleted.");
 
             loadRates();
 
@@ -8909,11 +9378,13 @@ function markNotificationUnread(){
         .then(({ error }) => {
 
             if(error){
-                alert("Failed to update: " + error.message);
+                KTUI.notify("Failed to update: " + error.message);
                 return;
             }
 
             closeNotificationModal();
+
+            KTUI.success("Marked as unread.");
 
             loadNotifications();
 
@@ -8951,9 +9422,11 @@ function confirmDeleteNotification(){
             closeNotificationModal();
 
             if(error){
-                alert("Failed to delete: " + error.message);
+                KTUI.notify("Failed to delete: " + error.message);
                 return;
             }
+
+            KTUI.success("Notification deleted.");
 
             loadNotifications();
 
@@ -8986,7 +9459,7 @@ function sendNotification(){
     const audience = document.getElementById("notificationAudience").value;
 
     if(title==="" || message===""){
-        alert("Please complete all fields.");
+        KTUI.notify("Please complete all fields.");
         return;
     }
 
@@ -9011,13 +9484,13 @@ function sendNotification(){
             }
 
             if(error){
-                alert("Failed to send notification: " + error.message);
+                KTUI.notify("Failed to send notification: " + error.message);
                 return;
             }
 
             const count = Number(data || 0);
 
-            alert("Notification sent to " + count + (count === 1 ? " user." : " users."));
+            KTUI.notify("Notification sent to " + count + (count === 1 ? " user." : " users."));
 
             document.getElementById("notificationTitle").value="";
             document.getElementById("notificationMessage").value="";
@@ -10269,27 +10742,9 @@ async function confirmDeleteActivityRecords(){
          * Show a small notification if the global notification
          * function exists in the Admin app.
          */
-        if(typeof showToast === "function"){
-
-            showToast(
-                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`,
-                "success"
-            );
-
-        }else if(typeof showNotification === "function"){
-
-            showNotification(
-                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`,
-                "success"
-            );
-
-        }else{
-
-            console.log(
-                `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`
-            );
-
-        }
+        KTUI.success(
+            `${deletedCount} activity record${deletedCount === 1 ? "" : "s"} deleted.`
+        );
 
     }catch(error){
 
@@ -10298,7 +10753,7 @@ async function confirmDeleteActivityRecords(){
             error
         );
 
-        alert(
+        KTUI.error(
             error?.message ||
             "Failed to delete activity records."
         );
@@ -11526,7 +11981,7 @@ function sendMessage() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to send message: " + res.error.message);
+                KTUI.notify("Failed to send message: " + res.error.message);
                 return;
             }
 
@@ -11735,7 +12190,7 @@ function saveEditedMessage() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to save edit: " + res.error.message);
+                KTUI.notify("Failed to save edit: " + res.error.message);
                 return;
             }
 
@@ -11746,6 +12201,8 @@ function saveEditedMessage() {
                 target.edited = !!res.data.edited_at;
                 renderMessages();
             }
+
+            KTUI.success("Message updated.");
 
             loadSupportConversations();
 
@@ -11946,7 +12403,9 @@ function copyMessage(messageId) {
     const text = message.text || "";
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(function () { fallbackCopyMessage(text); });
+        navigator.clipboard.writeText(text)
+            .then(function () { KTUI.success("Message copied."); })
+            .catch(function () { fallbackCopyMessage(text); });
     } else {
         fallbackCopyMessage(text);
     }
@@ -11962,9 +12421,13 @@ function fallbackCopyMessage(text) {
     document.body.appendChild(textarea);
     textarea.select();
 
-    try { document.execCommand("copy"); } catch (e) { /* no-op */ }
+    let copied = false;
+    try { copied = document.execCommand("copy"); } catch (e) { /* no-op */ }
 
     document.body.removeChild(textarea);
+
+    if (copied) KTUI.success("Message copied.");
+    else KTUI.warning("Could not copy the message. Press and hold the text to copy it.");
 
 }
 
@@ -12012,7 +12475,7 @@ function confirmDeleteAction() {
         sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
-                alert("Failed to delete message: " + res.error.message);
+                KTUI.notify("Failed to delete message: " + res.error.message);
                 return;
             }
 
@@ -12031,6 +12494,8 @@ function confirmDeleteAction() {
 
             }
 
+            KTUI.success("Message deleted.");
+
             loadSupportConversations();
 
         });
@@ -12042,7 +12507,7 @@ function confirmDeleteAction() {
         sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
-                alert("Failed to delete conversation: " + res.error.message);
+                KTUI.notify("Failed to delete conversation: " + res.error.message);
                 return;
             }
 
@@ -12053,6 +12518,8 @@ function confirmDeleteAction() {
 
             renderIndividualChats();
             updateUnreadCounts();
+
+            KTUI.success("Conversation deleted.");
 
         });
 
@@ -12067,7 +12534,9 @@ function confirmDeleteAction() {
             const failed = results.find(function (res) { return res.error; });
 
             if (failed) {
-                alert("Failed to delete conversations: " + failed.error.message);
+                KTUI.notify("Failed to delete conversations: " + failed.error.message);
+            } else {
+                KTUI.success(ids.length === 1 ? "Conversation deleted." : ids.length + " conversations deleted.");
             }
 
             individualChats = individualChats.filter(function (c) { return !ids.includes(c.id); });
@@ -12087,7 +12556,7 @@ function confirmDeleteAction() {
         sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
-                alert("Failed to clear messages: " + res.error.message);
+                KTUI.notify("Failed to clear messages: " + res.error.message);
                 return;
             }
 
@@ -12103,6 +12572,8 @@ function confirmDeleteAction() {
                 renderMessages();
                 updatePinnedMessageBar();
             }
+
+            KTUI.success("Messages cleared.");
 
             loadSupportConversations();
 
@@ -12130,9 +12601,11 @@ function markChatUnread() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to mark as unread: " + res.error.message);
+                KTUI.notify("Failed to mark as unread: " + res.error.message);
                 return;
             }
+
+            KTUI.success("Marked as unread.");
 
             loadSupportConversations();
 
@@ -12278,7 +12751,7 @@ function createPinnedMessage() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to pin message: " + res.error.message);
+                KTUI.notify("Failed to pin message: " + res.error.message);
                 return;
             }
 
@@ -12289,6 +12762,7 @@ function createPinnedMessage() {
             scrollMessagesToBottom();
 
             closeWritePinMessage();
+            KTUI.success("Message pinned.");
             loadSupportConversations();
 
         });
@@ -12361,7 +12835,7 @@ function pinSelectedMessages() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to pin messages: " + res.error.message);
+                KTUI.notify("Failed to pin messages: " + res.error.message);
                 return;
             }
 
@@ -12371,6 +12845,8 @@ function pinSelectedMessages() {
 
             cancelPinMessageSelection();
             updatePinnedMessageBar();
+
+            KTUI.success(ids.length === 1 ? "Message pinned." : ids.length + " messages pinned.");
 
         });
 
@@ -12386,7 +12862,7 @@ function toggleSingleMessagePin(messageId, pin) {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to update pin: " + res.error.message);
+                KTUI.notify("Failed to update pin: " + res.error.message);
                 return;
             }
 
@@ -12395,6 +12871,8 @@ function toggleSingleMessagePin(messageId, pin) {
 
             renderMessages();
             updatePinnedMessageBar();
+
+            KTUI.success(pin ? "Message pinned." : "Message unpinned.");
 
         });
 
@@ -12680,7 +13158,7 @@ function handleAttachmentFileChange(event, kind) {
     if (!file) return;
 
     if (!currentChat) {
-        alert("Open a conversation first.");
+        KTUI.notify("Open a conversation first.");
         return;
     }
 
@@ -12695,7 +13173,7 @@ function uploadAndSendAttachment(file, kind) {
     sb.storage.from("support-chat").upload(path, file).then(function (uploadRes) {
 
         if (uploadRes.error) {
-            alert("Failed to upload file: " + uploadRes.error.message);
+            KTUI.notify("Failed to upload file: " + uploadRes.error.message);
             return;
         }
 
@@ -12721,7 +13199,7 @@ function uploadAndSendAttachment(file, kind) {
             .then(function (res) {
 
                 if (res.error) {
-                    alert("Failed to send attachment: " + res.error.message);
+                    KTUI.notify("Failed to send attachment: " + res.error.message);
                     return;
                 }
 
@@ -12749,7 +13227,7 @@ function startVoiceMessage() {
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Voice recording is not supported in this browser.");
+        KTUI.notify("Voice recording is not supported in this browser.");
         return;
     }
 
@@ -12784,7 +13262,7 @@ function startVoiceMessage() {
         if (btn) btn.classList.add("recording");
 
     }).catch(function () {
-        alert("Microphone access was denied.");
+        KTUI.notify("Microphone access was denied.");
     });
 
 }
@@ -12809,7 +13287,7 @@ function uploadAndSendVoiceMessage(blob) {
     sb.storage.from("support-chat").upload(path, blob, { contentType: "audio/webm" }).then(function (uploadRes) {
 
         if (uploadRes.error) {
-            alert("Failed to upload voice message: " + uploadRes.error.message);
+            KTUI.notify("Failed to upload voice message: " + uploadRes.error.message);
             return;
         }
 
@@ -12832,7 +13310,7 @@ function uploadAndSendVoiceMessage(blob) {
             .then(function (res) {
 
                 if (res.error) {
-                    alert("Failed to send voice message: " + res.error.message);
+                    KTUI.notify("Failed to send voice message: " + res.error.message);
                     return;
                 }
 
@@ -12866,7 +13344,7 @@ function openNewChatModal() {
 
             if (res.error) {
                 console.error("Failed to load users:", res.error);
-                alert("Failed to load users: " + res.error.message);
+                KTUI.notify("Failed to load users: " + res.error.message);
                 return;
             }
 
@@ -12939,7 +13417,7 @@ function startNewConversation(userId) {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to start conversation: " + res.error.message);
+                KTUI.notify("Failed to start conversation: " + res.error.message);
                 return;
             }
 
@@ -12957,7 +13435,7 @@ function startNewConversation(userId) {
                         .then(function (unhideRes) {
 
                             if (unhideRes.error) {
-                                alert("Failed to reopen conversation: " + unhideRes.error.message);
+                                KTUI.notify("Failed to reopen conversation: " + unhideRes.error.message);
                                 return;
                             }
 
@@ -12986,7 +13464,7 @@ function startNewConversation(userId) {
                 .then(function (insertRes) {
 
                     if (insertRes.error) {
-                        alert("Failed to start conversation: " + insertRes.error.message);
+                        KTUI.notify("Failed to start conversation: " + insertRes.error.message);
                         return;
                     }
 
@@ -13425,7 +13903,7 @@ function confirmPriorityAction() {
         .then(function (res) {
 
             if (res.error) {
-                alert("Failed to update priority: " + res.error.message);
+                KTUI.notify("Failed to update priority: " + res.error.message);
                 return;
             }
 
@@ -13437,6 +13915,12 @@ function confirmPriorityAction() {
             renderIndividualChats();
             exitChatSelectionMode();
             closePriorityConfirmation();
+
+            KTUI.success(
+                makePriority
+                    ? (ids.length === 1 ? "Marked as priority." : ids.length + " chats marked as priority.")
+                    : (ids.length === 1 ? "Priority removed." : "Priority removed from " + ids.length + " chats.")
+            );
 
         });
 
@@ -13824,10 +14308,10 @@ function saveSettingsVideo(event) {
     const videoFile = document.getElementById("videoFile");
     const thumbnailInput = document.getElementById("videoThumbnail");
 
-    if (!title) { alert("Please enter a video title."); return; }
+    if (!title) { KTUI.notify("Please enter a video title."); return; }
 
     if (!editId && (!videoFile || videoFile.files.length === 0)) {
-        alert("Please choose a video file.");
+        KTUI.notify("Please choose a video file.");
         return;
     }
 
@@ -13869,18 +14353,18 @@ function saveSettingsVideo(event) {
         .then(({ error }) => {
 
             if (error) {
-                alert("Failed to save video: " + error.message);
+                KTUI.notify("Failed to save video: " + error.message);
                 return;
             }
 
             loadSettingsData();
             closeVideoModal();
-            showSettingsToast("Video uploaded successfully");
+            KTUI.success(editId ? "Video updated successfully." : "Video uploaded successfully.");
 
         })
 
         .catch(error => {
-            alert("Upload failed: " + error.message);
+            KTUI.notify("Upload failed: " + error.message);
         });
 
 }
@@ -14020,8 +14504,8 @@ function saveSettingsGuide(event) {
     const category = document.getElementById("guideCategory").value;
     const status = document.getElementById("guideStatus").value;
 
-    if (!title) { alert("Please enter a guide title."); return; }
-    if (!category) { alert("Please select a guide category."); return; }
+    if (!title) { KTUI.notify("Please enter a guide title."); return; }
+    if (!category) { KTUI.notify("Please select a guide category."); return; }
 
     const imageInput = document.getElementById("guideImage");
     const videoInput = document.getElementById("guideVideoFile");
@@ -14031,7 +14515,7 @@ function saveSettingsGuide(event) {
         : (imageInput && imageInput.files.length > 0);
 
     if (!editId && !hasNewFile) {
-        alert(status === "video" ? "Please choose a guide video." : "Please choose a guide photo.");
+        KTUI.notify(status === "video" ? "Please choose a guide video." : "Please choose a guide photo.");
         return;
     }
 
@@ -14066,17 +14550,17 @@ function saveSettingsGuide(event) {
         .then(({ error }) => {
 
             if (error) {
-                alert("Failed to save guide: " + error.message);
+                KTUI.notify("Failed to save guide: " + error.message);
                 return;
             }
 
             loadSettingsData();
             closeGuideModal();
-            alert(editId ? "Guide updated successfully." : "Guide added successfully.");
+            KTUI.notify(editId ? "Guide updated successfully." : "Guide added successfully.");
 
         })
 
-        .catch(error => alert("Upload failed: " + error.message));
+        .catch(error => KTUI.notify("Upload failed: " + error.message));
 
 }
 
@@ -14203,17 +14687,17 @@ function saveSettingsDownload(event) {
     const title = document.getElementById("downloadTitle").value.trim();
     const fileInput = document.getElementById("downloadFile");
 
-    if (!title) { alert("Please enter a file name."); return; }
+    if (!title) { KTUI.notify("Please enter a file name."); return; }
 
     const file = fileInput && fileInput.files.length > 0 ? fileInput.files[0] : null;
 
     if (!editId && !file) {
-        alert("Please choose a PDF file.");
+        KTUI.notify("Please choose a PDF file.");
         return;
     }
 
     if (file && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-        alert("Only PDF files are supported.");
+        KTUI.notify("Only PDF files are supported.");
         return;
     }
 
@@ -14249,17 +14733,17 @@ function saveSettingsDownload(event) {
         .then(({ error }) => {
 
             if (error) {
-                alert("Failed to save download: " + error.message);
+                KTUI.notify("Failed to save download: " + error.message);
                 return;
             }
 
             loadSettingsData();
             closeDownloadModal();
-            alert(editId ? "Download updated successfully." : "Download added successfully.");
+            KTUI.notify(editId ? "Download updated successfully." : "Download added successfully.");
 
         })
 
-        .catch(error => alert("Upload failed: " + error.message));
+        .catch(error => KTUI.notify("Upload failed: " + error.message));
 
 }
 
@@ -14374,9 +14858,13 @@ function confirmSettingsDelete() {
             closeSettingsDeleteModal();
 
             if (error) {
-                alert("Failed to delete: " + error.message);
+                KTUI.notify("Failed to delete: " + error.message);
                 return;
             }
+
+            KTUI.success(
+                (type === "video" ? "Video" : type === "guide" ? "Guide" : "Download") + " deleted."
+            );
 
             loadSettingsData();
 

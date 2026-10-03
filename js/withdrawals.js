@@ -863,7 +863,7 @@ function approveWithdrawal(id){
 
             if(error){
 
-                alert("Failed to approve withdrawal: " + error.message);
+                KTUI.notify("Failed to approve withdrawal: " + error.message);
 
                 return;
 
@@ -874,6 +874,8 @@ function approveWithdrawal(id){
             showWithdrawalTab("pending");
 
             loadWithdrawals();
+
+            KTUI.success("Withdrawal approved successfully.");
 
             console.log("Withdrawal approved:", id);
 
@@ -895,7 +897,7 @@ function rejectWithdrawal(id){
 
             if(error){
 
-                alert("Failed to reject withdrawal: " + error.message);
+                KTUI.notify("Failed to reject withdrawal: " + error.message);
 
                 return;
 
@@ -906,6 +908,8 @@ function rejectWithdrawal(id){
             showWithdrawalTab("pending");
 
             loadWithdrawals();
+
+            KTUI.success("Withdrawal rejected.");
 
             console.log("Withdrawal rejected:", id);
 

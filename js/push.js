@@ -27,7 +27,7 @@
 
     function say(title, text){
         if(window.KTRealtime && KTRealtime.toast) KTRealtime.toast(title, text, null);
-        else alert(title + "\n" + text);
+        else if(window.KTUI) KTUI.notify(title + ": " + text);
     }
 
     function getRegistration(){
