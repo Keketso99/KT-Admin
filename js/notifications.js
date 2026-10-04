@@ -492,6 +492,24 @@ function showNotificationTab(type,button){
 
     });
 
+    KTUI.syncBlockEmpty(
+        document.getElementById("notificationList"),
+        function(){
+
+            const box = document.getElementById("notificationSearch");
+            const searching = !!(box && box.value.trim());
+            const hasAny = document.querySelector("#notificationList .notification-row") !== null;
+
+            if(searching && hasAny) return "No notifications match your search.";
+            if(type === "unread") return "No unread notifications.";
+            if(type === "read") return "No read notifications.";
+
+            return "No notifications yet.";
+
+        },
+        "fa-regular fa-bell"
+    );
+
 }
 
 
@@ -560,15 +578,27 @@ function closeNotificationModal(){
 // ever needs to do one thing: put it back to unread.
 // ===============================
 
+// Finds the on-page button that calls the given handler (so the loading
+// state lands on the exact button the admin pressed).
+function notificationActionButton(handlerName){
+
+    return document.querySelector('#notificationModal [onclick*="' + handlerName + '"], #deleteConfirmModal [onclick*="' + handlerName + '"]');
+
+}
+
 function markNotificationUnread(){
 
     if(!selectedNotificationId) return;
+
+    const done = KTUI.busy(notificationActionButton("markNotificationUnread"), "Updating...");
 
     sb.from("activity_log")
         .update({ is_read: false })
         .eq("id", selectedNotificationId)
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
                 KTUI.notify("Failed to update: " + error.message);
@@ -607,9 +637,13 @@ function confirmDeleteNotification(){
         return;
     }
 
+    const done = KTUI.busy(notificationActionButton("confirmDeleteNotification"), "Deleting...");
+
     sb.from("activity_log").delete().eq("id", selectedNotificationId)
 
         .then(({ error }) => {
+
+            done();
 
             closeDeleteConfirmModal();
             closeNotificationModal();
@@ -658,10 +692,7 @@ function sendNotification(){
 
     const sendBtn = document.querySelector(".send-notif-btn");
 
-    if(sendBtn){
-        sendBtn.disabled = true;
-        sendBtn.textContent = "Sending...";
-    }
+    const done = KTUI.busy(sendBtn, "Sending...");
 
     sb.rpc("admin_send_notification", {
         p_title: title,
@@ -671,10 +702,7 @@ function sendNotification(){
 
         .then(({ data, error }) => {
 
-            if(sendBtn){
-                sendBtn.disabled = false;
-                sendBtn.textContent = "Send";
-            }
+            done();
 
             if(error){
                 KTUI.notify("Failed to send notification: " + error.message);

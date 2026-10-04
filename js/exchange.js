@@ -72,6 +72,8 @@ function renderRates(){
 
     });
 
+    KTUI.syncTableEmpty(table, 3, "No currency pairs yet. Use \"Add Currency Pair\" to create one.", "fa-solid fa-money-bill-transfer");
+
 }
 
 // =================================
@@ -126,6 +128,12 @@ function saveRate() {
         return;
     }
 
+    const done = KTUI.busy(
+        document.querySelector("#rateModal .save-rate-btn, .rate-modal .save-rate-btn[onclick*='saveRate']"),
+        "Saving...",
+        [document.querySelector(".rate-modal .delete-rate-btn[onclick*='deleteCurrencyPair']")]
+    );
+
     sb.auth.getUser().then(({ data: { user } }) => {
 
         sb.from("exchange_rates")
@@ -133,6 +141,8 @@ function saveRate() {
             .eq("id", selectedRateId)
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to save rate: " + error.message);
@@ -202,6 +212,11 @@ function addCurrencyPair() {
         return;
     }
 
+    const done = KTUI.busy(
+        document.querySelector(".rate-modal .save-rate-btn[onclick*='addCurrencyPair']"),
+        "Adding..."
+    );
+
     sb.auth.getUser().then(({ data: { user } }) => {
 
         sb.from("exchange_rates")
@@ -213,6 +228,8 @@ function addCurrencyPair() {
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
 
@@ -280,9 +297,16 @@ function confirmDelete() {
         return;
     }
 
+    const done = KTUI.busy(
+        document.querySelector(".delete-rate-btn[onclick*='confirmDelete()']"),
+        "Deleting..."
+    );
+
     sb.from("exchange_rates").delete().eq("id", pendingDeleteId)
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
                 KTUI.notify("Failed to delete pair: " + error.message);

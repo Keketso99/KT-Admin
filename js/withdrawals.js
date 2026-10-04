@@ -778,7 +778,9 @@ function openWithdrawalReview(id){
                 function(){
 
                     approveWithdrawal(
-                        withdrawal.id
+                        withdrawal.id,
+                        approveBtn,
+                        rejectBtn
                     );
 
                 };
@@ -808,7 +810,9 @@ function openWithdrawalReview(id){
                 function(){
 
                     rejectWithdrawal(
-                        withdrawal.id
+                        withdrawal.id,
+                        rejectBtn,
+                        approveBtn
                     );
 
                 };
@@ -855,11 +859,15 @@ function openWithdrawalReview(id){
 // APPROVE WITHDRAWAL (calls the real RPC)
 // =====================================
 
-function approveWithdrawal(id){
+function approveWithdrawal(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Approving...", [otherButton]);
 
     sb.rpc("approve_withdrawal", { p_withdrawal_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 
@@ -889,11 +897,15 @@ function approveWithdrawal(id){
 // REJECT WITHDRAWAL (calls the real RPC)
 // =====================================
 
-function rejectWithdrawal(id){
+function rejectWithdrawal(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Rejecting...", [otherButton]);
 
     sb.rpc("reject_withdrawal", { p_withdrawal_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 

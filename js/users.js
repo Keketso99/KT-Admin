@@ -127,6 +127,32 @@ function initUsers(){
 
     }
 
+    // Message shown when the users table has nothing to display
+    function syncUsersEmpty(){
+
+        KTUI.syncTableEmpty(
+            usersList,
+            3,
+            function(){
+
+                const hasUsers = usersList.querySelector("tr[data-userid]") !== null;
+                const term = searchInput ? searchInput.value.trim() : "";
+                const filter = statusFilter ? statusFilter.value.toLowerCase() : "all";
+
+                if(!hasUsers) return "No users yet.";
+                if(term) return "No users match your search.";
+                if(filter === "requests") return "No users have open requests.";
+                if(filter === "blocked") return "No blocked users.";
+                if(filter === "active") return "No active users.";
+
+                return "No users found.";
+
+            },
+            "fa-solid fa-users"
+        );
+
+    }
+
     function loadUsers(){
 
         Promise.all([
@@ -175,6 +201,8 @@ function initUsers(){
                     searchInput.dispatchEvent(new Event("keyup"));
                 }
 
+                syncUsersEmpty();
+
                 applyPendingProfileFilter();
 
             })
@@ -221,7 +249,7 @@ function initUsers(){
 
         const rows = document.querySelectorAll("#usersList tr");
 
-        let total = rows.length;
+        let total = document.querySelectorAll("#usersList tr[data-userid]").length;
 
         let active = 0;
 
@@ -299,6 +327,8 @@ function initUsers(){
 
             });
 
+            syncUsersEmpty();
+
         });
 
     }
@@ -356,6 +386,8 @@ function initUsers(){
                 }
 
             });
+
+            syncUsersEmpty();
 
         });
 
@@ -563,8 +595,11 @@ function openUserModal(row) {
                 const confirmBtn = activateActions.querySelector(".activate-confirm-btn");
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
+                        const rejectOther = activateActions.querySelector(".activate-reject-btn");
+                        const done = KTUI.busy(confirmBtn, "Activating...", [rejectOther]);
                         sb.rpc("admin_activate_user", { p_user_id: userId })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to activate user: " + error.message);
                                     return;
@@ -579,8 +614,11 @@ function openUserModal(row) {
                 const rejectBtn = activateActions.querySelector(".activate-reject-btn");
                 if(rejectBtn){
                     rejectBtn.onclick = function(){
+                        const confirmOther = activateActions.querySelector(".activate-confirm-btn");
+                        const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
                         sb.rpc("admin_reject_unblock_request", { p_user_id: userId })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to reject request: " + error.message);
                                     return;
@@ -624,11 +662,15 @@ function openUserModal(row) {
 
             if(!currentRow) return;
 
+            const done = KTUI.busy(confirmBlockBtn, "Blocking...");
+
             sb.from("profiles")
                 .update({ is_blocked: true })
                 .eq("id", currentRow.dataset.userid)
 
                 .then(({ error }) => {
+
+                    done();
 
                     if(error){
                         KTUI.notify("Failed to block user: " + error.message);
@@ -949,8 +991,7 @@ if(changeApproveBtn){
 
         if(!rpcName) return;
 
-        changeApproveBtn.disabled = true;
-        changeRejectBtn.disabled = true;
+        const done = KTUI.busy(changeApproveBtn, "Approving...", [changeRejectBtn]);
 
         sb.rpc(rpcName, {
             p_user_id: userId
@@ -958,8 +999,7 @@ if(changeApproveBtn){
 
         .then(({ error }) => {
 
-            changeApproveBtn.disabled = false;
-            changeRejectBtn.disabled = false;
+            done();
 
             if(error){
 
@@ -1040,8 +1080,7 @@ showChangeRequestToast(
 
         if(!rpcName) return;
 
-        changeApproveBtn.disabled = true;
-        changeRejectBtn.disabled = true;
+        const done = KTUI.busy(changeRejectBtn, "Rejecting...", [changeApproveBtn]);
 
         sb.rpc(rpcName, {
             p_user_id: userId
@@ -1049,8 +1088,7 @@ showChangeRequestToast(
 
         .then(({ error }) => {
 
-            changeApproveBtn.disabled = false;
-            changeRejectBtn.disabled = false;
+            done();
 
             if(error){
 
@@ -1135,6 +1173,8 @@ const hiddenData =
                 return;
             }
 
+            const done = KTUI.busy(creditSave, "Crediting...");
+
             sb.rpc("admin_credit_wallet", {
                 p_user_id: currentRow.dataset.userid,
                 p_amount: amount,
@@ -1142,6 +1182,8 @@ const hiddenData =
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to credit balance: " + error.message);
@@ -1193,6 +1235,8 @@ const hiddenData =
                 return;
             }
 
+            const done = KTUI.busy(debitSave, "Debiting...");
+
             sb.rpc("admin_debit_wallet", {
                 p_user_id: currentRow.dataset.userid,
                 p_amount: amount,
@@ -1200,6 +1244,8 @@ const hiddenData =
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to debit balance: " + error.message);
@@ -1275,12 +1321,16 @@ const hiddenData =
                 return;
             }
 
+            const done = KTUI.busy(planSave, "Updating...");
+
             sb.rpc("admin_set_user_plan", {
                 p_user_id: currentRow.dataset.userid,
                 p_plan_id: newPlanId
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to update plan: " + error.message);
@@ -1321,6 +1371,30 @@ const hiddenData =
                 placeholder: "0.00",
                 inputMode: "decimal",
                 confirmText: "Add Bonus",
+                busyText: "Adding...",
+                run: function(value){
+
+                    const amount = Number(String(value).trim());
+
+                    return sb.rpc("admin_add_bonus", {
+                        p_user_id: bonusUserId,
+                        p_amount: amount,
+                        p_note: "Bonus added by admin"
+                    }).then(({ error }) => {
+
+                        if(error){
+                            return "Failed to add bonus: " + error.message;
+                        }
+
+                        loadUsers();
+
+                        KTUI.success("Bonus added successfully");
+
+                        return null;
+
+                    });
+
+                },
                 validate: function(value){
                     const n = Number(String(value).trim());
                     if(String(value).trim() === "" || isNaN(n) || n <= 0){
@@ -1328,31 +1402,6 @@ const hiddenData =
                     }
                     return null;
                 }
-            }).then(function(value){
-
-                if(value === null) return;
-
-                const bonus = Number(String(value).trim());
-
-                sb.rpc("admin_add_bonus", {
-                    p_user_id: bonusUserId,
-                    p_amount: bonus,
-                    p_note: "Bonus added by admin"
-                })
-
-                .then(({ error }) => {
-
-                    if(error){
-                        KTUI.notify("Failed to add bonus: " + error.message);
-                        return;
-                    }
-
-                    loadUsers();
-
-                    KTUI.notify("Bonus added successfully");
-
-                });
-
             });
 
         };
@@ -1835,8 +1884,11 @@ if(verifyBtn){
             const confirmBtn = resetPasswordActions.querySelector(".password-reset-confirm-btn");
             if(confirmBtn){
                 confirmBtn.onclick = function(){
+                    const rejectOther = resetPasswordActions.querySelector(".password-reset-reject-btn");
+                    const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                     sb.rpc("admin_reset_password", { p_user_id: userId })
                         .then(({ data, error }) => {
+                            done();
                             if(error){
                                 KTUI.notify("Failed to reset password: " + error.message);
                                 return;
@@ -1855,8 +1907,11 @@ if(verifyBtn){
             const rejectBtn = resetPasswordActions.querySelector(".password-reset-reject-btn");
             if(rejectBtn){
                 rejectBtn.onclick = function(){
+                    const confirmOther = resetPasswordActions.querySelector(".password-reset-confirm-btn");
+                    const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
                     sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "password" })
                         .then(({ error }) => {
+                            done();
                             if(error){
                                 KTUI.notify("Failed to reject request: " + error.message);
                                 return;
@@ -1946,8 +2001,11 @@ if(verifyBtn){
                 const confirmBtn = resetPinActions.querySelector(".pin-reset-confirm-btn");
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
+                        const rejectOther = resetPinActions.querySelector(".pin-reset-reject-btn");
+                        const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                         sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to reset PIN: " + error.message);
                                     return;
@@ -1961,8 +2019,11 @@ if(verifyBtn){
                 const rejectBtn = resetPinActions.querySelector(".pin-reset-reject-btn");
                 if(rejectBtn){
                     rejectBtn.onclick = function(){
+                        const confirmOther = resetPinActions.querySelector(".pin-reset-confirm-btn");
+                        const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
                         sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "pin" })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to reject request: " + error.message);
                                     return;
@@ -2819,9 +2880,13 @@ if(withdrawBtn){
 
             if(!currentRow) return;
 
+            const done = KTUI.busy(confirmDelete, "Deleting...");
+
             sb.rpc("admin_delete_user", { p_user_id: currentRow.dataset.userid })
 
                 .then(({ error }) => {
+
+                    done();
 
                     deleteModal.style.display="none";
 
@@ -2832,6 +2897,8 @@ if(withdrawBtn){
 
                     currentRow.remove();
                     currentRow = null;
+
+                    syncUsersEmpty();
 
                     KTUI.notify("User deleted.");
 

@@ -769,7 +769,9 @@ function openDepositReview(id){
                 function(){
 
                     approveDeposit(
-                        deposit.id
+                        deposit.id,
+                        approveBtn,
+                        rejectBtn
                     );
 
                 };
@@ -795,7 +797,9 @@ function openDepositReview(id){
                 function(){
 
                     rejectDeposit(
-                        deposit.id
+                        deposit.id,
+                        rejectBtn,
+                        approveBtn
                     );
 
                 };
@@ -842,11 +846,15 @@ function openDepositReview(id){
 // APPROVE DEPOSIT (calls the real RPC)
 // =====================================
 
-function approveDeposit(id){
+function approveDeposit(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Approving...", [otherButton]);
 
     sb.rpc("approve_deposit", { p_deposit_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 
@@ -876,11 +884,15 @@ function approveDeposit(id){
 // REJECT DEPOSIT (calls the real RPC)
 // =====================================
 
-function rejectDeposit(id){
+function rejectDeposit(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Rejecting...", [otherButton]);
 
     sb.rpc("reject_deposit", { p_deposit_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 

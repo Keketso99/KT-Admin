@@ -257,18 +257,16 @@ async function loginSubmit(event){
         return;
     }
 
-    btn.disabled = true;
-    btn.textContent = "Signing in...";
+    const done = KTUI.busy(btn, "Signing in...");
 
     const { data, error } = await sb.auth.signInWithPassword({
         email,
         password
     });
 
-    btn.disabled = false;
-    btn.textContent = "Sign In";
-
     if(error){
+        done();
+
         // This RPC is explicitly for the ADMIN APP. It is separate from
         // the User App's authentication flow.
         const clientInfo = getAdminClientInfo();
@@ -295,7 +293,11 @@ async function loginSubmit(event){
         return;
     }
 
-    await handleAuthedSession(data.session);
+    try{
+        await handleAuthedSession(data.session);
+    }finally{
+        done();
+    }
 }
 
 // =========================================================

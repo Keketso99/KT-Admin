@@ -72,6 +72,8 @@ function renderPlans(){
 
     });
 
+    KTUI.syncTableEmpty(table, 3, "No mining plans yet. Use \"Add new plan\" to create one.", "fa-solid fa-layer-group");
+
 }
 
 
@@ -238,9 +240,13 @@ function initPlans(){
 
             payload.sort_order = plansData.length + 1;
 
+            const done = KTUI.busy(saveButton, "Creating...");
+
             sb.from("plans").insert(payload)
 
                 .then(({ error }) => {
+
+                    done();
 
                     if(error){
                         KTUI.notify("Failed to create plan: " + error.message);
@@ -261,9 +267,13 @@ function initPlans(){
 
         else{
 
+            const done = KTUI.busy(saveButton, "Saving...");
+
             sb.from("plans").update(payload).eq("id", currentPlan.id)
 
                 .then(({ error }) => {
+
+                    done();
 
                     if(error){
                         KTUI.notify("Failed to update plan: " + error.message);
@@ -320,9 +330,13 @@ function initPlans(){
 
         const newActive = !currentPlan.is_active;
 
+        const done = KTUI.busy(toggleButton, newActive ? "Activating..." : "Deactivating...");
+
         sb.from("plans").update({ is_active: newActive }).eq("id", currentPlan.id)
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to update status: " + error.message);
@@ -355,9 +369,13 @@ function initPlans(){
 
         if(!currentRow || !currentPlan) return;
 
+        const done = KTUI.busy(deleteConfirmButton, "Deleting...");
+
         sb.from("plans").delete().eq("id", currentPlan.id)
 
             .then(({ error }) => {
+
+                done();
 
                 deleteConfirmModal.style.display = "none";
 

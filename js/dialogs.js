@@ -77,7 +77,12 @@
         ".kt-ui-btn{border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif}" +
         ".kt-ui-btn:disabled{opacity:.6}" +
         ".kt-ui-btn.kt-secondary{background:#e5e7eb;color:#111827}" +
-        ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}";
+        ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}" +
+
+        ".kt-empty-row td{padding:0!important;border:0!important;background:transparent!important}" +
+        ".kt-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 16px;color:#6b7280;font-family:Arial,sans-serif;font-size:14px;line-height:1.4;text-align:center}" +
+        ".kt-empty i{font-size:26px;opacity:.55}" +
+        ".kt-empty-box{width:100%;box-sizing:border-box}";
 
         var style = document.createElement("style");
         style.id = STYLE_ID;
@@ -238,9 +243,11 @@
 
             var previousFocus = document.activeElement;
             var closed = false;
+            var running = false;
 
             function close(ok){
                 if(closed) return;
+                if(running && !ok) return;
                 closed = true;
                 document.removeEventListener("keydown", onKey, true);
                 overlay.classList.remove("kt-in");
@@ -253,6 +260,8 @@
             }
 
             function submit(){
+                if(running) return;
+
                 if(input && config.input && typeof config.input.validate === "function"){
                     var problem = config.input.validate(input.value);
                     if(problem){
@@ -261,6 +270,37 @@
                         return;
                     }
                 }
+
+                // Async action: keep the dialog open with a loading button,
+                // close on success, show the error inside the dialog on failure.
+                if(typeof config.run === "function"){
+                    running = true;
+                    if(errorLine) errorLine.textContent = "";
+                    var done = busy(okBtn, config.busyText || "Please wait...", cancelBtn ? [cancelBtn] : []);
+
+                    Promise.resolve()
+                        .then(function(){ return config.run(input ? input.value : ""); })
+                        .then(function(problemText){
+                            running = false;
+                            done();
+                            if(problemText){
+                                if(errorLine) errorLine.textContent = String(problemText);
+                                else toast(String(problemText), "error");
+                                if(input) input.focus();
+                                return;
+                            }
+                            close(true);
+                        })
+                        .catch(function(err){
+                            running = false;
+                            done();
+                            var msg = (err && err.message) ? err.message : "Something went wrong.";
+                            if(errorLine) errorLine.textContent = msg;
+                            else toast(msg, "error");
+                        });
+                    return;
+                }
+
                 close(true);
             }
 
@@ -324,7 +364,9 @@
             okText: options.confirmText || "Confirm",
             cancelText: options.cancelText || "Cancel",
             danger: !!options.danger,
-            showCancel: true
+            showCancel: true,
+            run: options.run,
+            busyText: options.busyText
         }).then(function(r){ return r.ok; });
     }
 
@@ -337,6 +379,8 @@
             okText: options.confirmText || "OK",
             cancelText: options.cancelText || "Cancel",
             showCancel: true,
+            run: options.run,
+            busyText: options.busyText,
             input: {
                 type: options.inputType || "text",
                 inputMode: options.inputMode,
@@ -385,7 +429,144 @@
     // Export + safety net
     // ---------------------------------------------------------
 
+    // ---------------------------------------------------------
+    // Empty states
+    //   syncTableEmpty(tbody, colspan, message, icon)
+    //   syncBlockEmpty(container, message, icon)
+    // Shows a message when nothing is visible (no data, or every row
+    // hidden by a search / filter) and removes it as soon as a row is
+    // visible again. `message` may be text or a function returning text.
+    // The message row is never counted as data (class kt-empty-row).
+    // ---------------------------------------------------------
+
+    function emptyInner(message, icon){
+        var wrap = el("div", "kt-empty");
+        wrap.appendChild(el("i", icon || "fa-solid fa-inbox"));
+        wrap.appendChild(el("span", null, message));
+        return wrap;
+    }
+
+    function resolveMessage(message){
+        return typeof message === "function" ? message() : message;
+    }
+
+    function syncTableEmpty(tbody, colspan, message, icon){
+        if(!tbody) return;
+        injectStyles();
+
+        var visible = false;
+        var existing = null;
+
+        for(var i = 0; i < tbody.children.length; i++){
+            var row = tbody.children[i];
+            if(row.classList.contains("kt-empty-row")){ existing = row; continue; }
+            if(row.style.display !== "none") visible = true;
+        }
+
+        if(visible){
+            if(existing) existing.parentNode.removeChild(existing);
+            return;
+        }
+
+        var text = resolveMessage(message);
+        var cls = icon || "fa-solid fa-inbox";
+
+        if(existing){
+            existing.style.display = "";
+            var span = existing.querySelector("span");
+            var ic = existing.querySelector("i");
+            if(span) span.textContent = text;
+            if(ic) ic.className = cls;
+            return;
+        }
+
+        var tr = el("tr", "kt-empty-row");
+        var td = el("td");
+        td.colSpan = colspan || 1;
+        td.appendChild(emptyInner(text, cls));
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+
+    function syncBlockEmpty(container, message, icon){
+        if(!container) return;
+        injectStyles();
+
+        var visible = false;
+        var existing = null;
+
+        for(var i = 0; i < container.children.length; i++){
+            var child = container.children[i];
+            if(child.classList.contains("kt-empty-box")){ existing = child; continue; }
+            if(child.style.display !== "none") visible = true;
+        }
+
+        if(visible){
+            if(existing) existing.parentNode.removeChild(existing);
+            return;
+        }
+
+        var text = resolveMessage(message);
+        var cls = icon || "fa-solid fa-inbox";
+
+        if(existing){
+            existing.style.display = "";
+            var span = existing.querySelector("span");
+            var ic = existing.querySelector("i");
+            if(span) span.textContent = text;
+            if(ic) ic.className = cls;
+            return;
+        }
+
+        var box = emptyInner(text, cls);
+        box.className = "kt-empty kt-empty-box";
+        container.appendChild(box);
+    }
+
+    // ---------------------------------------------------------
+    // Loading buttons — the same look as "Deleting..." in Activity Log:
+    // the button is disabled and shows a spinning icon + a short label.
+    //
+    //   var done = KTUI.busy(button, "Approving...", [otherButton]);
+    //   ... when finished (success or error) ...
+    //   done();                       // restores text + enabled state
+    //
+    // `alsoDisable` buttons are only disabled (so Approve and Reject can
+    // not be pressed at the same time) and restored by done() as well.
+    // ---------------------------------------------------------
+
+    function busy(button, label, alsoDisable){
+        if(!button) return function(){};
+
+        var originalHTML = button.innerHTML;
+        var wasDisabled = button.disabled;
+        var others = [];
+
+        (alsoDisable || []).forEach(function(b){
+            if(b && b !== button) others.push({ node: b, disabled: b.disabled });
+        });
+
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ';
+        button.appendChild(document.createTextNode(label || "Please wait..."));
+
+        others.forEach(function(o){ o.node.disabled = true; });
+
+        var restored = false;
+
+        return function(){
+            if(restored) return;
+            restored = true;
+            button.disabled = wasDisabled;
+            button.innerHTML = originalHTML;
+            others.forEach(function(o){ o.node.disabled = o.disabled; });
+        };
+    }
+
     window.KTUI = {
+        busy: busy,
+        syncTableEmpty: syncTableEmpty,
+        syncBlockEmpty: syncBlockEmpty,
         toast: toast,
         success: function(m, ms){ toast(m, "success", ms); },
         error:   function(m, ms){ toast(m, "error", ms); },

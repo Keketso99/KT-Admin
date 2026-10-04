@@ -342,7 +342,43 @@ function renderIndividualChats() {
     });
 
     if (chats.length === 0) {
-        if (emptyState) emptyState.style.display = "flex";
+        if (emptyState) {
+
+            const titleEl = emptyState.querySelector("h4");
+            const textEl = emptyState.querySelector("p");
+            const buttonEl = emptyState.querySelector("button");
+            const searchTerm = currentChatSearch.trim();
+
+            let title = "No conversations";
+            let text = "Start a new conversation with a user.";
+            let showButton = true;
+
+            if (chatSelectionMode && pendingBulkAction === "priority") {
+                title = "No conversations available";
+                text = pendingPriorityMode === "remove"
+                    ? "No conversations are marked as priority."
+                    : "Every conversation is already marked as priority.";
+                showButton = false;
+            } else if (searchTerm) {
+                title = "No results";
+                text = "No conversations match \"" + searchTerm + "\".";
+                showButton = false;
+            } else if (currentChatFilter === "unread") {
+                title = "No unread conversations";
+                text = "You're all caught up.";
+                showButton = false;
+            } else if (currentChatFilter === "priority") {
+                title = "No priority conversations";
+                text = "Conversations you mark as priority will appear here.";
+                showButton = false;
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (textEl) textEl.textContent = text;
+            if (buttonEl) buttonEl.style.display = showButton ? "" : "none";
+
+            emptyState.style.display = "flex";
+        }
         updateIndividualChatCount(0);
         return;
     }
@@ -900,6 +936,11 @@ function renderMessages() {
     (currentChat.messages || []).forEach(function (message) {
         container.appendChild(createMessageElement(message));
     });
+
+    // Only once the messages have actually loaded (not while still loading).
+    if (currentChat.messagesLoaded) {
+        KTUI.syncBlockEmpty(container, "No messages yet. Send the first message below.", "fa-regular fa-comments");
+    }
 
     if (messageSearchActive) {
         performMessageSearch();
@@ -1677,11 +1718,25 @@ function closeDeleteConfirmation() {
 
 function confirmDeleteAction() {
 
+    // The modal stays open with a loading button until the request finishes.
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const cancelBtn = confirmBtn && confirmBtn.parentElement
+        ? Array.prototype.find.call(confirmBtn.parentElement.querySelectorAll("button"), function (b) { return b !== confirmBtn; })
+        : null;
+
+    const done = KTUI.busy(
+        confirmBtn,
+        deleteActionType === "clearMessages" ? "Clearing..." : "Deleting...",
+        [cancelBtn]
+    );
+
+    let work = null;
+
     if (deleteActionType === "message") {
 
         const messageId = deleteActionId;
 
-        sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
+        work = sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 KTUI.notify("Failed to delete message: " + res.error.message);
@@ -1713,7 +1768,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
+        work = sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 KTUI.notify("Failed to delete conversation: " + res.error.message);
@@ -1736,7 +1791,7 @@ function confirmDeleteAction() {
 
         const ids = deleteActionIds;
 
-        Promise.all(ids.map(function (id) {
+        work = Promise.all(ids.map(function (id) {
             return sb.rpc("support_delete_chat", { p_conversation_id: id, p_side: "admin" });
         })).then(function (results) {
 
@@ -1762,7 +1817,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
+        work = sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 KTUI.notify("Failed to clear messages: " + res.error.message);
@@ -1790,7 +1845,17 @@ function confirmDeleteAction() {
 
     }
 
-    closeDeleteConfirmation();
+    const finish = function () {
+        done();
+        closeDeleteConfirmation();
+    };
+
+    if (!work) {
+        finish();
+        return;
+    }
+
+    work.then(finish, finish);
 
 }
 
@@ -1945,6 +2010,8 @@ function createPinnedMessage() {
 
     if (!text) return;
 
+    const done = KTUI.busy(document.querySelector('[onclick*="createPinnedMessage"]'), "Pinning...");
+
     sb.from("support_messages")
         .insert({
             conversation_id: currentChat.id,
@@ -1958,6 +2025,8 @@ function createPinnedMessage() {
         .select("*")
         .single()
         .then(function (res) {
+
+            done();
 
             if (res.error) {
                 KTUI.notify("Failed to pin message: " + res.error.message);
@@ -2038,10 +2107,14 @@ function pinSelectedMessages() {
 
     const ids = selectedPinMessageIds;
 
+    const done = KTUI.busy(document.querySelector('[onclick*="pinSelectedMessages"]'), "Pinning...");
+
     sb.from("support_messages")
         .update({ is_pinned: true, pinned_at: new Date().toISOString(), pinned_by: supportAdminId })
         .in("id", ids)
         .then(function (res) {
+
+            done();
 
             if (res.error) {
                 KTUI.notify("Failed to pin messages: " + res.error.message);
@@ -2202,9 +2275,18 @@ function setupMessageSearchEvents() {
     const input = supportChatElement("messageSearchInput");
 
     if (input) {
+        let searchNoticeTimer = null;
+
         input.addEventListener("input", function () {
             messageSearchQuery = input.value;
             performMessageSearch();
+
+            clearTimeout(searchNoticeTimer);
+            searchNoticeTimer = setTimeout(function () {
+                if (messageSearchQuery.trim() && messageSearchResults.length === 0) {
+                    KTUI.info("No messages match your search.");
+                }
+            }, 700);
         });
     }
 
@@ -3106,10 +3188,18 @@ function confirmPriorityAction() {
     const ids = [...selectedChatIds];
     const makePriority = pendingPriorityMode !== "remove";
 
+    const priorityBtn = supportChatElement("confirmPriorityBtn");
+    const priorityCancel = priorityBtn && priorityBtn.parentElement
+        ? Array.prototype.find.call(priorityBtn.parentElement.querySelectorAll("button"), function (b) { return b !== priorityBtn; })
+        : null;
+    const done = KTUI.busy(priorityBtn, "Updating...", [priorityCancel]);
+
     sb.from("support_conversations")
         .update({ priority: makePriority })
         .in("id", ids)
         .then(function (res) {
+
+            done();
 
             if (res.error) {
                 KTUI.notify("Failed to update priority: " + res.error.message);

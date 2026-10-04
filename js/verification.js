@@ -128,6 +128,37 @@ function initVerification() {
 
     }
 
+    // Empty-state messages for the three lists (also re-run after searching)
+    function syncVerificationEmpty() {
+
+        const searchBox = document.getElementById("verificationSearch");
+        const searching = !!(searchBox && searchBox.value.trim());
+
+        const lists = [
+            { id: "pendingList",  none: "No pending verification requests", icon: "fa-solid fa-inbox" },
+            { id: "approvedList", none: "No approved verifications",        icon: "fa-solid fa-circle-check" },
+            { id: "rejectedList", none: "No rejected verifications",        icon: "fa-solid fa-circle-xmark" }
+        ];
+
+        lists.forEach(function (item) {
+
+            const body = document.querySelector("#" + item.id + " tbody");
+
+            KTUI.syncTableEmpty(
+                body,
+                3,
+                function () {
+                    return searching && body.querySelector("tr[data-kycid]")
+                        ? "No results match your search"
+                        : item.none;
+                },
+                item.icon
+            );
+
+        });
+
+    }
+
     function renderVerificationData() {
 
         const pendingBody =
@@ -173,6 +204,8 @@ function initVerification() {
         });
 
         loadReviewButtons();
+
+        syncVerificationEmpty();
 
     }
 
@@ -242,6 +275,8 @@ function applyVerificationUserFilter(){
 
     });
 
+    syncVerificationEmpty();
+
 
     window.verificationUserId = null;
 
@@ -280,6 +315,8 @@ if (verificationSearch) {
 
         });
 
+        syncVerificationEmpty();
+
     });
 
 }
@@ -291,13 +328,13 @@ if (verificationSearch) {
     function updateKycStats() {
 
         const pending =
-            document.querySelectorAll("#pendingList tbody tr").length;
+            document.querySelectorAll("#pendingList tbody tr[data-kycid]").length;
 
         const approved =
-            document.querySelectorAll("#approvedList tbody tr").length;
+            document.querySelectorAll("#approvedList tbody tr[data-kycid]").length;
 
         const rejected =
-            document.querySelectorAll("#rejectedList tbody tr").length;
+            document.querySelectorAll("#rejectedList tbody tr[data-kycid]").length;
 
         totalRequests.textContent =
             pending + approved + rejected;
@@ -471,9 +508,13 @@ if (verificationSearch) {
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(approveBtn, "Approving...", [rejectBtn, resetBtn, requestBtn]);
+
         sb.rpc("approve_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to approve: " + error.message);
@@ -501,9 +542,13 @@ if (verificationSearch) {
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(rejectBtn, "Rejecting...", [approveBtn, resetBtn, requestBtn]);
+
         sb.rpc("reject_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to reject: " + error.message);
@@ -532,11 +577,14 @@ if (verificationSearch) {
         const note = document.getElementById("adminNoteInput").value.trim() || null;
         const entry = kycData[kycId];
 
+        const done = KTUI.busy(resetBtn, "Resetting...", [approveBtn, rejectBtn, requestBtn]);
+
         sb.rpc("admin_reset_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
 
                 if(error){
+                    done();
                     KTUI.notify("Failed to reset: " + error.message);
                     return Promise.reject(error);
                 }
@@ -553,6 +601,8 @@ if (verificationSearch) {
 
             .then((result) => {
 
+                done();
+
                 if (result && result.error) {
                     KTUI.notify("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
                 } else {
@@ -567,6 +617,7 @@ if (verificationSearch) {
 
             .catch(() => {
                 // Reset itself already alerted above; nothing more to do.
+                done();
             });
 
     };
@@ -582,9 +633,13 @@ if (verificationSearch) {
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(requestBtn, "Sending...", [approveBtn, rejectBtn, resetBtn]);
+
         sb.rpc("admin_request_kyc_documents", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to send request: " + error.message);
@@ -645,9 +700,13 @@ if (verificationSearch) {
 
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(rejectResubmissionBtn, "Rejecting...");
+
         sb.rpc("admin_reject_kyc_resubmission", { p_user_id: entry.userId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if (error) {
                     KTUI.notify("Failed to reject resubmission: " + error.message);

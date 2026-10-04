@@ -90,7 +90,12 @@ window.sb = supabase.createClient(
         ".kt-ui-btn{border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif}" +
         ".kt-ui-btn:disabled{opacity:.6}" +
         ".kt-ui-btn.kt-secondary{background:#e5e7eb;color:#111827}" +
-        ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}";
+        ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}" +
+
+        ".kt-empty-row td{padding:0!important;border:0!important;background:transparent!important}" +
+        ".kt-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 16px;color:#6b7280;font-family:Arial,sans-serif;font-size:14px;line-height:1.4;text-align:center}" +
+        ".kt-empty i{font-size:26px;opacity:.55}" +
+        ".kt-empty-box{width:100%;box-sizing:border-box}";
 
         var style = document.createElement("style");
         style.id = STYLE_ID;
@@ -251,9 +256,11 @@ window.sb = supabase.createClient(
 
             var previousFocus = document.activeElement;
             var closed = false;
+            var running = false;
 
             function close(ok){
                 if(closed) return;
+                if(running && !ok) return;
                 closed = true;
                 document.removeEventListener("keydown", onKey, true);
                 overlay.classList.remove("kt-in");
@@ -266,6 +273,8 @@ window.sb = supabase.createClient(
             }
 
             function submit(){
+                if(running) return;
+
                 if(input && config.input && typeof config.input.validate === "function"){
                     var problem = config.input.validate(input.value);
                     if(problem){
@@ -274,6 +283,37 @@ window.sb = supabase.createClient(
                         return;
                     }
                 }
+
+                // Async action: keep the dialog open with a loading button,
+                // close on success, show the error inside the dialog on failure.
+                if(typeof config.run === "function"){
+                    running = true;
+                    if(errorLine) errorLine.textContent = "";
+                    var done = busy(okBtn, config.busyText || "Please wait...", cancelBtn ? [cancelBtn] : []);
+
+                    Promise.resolve()
+                        .then(function(){ return config.run(input ? input.value : ""); })
+                        .then(function(problemText){
+                            running = false;
+                            done();
+                            if(problemText){
+                                if(errorLine) errorLine.textContent = String(problemText);
+                                else toast(String(problemText), "error");
+                                if(input) input.focus();
+                                return;
+                            }
+                            close(true);
+                        })
+                        .catch(function(err){
+                            running = false;
+                            done();
+                            var msg = (err && err.message) ? err.message : "Something went wrong.";
+                            if(errorLine) errorLine.textContent = msg;
+                            else toast(msg, "error");
+                        });
+                    return;
+                }
+
                 close(true);
             }
 
@@ -337,7 +377,9 @@ window.sb = supabase.createClient(
             okText: options.confirmText || "Confirm",
             cancelText: options.cancelText || "Cancel",
             danger: !!options.danger,
-            showCancel: true
+            showCancel: true,
+            run: options.run,
+            busyText: options.busyText
         }).then(function(r){ return r.ok; });
     }
 
@@ -350,6 +392,8 @@ window.sb = supabase.createClient(
             okText: options.confirmText || "OK",
             cancelText: options.cancelText || "Cancel",
             showCancel: true,
+            run: options.run,
+            busyText: options.busyText,
             input: {
                 type: options.inputType || "text",
                 inputMode: options.inputMode,
@@ -398,7 +442,144 @@ window.sb = supabase.createClient(
     // Export + safety net
     // ---------------------------------------------------------
 
+    // ---------------------------------------------------------
+    // Empty states
+    //   syncTableEmpty(tbody, colspan, message, icon)
+    //   syncBlockEmpty(container, message, icon)
+    // Shows a message when nothing is visible (no data, or every row
+    // hidden by a search / filter) and removes it as soon as a row is
+    // visible again. `message` may be text or a function returning text.
+    // The message row is never counted as data (class kt-empty-row).
+    // ---------------------------------------------------------
+
+    function emptyInner(message, icon){
+        var wrap = el("div", "kt-empty");
+        wrap.appendChild(el("i", icon || "fa-solid fa-inbox"));
+        wrap.appendChild(el("span", null, message));
+        return wrap;
+    }
+
+    function resolveMessage(message){
+        return typeof message === "function" ? message() : message;
+    }
+
+    function syncTableEmpty(tbody, colspan, message, icon){
+        if(!tbody) return;
+        injectStyles();
+
+        var visible = false;
+        var existing = null;
+
+        for(var i = 0; i < tbody.children.length; i++){
+            var row = tbody.children[i];
+            if(row.classList.contains("kt-empty-row")){ existing = row; continue; }
+            if(row.style.display !== "none") visible = true;
+        }
+
+        if(visible){
+            if(existing) existing.parentNode.removeChild(existing);
+            return;
+        }
+
+        var text = resolveMessage(message);
+        var cls = icon || "fa-solid fa-inbox";
+
+        if(existing){
+            existing.style.display = "";
+            var span = existing.querySelector("span");
+            var ic = existing.querySelector("i");
+            if(span) span.textContent = text;
+            if(ic) ic.className = cls;
+            return;
+        }
+
+        var tr = el("tr", "kt-empty-row");
+        var td = el("td");
+        td.colSpan = colspan || 1;
+        td.appendChild(emptyInner(text, cls));
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+
+    function syncBlockEmpty(container, message, icon){
+        if(!container) return;
+        injectStyles();
+
+        var visible = false;
+        var existing = null;
+
+        for(var i = 0; i < container.children.length; i++){
+            var child = container.children[i];
+            if(child.classList.contains("kt-empty-box")){ existing = child; continue; }
+            if(child.style.display !== "none") visible = true;
+        }
+
+        if(visible){
+            if(existing) existing.parentNode.removeChild(existing);
+            return;
+        }
+
+        var text = resolveMessage(message);
+        var cls = icon || "fa-solid fa-inbox";
+
+        if(existing){
+            existing.style.display = "";
+            var span = existing.querySelector("span");
+            var ic = existing.querySelector("i");
+            if(span) span.textContent = text;
+            if(ic) ic.className = cls;
+            return;
+        }
+
+        var box = emptyInner(text, cls);
+        box.className = "kt-empty kt-empty-box";
+        container.appendChild(box);
+    }
+
+    // ---------------------------------------------------------
+    // Loading buttons — the same look as "Deleting..." in Activity Log:
+    // the button is disabled and shows a spinning icon + a short label.
+    //
+    //   var done = KTUI.busy(button, "Approving...", [otherButton]);
+    //   ... when finished (success or error) ...
+    //   done();                       // restores text + enabled state
+    //
+    // `alsoDisable` buttons are only disabled (so Approve and Reject can
+    // not be pressed at the same time) and restored by done() as well.
+    // ---------------------------------------------------------
+
+    function busy(button, label, alsoDisable){
+        if(!button) return function(){};
+
+        var originalHTML = button.innerHTML;
+        var wasDisabled = button.disabled;
+        var others = [];
+
+        (alsoDisable || []).forEach(function(b){
+            if(b && b !== button) others.push({ node: b, disabled: b.disabled });
+        });
+
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ';
+        button.appendChild(document.createTextNode(label || "Please wait..."));
+
+        others.forEach(function(o){ o.node.disabled = true; });
+
+        var restored = false;
+
+        return function(){
+            if(restored) return;
+            restored = true;
+            button.disabled = wasDisabled;
+            button.innerHTML = originalHTML;
+            others.forEach(function(o){ o.node.disabled = o.disabled; });
+        };
+    }
+
     window.KTUI = {
+        busy: busy,
+        syncTableEmpty: syncTableEmpty,
+        syncBlockEmpty: syncBlockEmpty,
         toast: toast,
         success: function(m, ms){ toast(m, "success", ms); },
         error:   function(m, ms){ toast(m, "error", ms); },
@@ -1366,18 +1547,16 @@ async function loginSubmit(event){
         return;
     }
 
-    btn.disabled = true;
-    btn.textContent = "Signing in...";
+    const done = KTUI.busy(btn, "Signing in...");
 
     const { data, error } = await sb.auth.signInWithPassword({
         email,
         password
     });
 
-    btn.disabled = false;
-    btn.textContent = "Sign In";
-
     if(error){
+        done();
+
         // This RPC is explicitly for the ADMIN APP. It is separate from
         // the User App's authentication flow.
         const clientInfo = getAdminClientInfo();
@@ -1404,7 +1583,11 @@ async function loginSubmit(event){
         return;
     }
 
-    await handleAuthedSession(data.session);
+    try{
+        await handleAuthedSession(data.session);
+    }finally{
+        done();
+    }
 }
 
 // =========================================================
@@ -3044,7 +3227,9 @@ function openWithdrawalReview(id){
                 function(){
 
                     approveWithdrawal(
-                        withdrawal.id
+                        withdrawal.id,
+                        approveBtn,
+                        rejectBtn
                     );
 
                 };
@@ -3074,7 +3259,9 @@ function openWithdrawalReview(id){
                 function(){
 
                     rejectWithdrawal(
-                        withdrawal.id
+                        withdrawal.id,
+                        rejectBtn,
+                        approveBtn
                     );
 
                 };
@@ -3121,11 +3308,15 @@ function openWithdrawalReview(id){
 // APPROVE WITHDRAWAL (calls the real RPC)
 // =====================================
 
-function approveWithdrawal(id){
+function approveWithdrawal(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Approving...", [otherButton]);
 
     sb.rpc("approve_withdrawal", { p_withdrawal_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 
@@ -3155,11 +3346,15 @@ function approveWithdrawal(id){
 // REJECT WITHDRAWAL (calls the real RPC)
 // =====================================
 
-function rejectWithdrawal(id){
+function rejectWithdrawal(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Rejecting...", [otherButton]);
 
     sb.rpc("reject_withdrawal", { p_withdrawal_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 
@@ -4007,7 +4202,9 @@ function openDepositReview(id){
                 function(){
 
                     approveDeposit(
-                        deposit.id
+                        deposit.id,
+                        approveBtn,
+                        rejectBtn
                     );
 
                 };
@@ -4033,7 +4230,9 @@ function openDepositReview(id){
                 function(){
 
                     rejectDeposit(
-                        deposit.id
+                        deposit.id,
+                        rejectBtn,
+                        approveBtn
                     );
 
                 };
@@ -4080,11 +4279,15 @@ function openDepositReview(id){
 // APPROVE DEPOSIT (calls the real RPC)
 // =====================================
 
-function approveDeposit(id){
+function approveDeposit(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Approving...", [otherButton]);
 
     sb.rpc("approve_deposit", { p_deposit_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 
@@ -4114,11 +4317,15 @@ function approveDeposit(id){
 // REJECT DEPOSIT (calls the real RPC)
 // =====================================
 
-function rejectDeposit(id){
+function rejectDeposit(id, button, otherButton){
+
+    const done = KTUI.busy(button, "Rejecting...", [otherButton]);
 
     sb.rpc("reject_deposit", { p_deposit_id: id })
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
 
@@ -4668,6 +4875,8 @@ function renderPlans(){
 
     });
 
+    KTUI.syncTableEmpty(table, 3, "No mining plans yet. Use \"Add new plan\" to create one.", "fa-solid fa-layer-group");
+
 }
 
 
@@ -4834,9 +5043,13 @@ function initPlans(){
 
             payload.sort_order = plansData.length + 1;
 
+            const done = KTUI.busy(saveButton, "Creating...");
+
             sb.from("plans").insert(payload)
 
                 .then(({ error }) => {
+
+                    done();
 
                     if(error){
                         KTUI.notify("Failed to create plan: " + error.message);
@@ -4857,9 +5070,13 @@ function initPlans(){
 
         else{
 
+            const done = KTUI.busy(saveButton, "Saving...");
+
             sb.from("plans").update(payload).eq("id", currentPlan.id)
 
                 .then(({ error }) => {
+
+                    done();
 
                     if(error){
                         KTUI.notify("Failed to update plan: " + error.message);
@@ -4916,9 +5133,13 @@ function initPlans(){
 
         const newActive = !currentPlan.is_active;
 
+        const done = KTUI.busy(toggleButton, newActive ? "Activating..." : "Deactivating...");
+
         sb.from("plans").update({ is_active: newActive }).eq("id", currentPlan.id)
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to update status: " + error.message);
@@ -4951,9 +5172,13 @@ function initPlans(){
 
         if(!currentRow || !currentPlan) return;
 
+        const done = KTUI.busy(deleteConfirmButton, "Deleting...");
+
         sb.from("plans").delete().eq("id", currentPlan.id)
 
             .then(({ error }) => {
+
+                done();
 
                 deleteConfirmModal.style.display = "none";
 
@@ -5116,6 +5341,32 @@ function initUsers(){
 
     }
 
+    // Message shown when the users table has nothing to display
+    function syncUsersEmpty(){
+
+        KTUI.syncTableEmpty(
+            usersList,
+            3,
+            function(){
+
+                const hasUsers = usersList.querySelector("tr[data-userid]") !== null;
+                const term = searchInput ? searchInput.value.trim() : "";
+                const filter = statusFilter ? statusFilter.value.toLowerCase() : "all";
+
+                if(!hasUsers) return "No users yet.";
+                if(term) return "No users match your search.";
+                if(filter === "requests") return "No users have open requests.";
+                if(filter === "blocked") return "No blocked users.";
+                if(filter === "active") return "No active users.";
+
+                return "No users found.";
+
+            },
+            "fa-solid fa-users"
+        );
+
+    }
+
     function loadUsers(){
 
         Promise.all([
@@ -5164,6 +5415,8 @@ function initUsers(){
                     searchInput.dispatchEvent(new Event("keyup"));
                 }
 
+                syncUsersEmpty();
+
                 applyPendingProfileFilter();
 
             })
@@ -5210,7 +5463,7 @@ function initUsers(){
 
         const rows = document.querySelectorAll("#usersList tr");
 
-        let total = rows.length;
+        let total = document.querySelectorAll("#usersList tr[data-userid]").length;
 
         let active = 0;
 
@@ -5288,6 +5541,8 @@ function initUsers(){
 
             });
 
+            syncUsersEmpty();
+
         });
 
     }
@@ -5345,6 +5600,8 @@ function initUsers(){
                 }
 
             });
+
+            syncUsersEmpty();
 
         });
 
@@ -5552,8 +5809,11 @@ function openUserModal(row) {
                 const confirmBtn = activateActions.querySelector(".activate-confirm-btn");
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
+                        const rejectOther = activateActions.querySelector(".activate-reject-btn");
+                        const done = KTUI.busy(confirmBtn, "Activating...", [rejectOther]);
                         sb.rpc("admin_activate_user", { p_user_id: userId })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to activate user: " + error.message);
                                     return;
@@ -5568,8 +5828,11 @@ function openUserModal(row) {
                 const rejectBtn = activateActions.querySelector(".activate-reject-btn");
                 if(rejectBtn){
                     rejectBtn.onclick = function(){
+                        const confirmOther = activateActions.querySelector(".activate-confirm-btn");
+                        const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
                         sb.rpc("admin_reject_unblock_request", { p_user_id: userId })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to reject request: " + error.message);
                                     return;
@@ -5613,11 +5876,15 @@ function openUserModal(row) {
 
             if(!currentRow) return;
 
+            const done = KTUI.busy(confirmBlockBtn, "Blocking...");
+
             sb.from("profiles")
                 .update({ is_blocked: true })
                 .eq("id", currentRow.dataset.userid)
 
                 .then(({ error }) => {
+
+                    done();
 
                     if(error){
                         KTUI.notify("Failed to block user: " + error.message);
@@ -5938,8 +6205,7 @@ if(changeApproveBtn){
 
         if(!rpcName) return;
 
-        changeApproveBtn.disabled = true;
-        changeRejectBtn.disabled = true;
+        const done = KTUI.busy(changeApproveBtn, "Approving...", [changeRejectBtn]);
 
         sb.rpc(rpcName, {
             p_user_id: userId
@@ -5947,8 +6213,7 @@ if(changeApproveBtn){
 
         .then(({ error }) => {
 
-            changeApproveBtn.disabled = false;
-            changeRejectBtn.disabled = false;
+            done();
 
             if(error){
 
@@ -6029,8 +6294,7 @@ showChangeRequestToast(
 
         if(!rpcName) return;
 
-        changeApproveBtn.disabled = true;
-        changeRejectBtn.disabled = true;
+        const done = KTUI.busy(changeRejectBtn, "Rejecting...", [changeApproveBtn]);
 
         sb.rpc(rpcName, {
             p_user_id: userId
@@ -6038,8 +6302,7 @@ showChangeRequestToast(
 
         .then(({ error }) => {
 
-            changeApproveBtn.disabled = false;
-            changeRejectBtn.disabled = false;
+            done();
 
             if(error){
 
@@ -6124,6 +6387,8 @@ const hiddenData =
                 return;
             }
 
+            const done = KTUI.busy(creditSave, "Crediting...");
+
             sb.rpc("admin_credit_wallet", {
                 p_user_id: currentRow.dataset.userid,
                 p_amount: amount,
@@ -6131,6 +6396,8 @@ const hiddenData =
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to credit balance: " + error.message);
@@ -6182,6 +6449,8 @@ const hiddenData =
                 return;
             }
 
+            const done = KTUI.busy(debitSave, "Debiting...");
+
             sb.rpc("admin_debit_wallet", {
                 p_user_id: currentRow.dataset.userid,
                 p_amount: amount,
@@ -6189,6 +6458,8 @@ const hiddenData =
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to debit balance: " + error.message);
@@ -6264,12 +6535,16 @@ const hiddenData =
                 return;
             }
 
+            const done = KTUI.busy(planSave, "Updating...");
+
             sb.rpc("admin_set_user_plan", {
                 p_user_id: currentRow.dataset.userid,
                 p_plan_id: newPlanId
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to update plan: " + error.message);
@@ -6310,6 +6585,30 @@ const hiddenData =
                 placeholder: "0.00",
                 inputMode: "decimal",
                 confirmText: "Add Bonus",
+                busyText: "Adding...",
+                run: function(value){
+
+                    const amount = Number(String(value).trim());
+
+                    return sb.rpc("admin_add_bonus", {
+                        p_user_id: bonusUserId,
+                        p_amount: amount,
+                        p_note: "Bonus added by admin"
+                    }).then(({ error }) => {
+
+                        if(error){
+                            return "Failed to add bonus: " + error.message;
+                        }
+
+                        loadUsers();
+
+                        KTUI.success("Bonus added successfully");
+
+                        return null;
+
+                    });
+
+                },
                 validate: function(value){
                     const n = Number(String(value).trim());
                     if(String(value).trim() === "" || isNaN(n) || n <= 0){
@@ -6317,31 +6616,6 @@ const hiddenData =
                     }
                     return null;
                 }
-            }).then(function(value){
-
-                if(value === null) return;
-
-                const bonus = Number(String(value).trim());
-
-                sb.rpc("admin_add_bonus", {
-                    p_user_id: bonusUserId,
-                    p_amount: bonus,
-                    p_note: "Bonus added by admin"
-                })
-
-                .then(({ error }) => {
-
-                    if(error){
-                        KTUI.notify("Failed to add bonus: " + error.message);
-                        return;
-                    }
-
-                    loadUsers();
-
-                    KTUI.notify("Bonus added successfully");
-
-                });
-
             });
 
         };
@@ -6824,8 +7098,11 @@ if(verifyBtn){
             const confirmBtn = resetPasswordActions.querySelector(".password-reset-confirm-btn");
             if(confirmBtn){
                 confirmBtn.onclick = function(){
+                    const rejectOther = resetPasswordActions.querySelector(".password-reset-reject-btn");
+                    const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                     sb.rpc("admin_reset_password", { p_user_id: userId })
                         .then(({ data, error }) => {
+                            done();
                             if(error){
                                 KTUI.notify("Failed to reset password: " + error.message);
                                 return;
@@ -6844,8 +7121,11 @@ if(verifyBtn){
             const rejectBtn = resetPasswordActions.querySelector(".password-reset-reject-btn");
             if(rejectBtn){
                 rejectBtn.onclick = function(){
+                    const confirmOther = resetPasswordActions.querySelector(".password-reset-confirm-btn");
+                    const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
                     sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "password" })
                         .then(({ error }) => {
+                            done();
                             if(error){
                                 KTUI.notify("Failed to reject request: " + error.message);
                                 return;
@@ -6935,8 +7215,11 @@ if(verifyBtn){
                 const confirmBtn = resetPinActions.querySelector(".pin-reset-confirm-btn");
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
+                        const rejectOther = resetPinActions.querySelector(".pin-reset-reject-btn");
+                        const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                         sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to reset PIN: " + error.message);
                                     return;
@@ -6950,8 +7233,11 @@ if(verifyBtn){
                 const rejectBtn = resetPinActions.querySelector(".pin-reset-reject-btn");
                 if(rejectBtn){
                     rejectBtn.onclick = function(){
+                        const confirmOther = resetPinActions.querySelector(".pin-reset-confirm-btn");
+                        const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
                         sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "pin" })
                             .then(({ error }) => {
+                                done();
                                 if(error){
                                     KTUI.notify("Failed to reject request: " + error.message);
                                     return;
@@ -7808,9 +8094,13 @@ if(withdrawBtn){
 
             if(!currentRow) return;
 
+            const done = KTUI.busy(confirmDelete, "Deleting...");
+
             sb.rpc("admin_delete_user", { p_user_id: currentRow.dataset.userid })
 
                 .then(({ error }) => {
+
+                    done();
 
                     deleteModal.style.display="none";
 
@@ -7821,6 +8111,8 @@ if(withdrawBtn){
 
                     currentRow.remove();
                     currentRow = null;
+
+                    syncUsersEmpty();
 
                     KTUI.notify("User deleted.");
 
@@ -7962,6 +8254,37 @@ function initVerification() {
 
     }
 
+    // Empty-state messages for the three lists (also re-run after searching)
+    function syncVerificationEmpty() {
+
+        const searchBox = document.getElementById("verificationSearch");
+        const searching = !!(searchBox && searchBox.value.trim());
+
+        const lists = [
+            { id: "pendingList",  none: "No pending verification requests", icon: "fa-solid fa-inbox" },
+            { id: "approvedList", none: "No approved verifications",        icon: "fa-solid fa-circle-check" },
+            { id: "rejectedList", none: "No rejected verifications",        icon: "fa-solid fa-circle-xmark" }
+        ];
+
+        lists.forEach(function (item) {
+
+            const body = document.querySelector("#" + item.id + " tbody");
+
+            KTUI.syncTableEmpty(
+                body,
+                3,
+                function () {
+                    return searching && body.querySelector("tr[data-kycid]")
+                        ? "No results match your search"
+                        : item.none;
+                },
+                item.icon
+            );
+
+        });
+
+    }
+
     function renderVerificationData() {
 
         const pendingBody =
@@ -8007,6 +8330,8 @@ function initVerification() {
         });
 
         loadReviewButtons();
+
+        syncVerificationEmpty();
 
     }
 
@@ -8076,6 +8401,8 @@ function applyVerificationUserFilter(){
 
     });
 
+    syncVerificationEmpty();
+
 
     window.verificationUserId = null;
 
@@ -8114,6 +8441,8 @@ if (verificationSearch) {
 
         });
 
+        syncVerificationEmpty();
+
     });
 
 }
@@ -8125,13 +8454,13 @@ if (verificationSearch) {
     function updateKycStats() {
 
         const pending =
-            document.querySelectorAll("#pendingList tbody tr").length;
+            document.querySelectorAll("#pendingList tbody tr[data-kycid]").length;
 
         const approved =
-            document.querySelectorAll("#approvedList tbody tr").length;
+            document.querySelectorAll("#approvedList tbody tr[data-kycid]").length;
 
         const rejected =
-            document.querySelectorAll("#rejectedList tbody tr").length;
+            document.querySelectorAll("#rejectedList tbody tr[data-kycid]").length;
 
         totalRequests.textContent =
             pending + approved + rejected;
@@ -8305,9 +8634,13 @@ if (verificationSearch) {
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(approveBtn, "Approving...", [rejectBtn, resetBtn, requestBtn]);
+
         sb.rpc("approve_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to approve: " + error.message);
@@ -8335,9 +8668,13 @@ if (verificationSearch) {
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(rejectBtn, "Rejecting...", [approveBtn, resetBtn, requestBtn]);
+
         sb.rpc("reject_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to reject: " + error.message);
@@ -8366,11 +8703,14 @@ if (verificationSearch) {
         const note = document.getElementById("adminNoteInput").value.trim() || null;
         const entry = kycData[kycId];
 
+        const done = KTUI.busy(resetBtn, "Resetting...", [approveBtn, rejectBtn, requestBtn]);
+
         sb.rpc("admin_reset_kyc", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
 
                 if(error){
+                    done();
                     KTUI.notify("Failed to reset: " + error.message);
                     return Promise.reject(error);
                 }
@@ -8387,6 +8727,8 @@ if (verificationSearch) {
 
             .then((result) => {
 
+                done();
+
                 if (result && result.error) {
                     KTUI.notify("Reset succeeded, but failed to clear the pending resubmission request: " + result.error.message + " — reject it manually from the resubmission status area if it still shows pending.");
                 } else {
@@ -8401,6 +8743,7 @@ if (verificationSearch) {
 
             .catch(() => {
                 // Reset itself already alerted above; nothing more to do.
+                done();
             });
 
     };
@@ -8416,9 +8759,13 @@ if (verificationSearch) {
         const kycId = selectedRow.dataset.kycid;
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(requestBtn, "Sending...", [approveBtn, rejectBtn, resetBtn]);
+
         sb.rpc("admin_request_kyc_documents", { p_kyc_id: kycId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to send request: " + error.message);
@@ -8479,9 +8826,13 @@ if (verificationSearch) {
 
         const note = document.getElementById("adminNoteInput").value.trim() || null;
 
+        const done = KTUI.busy(rejectResubmissionBtn, "Rejecting...");
+
         sb.rpc("admin_reject_kyc_resubmission", { p_user_id: entry.userId, p_note: note })
 
             .then(({ error }) => {
+
+                done();
 
                 if (error) {
                     KTUI.notify("Failed to reject resubmission: " + error.message);
@@ -8574,6 +8925,8 @@ function renderRates(){
 
     });
 
+    KTUI.syncTableEmpty(table, 3, "No currency pairs yet. Use \"Add Currency Pair\" to create one.", "fa-solid fa-money-bill-transfer");
+
 }
 
 // =================================
@@ -8628,6 +8981,12 @@ function saveRate() {
         return;
     }
 
+    const done = KTUI.busy(
+        document.querySelector("#rateModal .save-rate-btn, .rate-modal .save-rate-btn[onclick*='saveRate']"),
+        "Saving...",
+        [document.querySelector(".rate-modal .delete-rate-btn[onclick*='deleteCurrencyPair']")]
+    );
+
     sb.auth.getUser().then(({ data: { user } }) => {
 
         sb.from("exchange_rates")
@@ -8635,6 +8994,8 @@ function saveRate() {
             .eq("id", selectedRateId)
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
                     KTUI.notify("Failed to save rate: " + error.message);
@@ -8704,6 +9065,11 @@ function addCurrencyPair() {
         return;
     }
 
+    const done = KTUI.busy(
+        document.querySelector(".rate-modal .save-rate-btn[onclick*='addCurrencyPair']"),
+        "Adding..."
+    );
+
     sb.auth.getUser().then(({ data: { user } }) => {
 
         sb.from("exchange_rates")
@@ -8715,6 +9081,8 @@ function addCurrencyPair() {
             })
 
             .then(({ error }) => {
+
+                done();
 
                 if(error){
 
@@ -8782,9 +9150,16 @@ function confirmDelete() {
         return;
     }
 
+    const done = KTUI.busy(
+        document.querySelector(".delete-rate-btn[onclick*='confirmDelete()']"),
+        "Deleting..."
+    );
+
     sb.from("exchange_rates").delete().eq("id", pendingDeleteId)
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
                 KTUI.notify("Failed to delete pair: " + error.message);
@@ -9299,6 +9674,24 @@ function showNotificationTab(type,button){
 
     });
 
+    KTUI.syncBlockEmpty(
+        document.getElementById("notificationList"),
+        function(){
+
+            const box = document.getElementById("notificationSearch");
+            const searching = !!(box && box.value.trim());
+            const hasAny = document.querySelector("#notificationList .notification-row") !== null;
+
+            if(searching && hasAny) return "No notifications match your search.";
+            if(type === "unread") return "No unread notifications.";
+            if(type === "read") return "No read notifications.";
+
+            return "No notifications yet.";
+
+        },
+        "fa-regular fa-bell"
+    );
+
 }
 
 
@@ -9367,15 +9760,27 @@ function closeNotificationModal(){
 // ever needs to do one thing: put it back to unread.
 // ===============================
 
+// Finds the on-page button that calls the given handler (so the loading
+// state lands on the exact button the admin pressed).
+function notificationActionButton(handlerName){
+
+    return document.querySelector('#notificationModal [onclick*="' + handlerName + '"], #deleteConfirmModal [onclick*="' + handlerName + '"]');
+
+}
+
 function markNotificationUnread(){
 
     if(!selectedNotificationId) return;
+
+    const done = KTUI.busy(notificationActionButton("markNotificationUnread"), "Updating...");
 
     sb.from("activity_log")
         .update({ is_read: false })
         .eq("id", selectedNotificationId)
 
         .then(({ error }) => {
+
+            done();
 
             if(error){
                 KTUI.notify("Failed to update: " + error.message);
@@ -9414,9 +9819,13 @@ function confirmDeleteNotification(){
         return;
     }
 
+    const done = KTUI.busy(notificationActionButton("confirmDeleteNotification"), "Deleting...");
+
     sb.from("activity_log").delete().eq("id", selectedNotificationId)
 
         .then(({ error }) => {
+
+            done();
 
             closeDeleteConfirmModal();
             closeNotificationModal();
@@ -9465,10 +9874,7 @@ function sendNotification(){
 
     const sendBtn = document.querySelector(".send-notif-btn");
 
-    if(sendBtn){
-        sendBtn.disabled = true;
-        sendBtn.textContent = "Sending...";
-    }
+    const done = KTUI.busy(sendBtn, "Sending...");
 
     sb.rpc("admin_send_notification", {
         p_title: title,
@@ -9478,10 +9884,7 @@ function sendNotification(){
 
         .then(({ data, error }) => {
 
-            if(sendBtn){
-                sendBtn.disabled = false;
-                sendBtn.textContent = "Send";
-            }
+            done();
 
             if(error){
                 KTUI.notify("Failed to send notification: " + error.message);
@@ -11133,7 +11536,43 @@ function renderIndividualChats() {
     });
 
     if (chats.length === 0) {
-        if (emptyState) emptyState.style.display = "flex";
+        if (emptyState) {
+
+            const titleEl = emptyState.querySelector("h4");
+            const textEl = emptyState.querySelector("p");
+            const buttonEl = emptyState.querySelector("button");
+            const searchTerm = currentChatSearch.trim();
+
+            let title = "No conversations";
+            let text = "Start a new conversation with a user.";
+            let showButton = true;
+
+            if (chatSelectionMode && pendingBulkAction === "priority") {
+                title = "No conversations available";
+                text = pendingPriorityMode === "remove"
+                    ? "No conversations are marked as priority."
+                    : "Every conversation is already marked as priority.";
+                showButton = false;
+            } else if (searchTerm) {
+                title = "No results";
+                text = "No conversations match \"" + searchTerm + "\".";
+                showButton = false;
+            } else if (currentChatFilter === "unread") {
+                title = "No unread conversations";
+                text = "You're all caught up.";
+                showButton = false;
+            } else if (currentChatFilter === "priority") {
+                title = "No priority conversations";
+                text = "Conversations you mark as priority will appear here.";
+                showButton = false;
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (textEl) textEl.textContent = text;
+            if (buttonEl) buttonEl.style.display = showButton ? "" : "none";
+
+            emptyState.style.display = "flex";
+        }
         updateIndividualChatCount(0);
         return;
     }
@@ -11691,6 +12130,11 @@ function renderMessages() {
     (currentChat.messages || []).forEach(function (message) {
         container.appendChild(createMessageElement(message));
     });
+
+    // Only once the messages have actually loaded (not while still loading).
+    if (currentChat.messagesLoaded) {
+        KTUI.syncBlockEmpty(container, "No messages yet. Send the first message below.", "fa-regular fa-comments");
+    }
 
     if (messageSearchActive) {
         performMessageSearch();
@@ -12468,11 +12912,25 @@ function closeDeleteConfirmation() {
 
 function confirmDeleteAction() {
 
+    // The modal stays open with a loading button until the request finishes.
+    const confirmBtn = supportChatElement("confirmDeleteBtn");
+    const cancelBtn = confirmBtn && confirmBtn.parentElement
+        ? Array.prototype.find.call(confirmBtn.parentElement.querySelectorAll("button"), function (b) { return b !== confirmBtn; })
+        : null;
+
+    const done = KTUI.busy(
+        confirmBtn,
+        deleteActionType === "clearMessages" ? "Clearing..." : "Deleting...",
+        [cancelBtn]
+    );
+
+    let work = null;
+
     if (deleteActionType === "message") {
 
         const messageId = deleteActionId;
 
-        sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
+        work = sb.rpc("support_delete_message", { p_message_id: messageId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 KTUI.notify("Failed to delete message: " + res.error.message);
@@ -12504,7 +12962,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
+        work = sb.rpc("support_delete_chat", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 KTUI.notify("Failed to delete conversation: " + res.error.message);
@@ -12527,7 +12985,7 @@ function confirmDeleteAction() {
 
         const ids = deleteActionIds;
 
-        Promise.all(ids.map(function (id) {
+        work = Promise.all(ids.map(function (id) {
             return sb.rpc("support_delete_chat", { p_conversation_id: id, p_side: "admin" });
         })).then(function (results) {
 
@@ -12553,7 +13011,7 @@ function confirmDeleteAction() {
 
         const chatId = deleteActionId;
 
-        sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
+        work = sb.rpc("support_clear_messages", { p_conversation_id: chatId, p_side: "admin" }).then(function (res) {
 
             if (res.error) {
                 KTUI.notify("Failed to clear messages: " + res.error.message);
@@ -12581,7 +13039,17 @@ function confirmDeleteAction() {
 
     }
 
-    closeDeleteConfirmation();
+    const finish = function () {
+        done();
+        closeDeleteConfirmation();
+    };
+
+    if (!work) {
+        finish();
+        return;
+    }
+
+    work.then(finish, finish);
 
 }
 
@@ -12736,6 +13204,8 @@ function createPinnedMessage() {
 
     if (!text) return;
 
+    const done = KTUI.busy(document.querySelector('[onclick*="createPinnedMessage"]'), "Pinning...");
+
     sb.from("support_messages")
         .insert({
             conversation_id: currentChat.id,
@@ -12749,6 +13219,8 @@ function createPinnedMessage() {
         .select("*")
         .single()
         .then(function (res) {
+
+            done();
 
             if (res.error) {
                 KTUI.notify("Failed to pin message: " + res.error.message);
@@ -12829,10 +13301,14 @@ function pinSelectedMessages() {
 
     const ids = selectedPinMessageIds;
 
+    const done = KTUI.busy(document.querySelector('[onclick*="pinSelectedMessages"]'), "Pinning...");
+
     sb.from("support_messages")
         .update({ is_pinned: true, pinned_at: new Date().toISOString(), pinned_by: supportAdminId })
         .in("id", ids)
         .then(function (res) {
+
+            done();
 
             if (res.error) {
                 KTUI.notify("Failed to pin messages: " + res.error.message);
@@ -12993,9 +13469,18 @@ function setupMessageSearchEvents() {
     const input = supportChatElement("messageSearchInput");
 
     if (input) {
+        let searchNoticeTimer = null;
+
         input.addEventListener("input", function () {
             messageSearchQuery = input.value;
             performMessageSearch();
+
+            clearTimeout(searchNoticeTimer);
+            searchNoticeTimer = setTimeout(function () {
+                if (messageSearchQuery.trim() && messageSearchResults.length === 0) {
+                    KTUI.info("No messages match your search.");
+                }
+            }, 700);
         });
     }
 
@@ -13897,10 +14382,18 @@ function confirmPriorityAction() {
     const ids = [...selectedChatIds];
     const makePriority = pendingPriorityMode !== "remove";
 
+    const priorityBtn = supportChatElement("confirmPriorityBtn");
+    const priorityCancel = priorityBtn && priorityBtn.parentElement
+        ? Array.prototype.find.call(priorityBtn.parentElement.querySelectorAll("button"), function (b) { return b !== priorityBtn; })
+        : null;
+    const done = KTUI.busy(priorityBtn, "Updating...", [priorityCancel]);
+
     sb.from("support_conversations")
         .update({ priority: makePriority })
         .in("id", ids)
         .then(function (res) {
+
+            done();
 
             if (res.error) {
                 KTUI.notify("Failed to update priority: " + res.error.message);
@@ -14317,6 +14810,11 @@ function saveSettingsVideo(event) {
 
     const payload = { title, description };
 
+    const done = KTUI.busy(
+        event.target.querySelector('button[type="submit"]'),
+        editId ? "Saving..." : "Uploading..."
+    );
+
     Promise.resolve()
 
         .then(() => {
@@ -14352,6 +14850,8 @@ function saveSettingsVideo(event) {
 
         .then(({ error }) => {
 
+            done();
+
             if (error) {
                 KTUI.notify("Failed to save video: " + error.message);
                 return;
@@ -14364,6 +14864,7 @@ function saveSettingsVideo(event) {
         })
 
         .catch(error => {
+            done();
             KTUI.notify("Upload failed: " + error.message);
         });
 
@@ -14521,6 +15022,11 @@ function saveSettingsGuide(event) {
 
     const payload = { title, category, status };
 
+    const done = KTUI.busy(
+        event.target.querySelector('button[type="submit"]'),
+        editId ? "Saving..." : "Adding..."
+    );
+
     Promise.resolve()
 
         .then(() => {
@@ -14549,6 +15055,8 @@ function saveSettingsGuide(event) {
 
         .then(({ error }) => {
 
+            done();
+
             if (error) {
                 KTUI.notify("Failed to save guide: " + error.message);
                 return;
@@ -14560,7 +15068,7 @@ function saveSettingsGuide(event) {
 
         })
 
-        .catch(error => KTUI.notify("Upload failed: " + error.message));
+        .catch(error => { done(); KTUI.notify("Upload failed: " + error.message); });
 
 }
 
@@ -14706,6 +15214,11 @@ function saveSettingsDownload(event) {
         description: document.getElementById("downloadDescription").value.trim()
     };
 
+    const done = KTUI.busy(
+        event.target.querySelector('button[type="submit"]'),
+        editId ? "Saving..." : "Uploading..."
+    );
+
     Promise.resolve()
 
         .then(() => {
@@ -14732,6 +15245,8 @@ function saveSettingsDownload(event) {
 
         .then(({ error }) => {
 
+            done();
+
             if (error) {
                 KTUI.notify("Failed to save download: " + error.message);
                 return;
@@ -14743,7 +15258,7 @@ function saveSettingsDownload(event) {
 
         })
 
-        .catch(error => KTUI.notify("Upload failed: " + error.message));
+        .catch(error => { done(); KTUI.notify("Upload failed: " + error.message); });
 
 }
 
@@ -14851,9 +15366,16 @@ function confirmSettingsDelete() {
     const table = SETTINGS_DELETE_TABLES[type];
     if (!table) return;
 
+    const done = KTUI.busy(
+        document.querySelector('[onclick*="confirmSettingsDelete"]'),
+        "Deleting..."
+    );
+
     sb.from(table).delete().eq("id", id)
 
         .then(({ error }) => {
+
+            done();
 
             closeSettingsDeleteModal();
 

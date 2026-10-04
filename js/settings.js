@@ -254,6 +254,11 @@ function saveSettingsVideo(event) {
 
     const payload = { title, description };
 
+    const done = KTUI.busy(
+        event.target.querySelector('button[type="submit"]'),
+        editId ? "Saving..." : "Uploading..."
+    );
+
     Promise.resolve()
 
         .then(() => {
@@ -289,6 +294,8 @@ function saveSettingsVideo(event) {
 
         .then(({ error }) => {
 
+            done();
+
             if (error) {
                 KTUI.notify("Failed to save video: " + error.message);
                 return;
@@ -301,6 +308,7 @@ function saveSettingsVideo(event) {
         })
 
         .catch(error => {
+            done();
             KTUI.notify("Upload failed: " + error.message);
         });
 
@@ -458,6 +466,11 @@ function saveSettingsGuide(event) {
 
     const payload = { title, category, status };
 
+    const done = KTUI.busy(
+        event.target.querySelector('button[type="submit"]'),
+        editId ? "Saving..." : "Adding..."
+    );
+
     Promise.resolve()
 
         .then(() => {
@@ -486,6 +499,8 @@ function saveSettingsGuide(event) {
 
         .then(({ error }) => {
 
+            done();
+
             if (error) {
                 KTUI.notify("Failed to save guide: " + error.message);
                 return;
@@ -497,7 +512,7 @@ function saveSettingsGuide(event) {
 
         })
 
-        .catch(error => KTUI.notify("Upload failed: " + error.message));
+        .catch(error => { done(); KTUI.notify("Upload failed: " + error.message); });
 
 }
 
@@ -643,6 +658,11 @@ function saveSettingsDownload(event) {
         description: document.getElementById("downloadDescription").value.trim()
     };
 
+    const done = KTUI.busy(
+        event.target.querySelector('button[type="submit"]'),
+        editId ? "Saving..." : "Uploading..."
+    );
+
     Promise.resolve()
 
         .then(() => {
@@ -669,6 +689,8 @@ function saveSettingsDownload(event) {
 
         .then(({ error }) => {
 
+            done();
+
             if (error) {
                 KTUI.notify("Failed to save download: " + error.message);
                 return;
@@ -680,7 +702,7 @@ function saveSettingsDownload(event) {
 
         })
 
-        .catch(error => KTUI.notify("Upload failed: " + error.message));
+        .catch(error => { done(); KTUI.notify("Upload failed: " + error.message); });
 
 }
 
@@ -788,9 +810,16 @@ function confirmSettingsDelete() {
     const table = SETTINGS_DELETE_TABLES[type];
     if (!table) return;
 
+    const done = KTUI.busy(
+        document.querySelector('[onclick*="confirmSettingsDelete"]'),
+        "Deleting..."
+    );
+
     sb.from(table).delete().eq("id", id)
 
         .then(({ error }) => {
+
+            done();
 
             closeSettingsDeleteModal();
 
