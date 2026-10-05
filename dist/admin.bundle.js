@@ -10776,7 +10776,6 @@ payment_methods_approved: "users",
 payment_methods_rejected: "users",
 
 // KYC
-kyc_resubmission_requested: "users",
 kyc_additional_documents_requested: "users",
 kyc_approved: "users",
 approved_kyc: "users",
@@ -11179,6 +11178,12 @@ async function loadActivityLogs(){
         if(error) throw error;
 
         activityData = (data || [])
+            // User-initiated requests (deposit, withdrawal, KYC resubmission,
+            // password/PIN reset ...) belong to the Notifications page, never here.
+            .filter(row =>
+                String(row.category || "").toUpperCase() !== "REQUESTS" &&
+                String(row.actor_type || "").toLowerCase() !== "user"
+            )
             .map(row => ({
                 ...row,
                 category: categoryForActivity(row)
