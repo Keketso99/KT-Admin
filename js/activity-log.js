@@ -925,102 +925,10 @@ function viewActivityByIndex(index){
     const entry = activityData[index];
     if(!entry) return;
 
-    const modal = document.getElementById("activityModal");
-    const details = document.getElementById("activityDetails");
-    const title = document.getElementById("activityModalTitle");
-    const icon = document.getElementById("activityModalIcon");
-
-    if(!modal || !details) return;
-
-    const actorProfile = Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles;
-    const actorName = getActorName(entry);
-    const actorPhone = getActorPhone(entry);
-
-    if(title){
-        title.textContent = entry.activity || "Activity Details";
+    // Category-aware details live in activity-details.js
+    if(window.ActivityDetails){
+        window.ActivityDetails.open(entry, activityData);
     }
-
-    if(icon){
-        icon.className = entry.icon || "fa-solid fa-circle-info";
-    }
-
-    const targetLabel = entry.target_type || entry.target_table || null;
-
-    details.innerHTML = `
-        <div class="activity-detail-summary">
-            <div class="activity-detail-summary-icon">
-                <i class="${escapeActivityHtml(entry.icon)}"></i>
-            </div>
-            <div class="activity-detail-summary-text">
-                <h4>${escapeActivityHtml(entry.activity)}</h4>
-                <p>${escapeActivityHtml(formatActivityDateTime(entry.created_at))}</p>
-            </div>
-            <span class="activity-result-badge ${resultClass(entry.result)}">
-                ${escapeActivityHtml(resultLabel(entry.result))}
-            </span>
-        </div>
-
-        <div class="activity-detail-section">
-            <div class="activity-detail-section-title">
-                <i class="fa-solid fa-circle-info"></i>
-                Activity Information
-            </div>
-            ${addDetailRow("Activity ID", entry.id)}
-            ${addDetailRow("Category", labelForActivity(entry.category))}
-            ${addDetailRow("Action", entry.action)}
-            ${addDetailRow("Result", resultLabel(entry.result))}
-            ${addDetailRow("Date & Time", formatActivityDateTime(entry.created_at))}
-            ${addDetailRow("Read", entry.is_read ? "Yes" : "No")}
-        </div>
-
-        <div class="activity-detail-section">
-            <div class="activity-detail-section-title">
-                <i class="fa-solid fa-user"></i>
-                Actor
-            </div>
-            ${addDetailRow("Actor", actorName)}
-            ${addDetailRow("Actor phone", actorPhone)}
-            ${addDetailRow("Actor type", entry.actor_type)}
-            ${addDetailRow("Actor ID", entry.actor_id)}
-            ${actorProfile && actorProfile.email ? addDetailRow("Actor email", actorProfile.email) : ""}
-            ${actorProfile && actorProfile.country ? addDetailRow("Actor country", actorProfile.country) : ""}
-        </div>
-
-        <div class="activity-detail-section">
-            <div class="activity-detail-section-title">
-                <i class="fa-solid fa-crosshairs"></i>
-                Target
-            </div>
-            ${addDetailRow("Target type", targetLabel)}
-            ${addDetailRow("Target table", entry.target_table)}
-            ${addDetailRow("Target ID", entry.target_id)}
-        </div>
-
-        <div class="activity-detail-section">
-            <div class="activity-detail-section-title">
-                <i class="fa-solid fa-shield-halved"></i>
-                Security / Session Details
-            </div>
-            ${addDetailRow("IP address", entry.ip_address)}
-            ${addDetailRow("Approximate location", entry.approximate_location)}
-            ${addDetailRow("Device ID", entry.device_id)}
-            ${addDetailRow("Device", entry.device_name)}
-            ${addDetailRow("Operating system", entry.os_name)}
-            ${addDetailRow("OS version", entry.os_version)}
-            ${addDetailRow("Session ID", entry.session_id)}
-            ${addDetailRow("Masked identifier", entry.identifier_masked)}
-            ${addDetailBlock("User agent", entry.user_agent)}
-        </div>
-
-        ${renderMetadata(entry.metadata)}
-    `;
-
-    modal.classList.add("show");
-    document.body.classList.add("activity-modal-open");
-   // Reset after the modal becomes visible
-    requestAnimationFrame(() => {
-        details.scrollTop = 0;
-    });
 }
 
 // Keep compatibility with existing HTML or other page code.

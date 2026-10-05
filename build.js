@@ -44,6 +44,7 @@ const JS_ORDER = [
     "js/verification.js",
     "js/exchange.js",
     "js/notifications.js",
+    "js/activity-details.js",
     "js/activity-log.js",
     "js/support-chat.js",
     "js/settings.js",
