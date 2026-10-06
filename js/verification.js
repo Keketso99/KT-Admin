@@ -646,7 +646,7 @@ if (verificationSearch) {
                     return;
                 }
 
-                KTUI.notify("Request for additional documents has been sent.");
+                KTUI.success("Request sent. The user was notified and a message was added to their support chat.");
 
                 modal.style.display = "none";
 
