@@ -95,6 +95,8 @@
     function injectStyles(){
         if(document.getElementById(BADGE_STYLE_ID)) return;
         var css =
+        ".dropdown.open > div:first-child .kt-badge-group{display:none}" +
+        ".dropdown > div:first-child .kt-badge-group{margin-left:10px}" +
         ".kt-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:8px;border-radius:9px;background:#e53935;color:#fff;font-size:11px;font-weight:700;line-height:1;vertical-align:middle}" +
         "#kt-live-toasts{position:fixed;top:calc(env(safe-area-inset-top,0px) + 64px);right:10px;left:10px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:100000;pointer-events:none}" +
         ".kt-toast{pointer-events:auto;max-width:340px;width:100%;background:#0f1b33;color:#fff;border-left:4px solid #1b8ef2;border-radius:10px;padding:10px 14px;box-shadow:0 6px 20px rgba(0,0,0,.35);font-size:13px;cursor:pointer;opacity:0;transform:translateY(-8px);transition:opacity .2s,transform .2s}" +
@@ -134,6 +136,34 @@
         badge.textContent = count > 99 ? "99+" : String(count);
     }
 
+    // Badge on the Finance header so pending deposits + withdrawals stay
+    // visible while the submenu is collapsed. It is hidden (CSS) when the
+    // submenu is open, because Deposits / Withdrawals then show their own.
+    function setFinanceBadge(total){
+        var deposits = menuItemFor("deposits");
+        if(!deposits || !deposits.parentElement || !deposits.parentElement.parentElement) return;
+
+        var header = deposits.parentElement.parentElement.firstElementChild;   // .dropdown > header
+        if(!header) return;
+
+        var badge = header.querySelector(":scope > .kt-badge-group");
+
+        if(!total || total < 1){
+            if(badge) badge.remove();
+            return;
+        }
+
+        if(!badge){
+            badge = document.createElement("span");
+            badge.className = "kt-badge kt-badge-group";
+            var arrow = header.querySelector(":scope > .arrow");
+            if(arrow) header.insertBefore(badge, arrow);
+            else header.appendChild(badge);
+        }
+
+        badge.textContent = total > 99 ? "99+" : String(total);
+    }
+
     function refreshBadges(){
         badgeTimer = null;
         if(typeof sb === "undefined") return;
@@ -143,6 +173,7 @@
             var r = res.data[0];
             setBadge("deposits",     r.deposits_pending     || 0);
             setBadge("withdrawals",  r.withdrawals_pending  || 0);
+            setFinanceBadge((r.deposits_pending || 0) + (r.withdrawals_pending || 0));
             setBadge("verification", (r.kyc_pending || 0) + (r.kyc_resets_pending || 0));
             setBadge("users",        (r.password_resets_pending || 0) +
                                      (r.pin_resets_pending || 0) +
