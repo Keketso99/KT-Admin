@@ -11507,18 +11507,18 @@ body.activity-modal-open{
 }
 
 
-/* ===== css/settings.css ===== */
+/* ===== css/media.css ===== */
 /* =========================================================
    KT CLOUD MINING ADMIN
-   SETTINGS / CONTENT MANAGEMENT CSS
+   MEDIA / CONTENT MANAGEMENT CSS
    ========================================================= */
 
 
 /* =========================================================
-   SETTINGS PAGE
+   MEDIA PAGE
    ========================================================= */
 
-.settings-page {
+.media-page {
 
     width: 100%;
     min-height: 100%;
@@ -11534,7 +11534,7 @@ body.activity-modal-open{
    PAGE HEADER
    ========================================================= */
 
-.settings-header {
+.media-header {
 
     display: flex;
 
@@ -11546,7 +11546,7 @@ body.activity-modal-open{
 }
 
 
-.settings-header-text h1 {
+.media-header-text h1 {
 
     margin: 0;
 
@@ -11563,14 +11563,14 @@ body.activity-modal-open{
 }
 
 
-.settings-header-text h1 i {
+.media-header-text h1 i {
 
     font-size: 22px;
 
 }
 
 
-.settings-header-text p {
+.media-header-text p {
 
     margin: 7px 0 0;
 
@@ -11584,10 +11584,10 @@ body.activity-modal-open{
 
 
 /* =========================================================
-   SETTINGS TABS
+   MEDIA TABS
    ========================================================= */
 
-.settings-tabs {
+.media-tabs {
 
     display: flex;
 
@@ -11605,14 +11605,14 @@ body.activity-modal-open{
 }
 
 
-.settings-tabs::-webkit-scrollbar {
+.media-tabs::-webkit-scrollbar {
 
     height: 4px;
 
 }
 
 
-.settings-tab {
+.media-tab {
 
     border: 3px solid #fff;
 
@@ -11648,21 +11648,21 @@ body.activity-modal-open{
 }
 
 
-.settings-tab:hover {
+.media-tab:hover {
 
     background: #ffffff;
 
 }
 
 
-.settings-tab:active {
+.media-tab:active {
 
     transform: scale(0.97);
 
 }
 
 
-.settings-tab.active {
+.media-tab.active {
 
     background: #FDBA05;
 
@@ -11671,7 +11671,7 @@ body.activity-modal-open{
 }
 
 
-.settings-tab i {
+.media-tab i {
 
     font-size: 14px;
 
@@ -11679,17 +11679,17 @@ body.activity-modal-open{
 
 
 /* =========================================================
-   SETTINGS SECTIONS
+   MEDIA SECTIONS
    ========================================================= */
 
-.settings-section {
+.media-section {
 
     display: none;
 
 }
 
 
-.settings-section.active {
+.media-section.active {
 
     display: block;
 
@@ -11700,7 +11700,7 @@ body.activity-modal-open{
    SECTION HEADER
    ========================================================= */
 
-.settings-section-header {
+.media-section-header {
 
     display: flex;
 
@@ -11715,7 +11715,7 @@ body.activity-modal-open{
 }
 
 
-.settings-section-header h2 {
+.media-section-header h2 {
 
     margin: 0;
 
@@ -11726,7 +11726,7 @@ body.activity-modal-open{
 }
 
 
-.settings-section-header p {
+.media-section-header p {
 
     margin: 5px 0 0;
 
@@ -11743,9 +11743,9 @@ body.activity-modal-open{
    BUTTONS
    ========================================================= */
 
-.settings-primary-btn,
-.settings-secondary-btn,
-.settings-danger-btn {
+.media-primary-btn,
+.media-secondary-btn,
+.media-danger-btn {
 
     min-height: 40px;
 
@@ -11777,7 +11777,7 @@ body.activity-modal-open{
 }
 
 
-.settings-primary-btn {
+.media-primary-btn {
 
     background: #111;
 
@@ -11786,14 +11786,14 @@ body.activity-modal-open{
 }
 
 
-.settings-primary-btn:hover {
+.media-primary-btn:hover {
 
     opacity: 0.9;
 
 }
 
 
-.settings-secondary-btn {
+.media-secondary-btn {
 
     background: #eeeeee;
 
@@ -11802,14 +11802,14 @@ body.activity-modal-open{
 }
 
 
-.settings-secondary-btn:hover {
+.media-secondary-btn:hover {
 
     background: #e2e2e2;
 
 }
 
 
-.settings-danger-btn {
+.media-danger-btn {
 
     background: #d93025;
 
@@ -11818,16 +11818,16 @@ body.activity-modal-open{
 }
 
 
-.settings-danger-btn:hover {
+.media-danger-btn:hover {
 
     background: #c5221f;
 
 }
 
 
-.settings-primary-btn:active,
-.settings-secondary-btn:active,
-.settings-danger-btn:active {
+.media-primary-btn:active,
+.media-secondary-btn:active,
+.media-danger-btn:active {
 
     transform: scale(0.97);
 
@@ -11838,7 +11838,7 @@ body.activity-modal-open{
    OVERVIEW STATISTICS
    ========================================================= */
 
-.settings-stats {
+.media-stats {
 
     display: grid;
 
@@ -11852,7 +11852,7 @@ body.activity-modal-open{
 }
 
 
-.settings-stat-card {
+.media-stat-card {
 
     background: #fff;
 
@@ -11875,7 +11875,7 @@ body.activity-modal-open{
 }
 
 
-.settings-stat-icon {
+.media-stat-icon {
 
     width: 44px;
 
@@ -11896,21 +11896,21 @@ body.activity-modal-open{
 }
 
 
-.settings-stat-icon i {
+.media-stat-icon i {
 
     font-size: 18px;
 
 }
 
 
-.settings-stat-info {
+.media-stat-info {
 
     min-width: 0;
 
 }
 
 
-.settings-stat-label {
+.media-stat-label {
 
     display: block;
 
@@ -11923,7 +11923,7 @@ body.activity-modal-open{
 }
 
 
-.settings-stat-info strong {
+.media-stat-info strong {
 
     display: block;
 
@@ -11935,10 +11935,10 @@ body.activity-modal-open{
 
 
 /* =========================================================
-   SETTINGS CARD
+   MEDIA CARD
    ========================================================= */
 
-.settings-card {
+.media-card {
 
     background: #fff;
 
@@ -11951,14 +11951,14 @@ body.activity-modal-open{
 }
 
 
-.settings-card-header {
+.media-card-header {
 
     margin-bottom: 16px;
 
 }
 
 
-.settings-card-header h3 {
+.media-card-header h3 {
 
     margin: 0;
 
@@ -11967,7 +11967,7 @@ body.activity-modal-open{
 }
 
 
-.settings-card-header p {
+.media-card-header p {
 
     margin: 5px 0 0;
 
@@ -11982,7 +11982,7 @@ body.activity-modal-open{
    QUICK ACTIONS
    ========================================================= */
 
-.settings-quick-actions {
+.media-quick-actions {
 
     display: grid;
 
@@ -11994,7 +11994,7 @@ body.activity-modal-open{
 }
 
 
-.settings-action-btn {
+.media-action-btn {
 
     min-height: 85px;
 
@@ -12032,7 +12032,7 @@ body.activity-modal-open{
 }
 
 
-.settings-action-btn:hover {
+.media-action-btn:hover {
 
     background: #f1f1f1;
 
@@ -12041,14 +12041,14 @@ body.activity-modal-open{
 }
 
 
-.settings-action-btn:active {
+.media-action-btn:active {
 
     transform: scale(0.97);
 
 }
 
 
-.settings-action-btn i {
+.media-action-btn i {
 
     font-size: 21px;
 
@@ -12059,7 +12059,7 @@ body.activity-modal-open{
    TOOLBAR
    ========================================================= */
 
-.settings-toolbar {
+.media-toolbar {
 
     display: flex;
 
@@ -12074,7 +12074,7 @@ body.activity-modal-open{
 }
 
 
-.settings-search {
+.media-search {
 
     flex: 1;
 
@@ -12099,7 +12099,7 @@ body.activity-modal-open{
 }
 
 
-.settings-search i {
+.media-search i {
 
     color: #888;
 
@@ -12110,7 +12110,7 @@ body.activity-modal-open{
 }
 
 
-.settings-search input {
+.media-search input {
 
     border: none;
 
@@ -12129,14 +12129,14 @@ body.activity-modal-open{
 }
 
 
-.settings-search input::placeholder {
+.media-search input::placeholder {
 
     color: #999;
 
 }
 
 
-.settings-toolbar select {
+.media-toolbar select {
 
     height: 40px;
 
@@ -12165,7 +12165,7 @@ body.activity-modal-open{
    CONTENT LIST
    ========================================================= */
 
-.settings-content-list {
+.media-content-list {
 
     display: flex;
 
@@ -12180,7 +12180,7 @@ body.activity-modal-open{
    CONTENT ITEM
    ========================================================= */
 
-.settings-content-item {
+.media-content-item {
 
     background: #fff;
 
@@ -12205,7 +12205,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-item:hover {
+.media-content-item:hover {
 
     border-color: #ccc;
 
@@ -12219,7 +12219,7 @@ body.activity-modal-open{
    CONTENT THUMBNAIL
    ========================================================= */
 
-.settings-content-thumbnail {
+.media-content-thumbnail {
 
     width: 105px;
 
@@ -12242,7 +12242,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-thumbnail img {
+.media-content-thumbnail img {
 
     width: 100%;
 
@@ -12253,7 +12253,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-thumbnail i {
+.media-content-thumbnail i {
 
     font-size: 25px;
 
@@ -12266,7 +12266,7 @@ body.activity-modal-open{
    CONTENT INFORMATION
    ========================================================= */
 
-.settings-content-info {
+.media-content-info {
 
     flex: 1;
 
@@ -12275,7 +12275,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-title {
+.media-content-title {
 
     margin: 0 0 5px;
 
@@ -12294,7 +12294,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-description {
+.media-content-description {
 
     margin: 0;
 
@@ -12315,7 +12315,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-meta {
+.media-content-meta {
 
     display: flex;
 
@@ -12334,7 +12334,7 @@ body.activity-modal-open{
    BADGES
    ========================================================= */
 
-.settings-badge {
+.media-badge {
 
     display: inline-flex;
 
@@ -12355,7 +12355,7 @@ body.activity-modal-open{
 }
 
 
-.settings-badge-category {
+.media-badge-category {
 
     background: #f1f1f1;
 
@@ -12364,7 +12364,7 @@ body.activity-modal-open{
 }
 
 
-.settings-badge-active {
+.media-badge-active {
 
     background: #e7f6ec;
 
@@ -12373,7 +12373,7 @@ body.activity-modal-open{
 }
 
 
-.settings-badge-inactive {
+.media-badge-inactive {
 
     background: #eeeeee;
 
@@ -12386,7 +12386,7 @@ body.activity-modal-open{
    CONTENT ACTIONS
    ========================================================= */
 
-.settings-content-actions {
+.media-content-actions {
 
     display: flex;
 
@@ -12397,7 +12397,7 @@ body.activity-modal-open{
 }
 
 
-.settings-content-action {
+.media-content-action {
 
     width: 36px;
 
@@ -12426,28 +12426,28 @@ body.activity-modal-open{
 }
 
 
-.settings-content-action:hover {
+.media-content-action:hover {
 
     background: #e5e5e5;
 
 }
 
 
-.settings-content-action:active {
+.media-content-action:active {
 
     transform: scale(0.94);
 
 }
 
 
-.settings-content-action.delete {
+.media-content-action.delete {
 
     color: #d93025;
 
 }
 
 
-.settings-content-action.delete:hover {
+.media-content-action.delete:hover {
 
     background: #fdecea;
 
@@ -12458,7 +12458,7 @@ body.activity-modal-open{
    EMPTY STATE
    ========================================================= */
 
-.settings-empty-state {
+.media-empty-state {
 
     min-height: 180px;
 
@@ -12485,7 +12485,7 @@ body.activity-modal-open{
 }
 
 
-.settings-empty-state i {
+.media-empty-state i {
 
     font-size: 34px;
 
@@ -12496,7 +12496,7 @@ body.activity-modal-open{
 }
 
 
-.settings-empty-state h3 {
+.media-empty-state h3 {
 
     margin: 0 0 5px;
 
@@ -12505,7 +12505,7 @@ body.activity-modal-open{
 }
 
 
-.settings-empty-state p {
+.media-empty-state p {
 
     margin: 0;
 
@@ -12520,7 +12520,7 @@ body.activity-modal-open{
    MODAL
    ========================================================= */
 
-.settings-modal {
+.media-modal {
 
     display: none;
 
@@ -12551,7 +12551,7 @@ body.activity-modal-open{
 
 
 
-.settings-modal-box {
+.media-modal-box {
 
     position: relative;
 
@@ -12580,7 +12580,7 @@ body.activity-modal-open{
 }
 
 
-.settings-modal-header {
+.media-modal-header {
 
     padding: 18px 20px;
 
@@ -12597,7 +12597,7 @@ body.activity-modal-open{
 }
 
 
-.settings-modal-header h2 {
+.media-modal-header h2 {
 
     margin: 0;
 
@@ -12606,7 +12606,7 @@ body.activity-modal-open{
 }
 
 
-.settings-modal-header p {
+.media-modal-header p {
 
     margin: 5px 0 0;
 
@@ -12619,7 +12619,7 @@ body.activity-modal-open{
 }
 
 
-.settings-modal-close {
+.media-modal-close {
 
     width: 34px;
 
@@ -12646,7 +12646,7 @@ body.activity-modal-open{
 }
 
 
-.settings-modal-close:hover {
+.media-modal-close:hover {
 
     background: #e5e5e5;
 
@@ -12657,21 +12657,21 @@ body.activity-modal-open{
    FORM
    ========================================================= */
 
-.settings-modal-box form {
+.media-modal-box form {
 
     padding: 20px;
 
 }
 
 
-.settings-form-group {
+.media-form-group {
 
     margin-bottom: 16px;
 
 }
 
 
-.settings-form-group label {
+.media-form-group label {
 
     display: block;
 
@@ -12686,9 +12686,9 @@ body.activity-modal-open{
 }
 
 
-.settings-form-group input,
-.settings-form-group select,
-.settings-form-group textarea {
+.media-form-group input,
+.media-form-group select,
+.media-form-group textarea {
 
     width: 100%;
 
@@ -12711,8 +12711,8 @@ body.activity-modal-open{
 }
 
 
-.settings-form-group input,
-.settings-form-group select {
+.media-form-group input,
+.media-form-group select {
 
     height: 40px;
 
@@ -12721,7 +12721,7 @@ body.activity-modal-open{
 }
 
 
-.settings-form-group textarea {
+.media-form-group textarea {
 
     padding: 10px 11px;
 
@@ -12734,9 +12734,9 @@ body.activity-modal-open{
 }
 
 
-.settings-form-group input:focus,
-.settings-form-group select:focus,
-.settings-form-group textarea:focus {
+.media-form-group input:focus,
+.media-form-group select:focus,
+.media-form-group textarea:focus {
 
     border-color: #888;
 
@@ -12746,7 +12746,7 @@ body.activity-modal-open{
 }
 
 
-.settings-form-group input[type="file"] {
+.media-form-group input[type="file"] {
 
     height: auto;
 
@@ -12757,7 +12757,7 @@ body.activity-modal-open{
 }
 
 
-.settings-form-group small {
+.media-form-group small {
 
     display: block;
 
@@ -12772,7 +12772,7 @@ body.activity-modal-open{
 }
 
 
-.settings-form-row {
+.media-form-row {
 
     display: grid;
 
@@ -12788,7 +12788,7 @@ body.activity-modal-open{
    MODAL ACTIONS
    ========================================================= */
 
-.settings-modal-actions {
+.media-modal-actions {
 
     display: flex;
 
@@ -12811,7 +12811,7 @@ body.activity-modal-open{
    DELETE MODAL
    ========================================================= */
 
-.settings-delete-modal {
+.media-delete-modal {
 
     max-width: 400px;
 
@@ -12822,7 +12822,7 @@ body.activity-modal-open{
 }
 
 
-.settings-delete-modal h2 {
+.media-delete-modal h2 {
 
     margin: 12px 0 7px;
 
@@ -12831,7 +12831,7 @@ body.activity-modal-open{
 }
 
 
-.settings-delete-modal p {
+.media-delete-modal p {
 
     margin: 0 auto 20px;
 
@@ -12846,7 +12846,7 @@ body.activity-modal-open{
 }
 
 
-.settings-delete-icon {
+.media-delete-icon {
 
     width: 55px;
 
@@ -12871,7 +12871,7 @@ body.activity-modal-open{
 }
 
 
-.settings-delete-modal .settings-modal-actions {
+.media-delete-modal .media-modal-actions {
 
     border-top: none;
 
@@ -12884,7 +12884,7 @@ body.activity-modal-open{
    LOADING STATE
    ========================================================= */
 
-.settings-loading {
+.media-loading {
 
     min-height: 180px;
 
@@ -12905,7 +12905,7 @@ body.activity-modal-open{
 }
 
 
-.settings-loading i {
+.media-loading i {
 
     font-size: 25px;
 
@@ -12918,7 +12918,7 @@ body.activity-modal-open{
 
 @media (max-width: 1100px) {
 
-    .settings-stats {
+    .media-stats {
 
         grid-template-columns:
             repeat(3, minmax(0, 1fr));
@@ -12926,7 +12926,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-quick-actions {
+    .media-quick-actions {
 
         grid-template-columns:
             repeat(3, minmax(0, 1fr));
@@ -12942,14 +12942,14 @@ body.activity-modal-open{
 
 @media (max-width: 800px) {
 
-    .settings-page {
+    .media-page {
 
         padding: 15px;
 
     }
 
 
-    .settings-stats {
+    .media-stats {
 
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
@@ -12957,7 +12957,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-section-header {
+    .media-section-header {
 
         align-items: flex-start;
 
@@ -12972,28 +12972,28 @@ body.activity-modal-open{
 
 @media (max-width: 600px) {
 
-    .settings-page {
+    .media-page {
 
         padding: 12px;
 
     }
 
 
-    .settings-header-text h1 {
+    .media-header-text h1 {
 
         font-size: 20px;
 
     }
 
 
-    .settings-header-text p {
+    .media-header-text p {
 
         font-size: 12px;
 
     }
 
 
-    .settings-tabs {
+    .media-tabs {
 
         margin-right: -12px;
 
@@ -13002,7 +13002,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-tab {
+    .media-tab {
 
         padding: 10px 12px;
 
@@ -13011,7 +13011,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-section-header {
+    .media-section-header {
 
         flex-direction: column;
 
@@ -13020,21 +13020,21 @@ body.activity-modal-open{
     }
 
 
-    .settings-section-header h2 {
+    .media-section-header h2 {
 
         font-size: 18px;
 
     }
 
 
-    .settings-primary-btn {
+    .media-primary-btn {
 
         width: 100%;
 
     }
 
 
-    .settings-stats {
+    .media-stats {
 
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
@@ -13044,7 +13044,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-stat-card {
+    .media-stat-card {
 
         padding: 12px;
 
@@ -13053,7 +13053,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-stat-icon {
+    .media-stat-icon {
 
         width: 36px;
 
@@ -13064,28 +13064,28 @@ body.activity-modal-open{
     }
 
 
-    .settings-stat-icon i {
+    .media-stat-icon i {
 
         font-size: 15px;
 
     }
 
 
-    .settings-stat-label {
+    .media-stat-label {
 
         font-size: 10px;
 
     }
 
 
-    .settings-stat-info strong {
+    .media-stat-info strong {
 
         font-size: 18px;
 
     }
 
 
-    .settings-quick-actions {
+    .media-quick-actions {
 
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
@@ -13093,7 +13093,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-toolbar {
+    .media-toolbar {
 
         flex-direction: column;
 
@@ -13102,7 +13102,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-search {
+    .media-search {
 
         width: 100%;
 
@@ -13111,14 +13111,14 @@ body.activity-modal-open{
     }
 
 
-    .settings-toolbar select {
+    .media-toolbar select {
 
         width: 100%;
 
     }
 
 
-    .settings-content-item {
+    .media-content-item {
 
         align-items: flex-start;
 
@@ -13127,7 +13127,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-content-thumbnail {
+    .media-content-thumbnail {
 
         width: 80px;
 
@@ -13138,7 +13138,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-content-info {
+    .media-content-info {
 
         flex: 1;
 
@@ -13147,7 +13147,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-content-actions {
+    .media-content-actions {
 
         width: 100%;
 
@@ -13160,14 +13160,14 @@ body.activity-modal-open{
     }
 
 
-    .settings-modal {
+    .media-modal {
 
         padding: 10px;
 
     }
 
 
-    .settings-modal-box {
+    .media-modal-box {
 
         max-height: 94vh;
 
@@ -13176,21 +13176,21 @@ body.activity-modal-open{
     }
 
 
-    .settings-modal-header {
+    .media-modal-header {
 
         padding: 15px;
 
     }
 
 
-    .settings-modal-box form {
+    .media-modal-box form {
 
         padding: 15px;
 
     }
 
 
-    .settings-form-row {
+    .media-form-row {
 
         grid-template-columns:
             1fr;
@@ -13200,7 +13200,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-modal-actions {
+    .media-modal-actions {
 
         flex-direction: column-reverse;
 
@@ -13209,7 +13209,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-modal-actions button {
+    .media-modal-actions button {
 
         width: 100%;
 
@@ -13224,7 +13224,7 @@ body.activity-modal-open{
 
 @media (max-width: 380px) {
 
-    .settings-stats {
+    .media-stats {
 
         grid-template-columns:
             1fr;
@@ -13232,7 +13232,7 @@ body.activity-modal-open{
     }
 
 
-    .settings-quick-actions {
+    .media-quick-actions {
 
         grid-template-columns:
             1fr 1fr;
@@ -13246,7 +13246,7 @@ body.activity-modal-open{
    TOAST
    ========================================================= */
 
-.settings-toast {
+.media-toast {
 
     position: fixed;
     left: 50%;
@@ -13266,9 +13266,67 @@ body.activity-modal-open{
 
 }
 
-.settings-toast.show {
+.media-toast.show {
 
     opacity: 1;
     transform: translate(-50%, 0);
 
+}
+
+
+/* ===== css/settings.css ===== */
+/* =========================================================
+   KT ADMIN - SETTINGS PAGE (placeholder)
+   Class names start with "app-settings-" so they can never clash
+   with the Media page styles.
+   ========================================================= */
+
+.app-settings-page{
+    padding:20px 16px 40px;
+    max-width:900px;
+    margin:0 auto;
+}
+
+.app-settings-header h1{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0 0 6px;
+    font-size:22px;
+    color:#111827;
+}
+
+.app-settings-header p{
+    margin:0 0 22px;
+    font-size:13px;
+    color:#6b7280;
+}
+
+.app-settings-empty{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    padding:46px 18px;
+    text-align:center;
+    background:#ffffff;
+    border:1px dashed #d8dee6;
+    border-radius:16px;
+    color:#6b7280;
+}
+
+.app-settings-empty i{
+    font-size:30px;
+    opacity:.5;
+}
+
+.app-settings-empty h3{
+    margin:4px 0 0;
+    font-size:16px;
+    color:#374151;
+}
+
+.app-settings-empty p{
+    margin:0;
+    font-size:13px;
 }

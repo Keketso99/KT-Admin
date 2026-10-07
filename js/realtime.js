@@ -57,8 +57,8 @@
     function modalOpen(){
         var overlay = document.getElementById("modal-overlay");
         if(overlay && overlay.classList.contains("show")) return true;
-        // settings-style self-managed modals
-        return !!document.querySelector("#admin-body .settings-modal.active, #admin-body .modal.active");
+        // media-style self-managed modals
+        return !!document.querySelector("#admin-body .media-modal.active, #admin-body .modal.active");
     }
 
     function safeCall(fn){

@@ -660,8 +660,8 @@ window.sb = supabase.createClient(
     function modalOpen(){
         var overlay = document.getElementById("modal-overlay");
         if(overlay && overlay.classList.contains("show")) return true;
-        // settings-style self-managed modals
-        return !!document.querySelector("#admin-body .settings-modal.active, #admin-body .modal.active");
+        // media-style self-managed modals
+        return !!document.querySelector("#admin-body .media-modal.active, #admin-body .modal.active");
     }
 
     function safeCall(fn){
@@ -2112,6 +2112,19 @@ function loadAdminPage(page){
             break;
 
 
+            case "media":
+
+                if(
+                    typeof initMedia === "function"
+                ){
+
+                    initMedia();
+
+                }
+
+            break;
+
+
             case "settings":
 
                 if(
@@ -2254,7 +2267,7 @@ function prefetchAllPages(){
     const pages = [
         "deposits","withdrawals","transactions","plans","users",
         "verification","exchange","notifications","activity-log",
-        "support-chat","settings"
+        "support-chat","media","settings"
     ];
 
     pages.forEach(page=>{
@@ -2396,7 +2409,7 @@ function refreshModalOverlay(){
 
     modals.forEach(modal=>{
         if(!isRealModal(modal)) return; // skip stray buttons/boxes that just end in "-modal"
-        if(modal.querySelector(':scope > [class*="-overlay"]')) return; // settings-style self-managed modals
+        if(modal.querySelector(':scope > [class*="-overlay"]')) return; // media-style self-managed modals
         if(isVisible(modal)){
             anyOpen = true;
         }
@@ -15276,10 +15289,10 @@ function handleIncomingSupportMessageChange(payload) {
 }
 
 
-/* ===== js/settings.js ===== */
+/* ===== js/media.js ===== */
 /* =========================================================
    KT CLOUD MINING ADMIN
-   SETTINGS / CONTENT MANAGEMENT — wired to real Supabase
+   MEDIA / CONTENT MANAGEMENT — wired to real Supabase
    tables + Storage (bucket: "content")
 
    Three content types managed here:
@@ -15288,32 +15301,32 @@ function handleIncomingSupportMessageChange(payload) {
    - content_downloads -> "Downloads" -> Help & Support downloads section (PDF only)
    ========================================================= */
 
-let settingsVideos = [];
-let settingsGuides = [];
-let settingsDownloads = [];
+let mediaVideos = [];
+let mediaGuides = [];
+let mediaDownloads = [];
 
 
 /* =========================================================
    SHARED HELPERS
    ========================================================= */
 
-function escapeSettingsHTML(str) {
+function escapeMediaHTML(str) {
     const div = document.createElement("div");
     div.textContent = str || "";
     return div.innerHTML;
 }
 
-function capitalizeSettings(str) {
+function capitalizeMedia(str) {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function formatSettingsCategory(cat) {
+function formatMediaCategory(cat) {
     if (!cat) return "Uncategorized";
-    return cat.split("-").map(capitalizeSettings).join(" ");
+    return cat.split("-").map(capitalizeMedia).join(" ");
 }
 
-function formatSettingsDeleteType(type) {
+function formatMediaDeleteType(type) {
     return type;
 }
 
@@ -15344,18 +15357,18 @@ function uploadContentFile(file, folder) {
 }
 
 // Simple toast — used for the video-upload confirmation.
-let settingsToastTimer = null;
+let mediaToastTimer = null;
 
-function showSettingsToast(message) {
+function showMediaToast(message) {
 
-    const toast = document.getElementById("settingsToast");
+    const toast = document.getElementById("mediaToast");
     if (!toast) return;
 
     toast.textContent = message;
     toast.classList.add("show");
 
-    if (settingsToastTimer) clearTimeout(settingsToastTimer);
-    settingsToastTimer = setTimeout(() => {
+    if (mediaToastTimer) clearTimeout(mediaToastTimer);
+    mediaToastTimer = setTimeout(() => {
         toast.classList.remove("show");
     }, 3000);
 
@@ -15363,18 +15376,18 @@ function showSettingsToast(message) {
 
 
 /* =========================================================
-   INITIALIZE SETTINGS PAGE
+   INITIALIZE MEDIA PAGE
    ========================================================= */
 
-function initSettings() {
+function initMedia() {
 
-    console.log("Initializing KT Settings page...");
+    console.log("Initializing KT Media page...");
 
-    loadSettingsData();
+    loadMediaData();
 
-    showSettingsTab("overview");
+    showMediaTab("overview");
 
-    console.log("KT Settings page initialized.");
+    console.log("KT Media page initialized.");
 }
 
 
@@ -15382,7 +15395,7 @@ function initSettings() {
    LOAD ALL CONTENT FROM SUPABASE
    ========================================================= */
 
-function loadSettingsData() {
+function loadMediaData() {
 
     sb.from("videos").select("*").order("created_at")
         .then(({ data, error }) => {
@@ -15390,14 +15403,14 @@ function loadSettingsData() {
                 console.error("Failed to load videos:", error);
                 return;
             }
-            settingsVideos = data.map(v => ({
+            mediaVideos = data.map(v => ({
                 id: v.id, title: v.title,
                 description: v.description,
                 url: v.url, fileName: v.file_name,
                 thumbnail: v.thumbnail_url
             }));
-            renderSettingsVideos();
-            renderSettingsOverview();
+            renderMediaVideos();
+            renderMediaOverview();
         });
 
     sb.from("content_guides").select("*").order("created_at")
@@ -15406,13 +15419,13 @@ function loadSettingsData() {
                 console.error("Failed to load guides:", error);
                 return;
             }
-            settingsGuides = data.map(g => ({
+            mediaGuides = data.map(g => ({
                 id: g.id, title: g.title, category: g.category,
                 status: g.status,
                 video: g.video_url, image: g.image_url
             }));
-            renderSettingsGuides();
-            renderSettingsOverview();
+            renderMediaGuides();
+            renderMediaOverview();
         });
 
     sb.from("content_downloads").select("*").order("created_at")
@@ -15421,14 +15434,14 @@ function loadSettingsData() {
                 console.error("Failed to load downloads:", error);
                 return;
             }
-            settingsDownloads = data.map(d => ({
+            mediaDownloads = data.map(d => ({
                 id: d.id, title: d.title,
                 description: d.description,
                 url: d.file_url, fileName: d.file_name,
                 fileType: d.file_type, fileSize: d.file_size
             }));
-            renderSettingsDownloads();
-            renderSettingsOverview();
+            renderMediaDownloads();
+            renderMediaOverview();
         });
 
 }
@@ -15438,16 +15451,16 @@ function loadSettingsData() {
    OVERVIEW COUNTS
    ========================================================= */
 
-function renderSettingsOverview() {
+function renderMediaOverview() {
 
     const set = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
     };
 
-    set("settingsVideoCount", settingsVideos.length);
-    set("settingsGuideCount", settingsGuides.length);
-    set("settingsDownloadCount", settingsDownloads.length);
+    set("mediaVideoCount", mediaVideos.length);
+    set("mediaGuideCount", mediaGuides.length);
+    set("mediaDownloadCount", mediaDownloads.length);
 
 }
 
@@ -15456,18 +15469,18 @@ function renderSettingsOverview() {
    TABS
    ========================================================= */
 
-function showSettingsTab(tabName) {
+function showMediaTab(tabName) {
 
-    document.querySelectorAll(".settings-section")
+    document.querySelectorAll(".media-section")
         .forEach(section => section.classList.remove("active"));
 
-    document.querySelectorAll(".settings-tab")
+    document.querySelectorAll(".media-tab")
         .forEach(tab => tab.classList.remove("active"));
 
-    const selectedSection = document.getElementById("settings-" + tabName);
+    const selectedSection = document.getElementById("media-" + tabName);
     if (selectedSection) selectedSection.classList.add("active");
 
-    const selectedTab = document.querySelector('.settings-tab[data-settings-tab="' + tabName + '"]');
+    const selectedTab = document.querySelector('.media-tab[data-media-tab="' + tabName + '"]');
     if (selectedTab) selectedTab.classList.add("active");
 
 }
@@ -15480,7 +15493,7 @@ function showSettingsTab(tabName) {
 
 function openAddVideoModal() {
 
-    const modal = document.getElementById("settingsVideoModal");
+    const modal = document.getElementById("mediaVideoModal");
     const form = document.getElementById("videoForm");
 
     if (!modal) return;
@@ -15493,16 +15506,16 @@ function openAddVideoModal() {
 }
 
 function closeVideoModal() {
-    const modal = document.getElementById("settingsVideoModal");
+    const modal = document.getElementById("mediaVideoModal");
 
     if (modal) {
         modal.style.display = "none";
     }
 }
 
-function editSettingsVideo(id) {
+function editMediaVideo(id) {
 
-    const video = settingsVideos.find(v => v.id === id);
+    const video = mediaVideos.find(v => v.id === id);
     if (!video) return;
 
     document.getElementById("videoEditId").value = video.id;
@@ -15510,11 +15523,11 @@ function editSettingsVideo(id) {
     document.getElementById("videoDescription").value = video.description || "";
 
     document.getElementById("videoModalTitle").textContent = "Edit Video";
-    document.getElementById("settingsVideoModal").classList.add("active");
+    document.getElementById("mediaVideoModal").classList.add("active");
 
 }
 
-function saveSettingsVideo(event) {
+function saveMediaVideo(event) {
 
     event.preventDefault();
 
@@ -15580,7 +15593,7 @@ function saveSettingsVideo(event) {
                 return;
             }
 
-            loadSettingsData();
+            loadMediaData();
             closeVideoModal();
             KTUI.success(editId ? "Video updated successfully." : "Video uploaded successfully.");
 
@@ -15593,16 +15606,16 @@ function saveSettingsVideo(event) {
 
 }
 
-function renderSettingsVideos(videos) {
+function renderMediaVideos(videos) {
 
-    const container = document.getElementById("settingsVideoList");
+    const container = document.getElementById("mediaVideoList");
     if (!container) return;
 
-    const list = videos || settingsVideos;
+    const list = videos || mediaVideos;
 
     if (list.length === 0) {
         container.innerHTML =
-            '<div class="settings-empty-state">' +
+            '<div class="media-empty-state">' +
                 '<i class="fa-solid fa-film"></i>' +
                 '<h3>No Educational Videos</h3>' +
                 '<p>Add educational videos for users to watch.</p>' +
@@ -15615,25 +15628,25 @@ function renderSettingsVideos(videos) {
     list.forEach(video => {
 
         const item = document.createElement("div");
-        item.className = "settings-content-item";
+        item.className = "media-content-item";
 
         const thumbnail = video.thumbnail
             ? '<img src="' + video.thumbnail + '" alt="Video thumbnail">'
             : '<i class="fa-solid fa-film"></i>';
 
         item.innerHTML =
-            '<div class="settings-content-thumbnail">' + thumbnail + '</div>' +
-            '<div class="settings-content-info">' +
-                '<h3 class="settings-content-title">' + escapeSettingsHTML(video.title) + '</h3>' +
-                '<p class="settings-content-description">' +
-                    escapeSettingsHTML(video.description || "No description available.") +
+            '<div class="media-content-thumbnail">' + thumbnail + '</div>' +
+            '<div class="media-content-info">' +
+                '<h3 class="media-content-title">' + escapeMediaHTML(video.title) + '</h3>' +
+                '<p class="media-content-description">' +
+                    escapeMediaHTML(video.description || "No description available.") +
                 '</p>' +
             '</div>' +
-            '<div class="settings-content-actions">' +
-                '<button type="button" class="settings-content-action" title="Edit Video" onclick="editSettingsVideo(\'' + video.id + '\')">' +
+            '<div class="media-content-actions">' +
+                '<button type="button" class="media-content-action" title="Edit Video" onclick="editMediaVideo(\'' + video.id + '\')">' +
                     '<i class="fa-solid fa-pen"></i>' +
                 '</button>' +
-                '<button type="button" class="settings-content-action delete" title="Delete Video" onclick="openSettingsDeleteModal(\'' + video.id + '\', \'video\')">' +
+                '<button type="button" class="media-content-action delete" title="Delete Video" onclick="openMediaDeleteModal(\'' + video.id + '\', \'video\')">' +
                     '<i class="fa-solid fa-trash"></i>' +
                 '</button>' +
             '</div>';
@@ -15644,15 +15657,15 @@ function renderSettingsVideos(videos) {
 
 }
 
-function filterSettingsVideos() {
+function filterMediaVideos() {
 
     const search = (document.getElementById("videoSearchInput").value || "").toLowerCase();
 
-    const filtered = settingsVideos.filter(v => {
+    const filtered = mediaVideos.filter(v => {
         return !search || (v.title || "").toLowerCase().includes(search);
     });
 
-    renderSettingsVideos(filtered);
+    renderMediaVideos(filtered);
 
 }
 
@@ -15681,7 +15694,7 @@ function toggleGuideMediaField() {
 
 function openAddGuideModal() {
 
-    const modal = document.getElementById("settingsGuideModal");
+    const modal = document.getElementById("mediaGuideModal");
     const form = document.getElementById("guideForm");
 
     if (!modal) return;
@@ -15696,16 +15709,16 @@ function openAddGuideModal() {
 }
 
 function closeGuideModal() {
-    const modal = document.getElementById("settingsGuideModal");
+    const modal = document.getElementById("mediaGuideModal");
 
     if (modal) {
         modal.style.display = "none";
     }
 }
 
-function editSettingsGuide(id) {
+function editMediaGuide(id) {
 
-    const guide = settingsGuides.find(g => g.id === id);
+    const guide = mediaGuides.find(g => g.id === id);
     if (!guide) return;
 
     document.getElementById("guideEditId").value = guide.id;
@@ -15715,11 +15728,11 @@ function editSettingsGuide(id) {
     toggleGuideMediaField();
 
     document.getElementById("guideModalTitle").textContent = "Edit Guide";
-    document.getElementById("settingsGuideModal").classList.add("active");
+    document.getElementById("mediaGuideModal").classList.add("active");
 
 }
 
-function saveSettingsGuide(event) {
+function saveMediaGuide(event) {
 
     event.preventDefault();
 
@@ -15785,7 +15798,7 @@ function saveSettingsGuide(event) {
                 return;
             }
 
-            loadSettingsData();
+            loadMediaData();
             closeGuideModal();
             KTUI.notify(editId ? "Guide updated successfully." : "Guide added successfully.");
 
@@ -15795,16 +15808,16 @@ function saveSettingsGuide(event) {
 
 }
 
-function renderSettingsGuides(guides) {
+function renderMediaGuides(guides) {
 
-    const container = document.getElementById("settingsGuideList");
+    const container = document.getElementById("mediaGuideList");
     if (!container) return;
 
-    const list = guides || settingsGuides;
+    const list = guides || mediaGuides;
 
     if (list.length === 0) {
         container.innerHTML =
-            '<div class="settings-empty-state">' +
+            '<div class="media-empty-state">' +
                 '<i class="fa-solid fa-book"></i>' +
                 '<h3>No Guides</h3>' +
                 '<p>Add help guides for users to see.</p>' +
@@ -15817,30 +15830,30 @@ function renderSettingsGuides(guides) {
     list.forEach(guide => {
 
         const item = document.createElement("div");
-        item.className = "settings-content-item";
+        item.className = "media-content-item";
 
         const thumbnail = guide.status === "video"
             ? '<i class="fa-solid fa-circle-play"></i>'
             : (guide.image ? '<img src="' + guide.image + '" alt="Guide photo">' : '<i class="fa-solid fa-image"></i>');
 
         item.innerHTML =
-            '<div class="settings-content-thumbnail">' + thumbnail + '</div>' +
-            '<div class="settings-content-info">' +
-                '<h3 class="settings-content-title">' + escapeSettingsHTML(guide.title) + '</h3>' +
-                '<div class="settings-content-meta">' +
-                    '<span class="settings-badge settings-badge-category">' +
-                        escapeSettingsHTML(formatSettingsCategory(guide.category)) +
+            '<div class="media-content-thumbnail">' + thumbnail + '</div>' +
+            '<div class="media-content-info">' +
+                '<h3 class="media-content-title">' + escapeMediaHTML(guide.title) + '</h3>' +
+                '<div class="media-content-meta">' +
+                    '<span class="media-badge media-badge-category">' +
+                        escapeMediaHTML(formatMediaCategory(guide.category)) +
                     '</span>' +
-                    '<span class="settings-badge settings-badge-active">' +
-                        escapeSettingsHTML(capitalizeSettings(guide.status)) +
+                    '<span class="media-badge media-badge-active">' +
+                        escapeMediaHTML(capitalizeMedia(guide.status)) +
                     '</span>' +
                 '</div>' +
             '</div>' +
-            '<div class="settings-content-actions">' +
-                '<button type="button" class="settings-content-action" title="Edit Guide" onclick="editSettingsGuide(\'' + guide.id + '\')">' +
+            '<div class="media-content-actions">' +
+                '<button type="button" class="media-content-action" title="Edit Guide" onclick="editMediaGuide(\'' + guide.id + '\')">' +
                     '<i class="fa-solid fa-pen"></i>' +
                 '</button>' +
-                '<button type="button" class="settings-content-action delete" title="Delete Guide" onclick="openSettingsDeleteModal(\'' + guide.id + '\', \'guide\')">' +
+                '<button type="button" class="media-content-action delete" title="Delete Guide" onclick="openMediaDeleteModal(\'' + guide.id + '\', \'guide\')">' +
                     '<i class="fa-solid fa-trash"></i>' +
                 '</button>' +
             '</div>';
@@ -15851,20 +15864,20 @@ function renderSettingsGuides(guides) {
 
 }
 
-function filterSettingsGuides() {
+function filterMediaGuides() {
 
     const search = (document.getElementById("guideSearchInput").value || "").toLowerCase();
     const category = document.getElementById("guideCategoryFilter").value;
     const type = document.getElementById("guideStatusFilter").value;
 
-    const filtered = settingsGuides.filter(g => {
+    const filtered = mediaGuides.filter(g => {
         const matchesSearch = !search || (g.title || "").toLowerCase().includes(search);
         const matchesCategory = category === "all" || g.category === category;
         const matchesType = type === "all" || g.status === type;
         return matchesSearch && matchesCategory && matchesType;
     });
 
-    renderSettingsGuides(filtered);
+    renderMediaGuides(filtered);
 
 }
 
@@ -15876,7 +15889,7 @@ function filterSettingsGuides() {
 
 function openAddDownloadModal() {
 
-    const modal = document.getElementById("settingsDownloadModal");
+    const modal = document.getElementById("mediaDownloadModal");
     const form = document.getElementById("downloadForm");
 
     if (!modal) return;
@@ -15889,16 +15902,16 @@ function openAddDownloadModal() {
 }
 
 function closeDownloadModal() {
-    const modal = document.getElementById("settingsDownloadModal");
+    const modal = document.getElementById("mediaDownloadModal");
 
     if (modal) {
         modal.style.display = "none";
     }
 }
 
-function editSettingsDownload(id) {
+function editMediaDownload(id) {
 
-    const item = settingsDownloads.find(d => d.id === id);
+    const item = mediaDownloads.find(d => d.id === id);
     if (!item) return;
 
     document.getElementById("downloadEditId").value = item.id;
@@ -15906,11 +15919,11 @@ function editSettingsDownload(id) {
     document.getElementById("downloadDescription").value = item.description || "";
 
     document.getElementById("downloadModalTitle").textContent = "Edit Download";
-    document.getElementById("settingsDownloadModal").classList.add("active");
+    document.getElementById("mediaDownloadModal").classList.add("active");
 
 }
 
-function saveSettingsDownload(event) {
+function saveMediaDownload(event) {
 
     event.preventDefault();
 
@@ -15975,7 +15988,7 @@ function saveSettingsDownload(event) {
                 return;
             }
 
-            loadSettingsData();
+            loadMediaData();
             closeDownloadModal();
             KTUI.notify(editId ? "Download updated successfully." : "Download added successfully.");
 
@@ -15985,16 +15998,16 @@ function saveSettingsDownload(event) {
 
 }
 
-function renderSettingsDownloads(downloads) {
+function renderMediaDownloads(downloads) {
 
-    const container = document.getElementById("settingsDownloadList");
+    const container = document.getElementById("mediaDownloadList");
     if (!container) return;
 
-    const list = downloads || settingsDownloads;
+    const list = downloads || mediaDownloads;
 
     if (list.length === 0) {
         container.innerHTML =
-            '<div class="settings-empty-state">' +
+            '<div class="media-empty-state">' +
                 '<i class="fa-solid fa-file-arrow-down"></i>' +
                 '<h3>No Downloads</h3>' +
                 '<p>Add downloadable PDF files for users.</p>' +
@@ -16007,22 +16020,22 @@ function renderSettingsDownloads(downloads) {
     list.forEach(item => {
 
         const el = document.createElement("div");
-        el.className = "settings-content-item";
+        el.className = "media-content-item";
 
         el.innerHTML =
-            '<div class="settings-content-thumbnail"><i class="fa-solid fa-file-pdf"></i></div>' +
-            '<div class="settings-content-info">' +
-                '<h3 class="settings-content-title">' + escapeSettingsHTML(item.title) + '</h3>' +
-                '<p class="settings-content-description">' +
-                    escapeSettingsHTML(item.description || "No description available.") +
+            '<div class="media-content-thumbnail"><i class="fa-solid fa-file-pdf"></i></div>' +
+            '<div class="media-content-info">' +
+                '<h3 class="media-content-title">' + escapeMediaHTML(item.title) + '</h3>' +
+                '<p class="media-content-description">' +
+                    escapeMediaHTML(item.description || "No description available.") +
                 '</p>' +
-                (item.fileSize ? '<div class="settings-content-meta"><span class="settings-badge settings-badge-category">' + formatFileSize(item.fileSize) + '</span></div>' : '') +
+                (item.fileSize ? '<div class="media-content-meta"><span class="media-badge media-badge-category">' + formatFileSize(item.fileSize) + '</span></div>' : '') +
             '</div>' +
-            '<div class="settings-content-actions">' +
-                '<button type="button" class="settings-content-action" title="Edit" onclick="editSettingsDownload(\'' + item.id + '\')">' +
+            '<div class="media-content-actions">' +
+                '<button type="button" class="media-content-action" title="Edit" onclick="editMediaDownload(\'' + item.id + '\')">' +
                     '<i class="fa-solid fa-pen"></i>' +
                 '</button>' +
-                '<button type="button" class="settings-content-action delete" title="Delete" onclick="openSettingsDeleteModal(\'' + item.id + '\', \'download\')">' +
+                '<button type="button" class="media-content-action delete" title="Delete" onclick="openMediaDeleteModal(\'' + item.id + '\', \'download\')">' +
                     '<i class="fa-solid fa-trash"></i>' +
                 '</button>' +
             '</div>';
@@ -16033,15 +16046,15 @@ function renderSettingsDownloads(downloads) {
 
 }
 
-function filterSettingsDownloads() {
+function filterMediaDownloads() {
 
     const search = (document.getElementById("downloadSearchInput").value || "").toLowerCase();
 
-    const filtered = settingsDownloads.filter(d => {
+    const filtered = mediaDownloads.filter(d => {
         return !search || (d.title || "").toLowerCase().includes(search);
     });
 
-    renderSettingsDownloads(filtered);
+    renderMediaDownloads(filtered);
 
 }
 
@@ -16050,47 +16063,47 @@ function filterSettingsDownloads() {
    DELETE (shared across videos / guides / downloads)
    ========================================================= */
 
-function openSettingsDeleteModal(id, type) {
+function openMediaDeleteModal(id, type) {
 
-    document.getElementById("settingsDeleteId").value = id;
-    document.getElementById("settingsDeleteType").value = type;
+    document.getElementById("mediaDeleteId").value = id;
+    document.getElementById("mediaDeleteType").value = type;
 
-    const message = document.getElementById("settingsDeleteMessage");
+    const message = document.getElementById("mediaDeleteMessage");
     if (message) {
         message.textContent =
-            "Are you sure you want to delete this " + formatSettingsDeleteType(type) + "? This action cannot be undone.";
+            "Are you sure you want to delete this " + formatMediaDeleteType(type) + "? This action cannot be undone.";
     }
 
-    document.getElementById("settingsDeleteModal").style.display = "flex";
+    document.getElementById("mediaDeleteModal").style.display = "flex";
 
 }
 
-function closeSettingsDeleteModal() {
-    const modal = document.getElementById("settingsDeleteModal");
+function closeMediaDeleteModal() {
+    const modal = document.getElementById("mediaDeleteModal");
 
     if (modal) {
         modal.style.display = "none";
     }
 }
 
-const SETTINGS_DELETE_TABLES = {
+const MEDIA_DELETE_TABLES = {
     video: "videos",
     guide: "content_guides",
     download: "content_downloads"
 };
 
-function confirmSettingsDelete() {
+function confirmMediaDelete() {
 
-    const id = document.getElementById("settingsDeleteId").value;
-    const type = document.getElementById("settingsDeleteType").value;
+    const id = document.getElementById("mediaDeleteId").value;
+    const type = document.getElementById("mediaDeleteType").value;
 
     if (!id || !type) return;
 
-    const table = SETTINGS_DELETE_TABLES[type];
+    const table = MEDIA_DELETE_TABLES[type];
     if (!table) return;
 
     const done = KTUI.busy(
-        document.querySelector('[onclick*="confirmSettingsDelete"]'),
+        document.querySelector('[onclick*="confirmMediaDelete"]'),
         "Deleting..."
     );
 
@@ -16100,7 +16113,7 @@ function confirmSettingsDelete() {
 
             done();
 
-            closeSettingsDeleteModal();
+            closeMediaDeleteModal();
 
             if (error) {
                 KTUI.notify("Failed to delete: " + error.message);
@@ -16111,21 +16124,21 @@ function confirmSettingsDelete() {
                 (type === "video" ? "Video" : type === "guide" ? "Guide" : "Download") + " deleted."
             );
 
-            loadSettingsData();
+            loadMediaData();
 
         });
 
 }
 
 /* =========================================================
-   SETTINGS MODALS — CLICK OUTSIDE TO CLOSE
+   MEDIA MODALS — CLICK OUTSIDE TO CLOSE
    Same behavior as Users page modals
 ========================================================= */
 
 document.addEventListener("click", function(event) {
 
     if (
-        event.target.classList.contains("settings-modal")
+        event.target.classList.contains("media-modal")
     ) {
 
         event.target.style.display = "none";
@@ -16133,6 +16146,20 @@ document.addEventListener("click", function(event) {
     }
 
 });
+
+/* ===== js/settings.js ===== */
+// =========================================================
+// KT ADMIN - SETTINGS PAGE (placeholder)
+// Intentionally empty for now. Add settings features here.
+// (Content management - videos, guides, downloads - lives in media.js.)
+// =========================================================
+
+function initSettings(){
+
+    console.log("KT Settings page initialized.");
+
+}
+
 
 /* ===== js/dashboard.js ===== */
 // =====================================

@@ -406,6 +406,19 @@ function loadAdminPage(page){
             break;
 
 
+            case "media":
+
+                if(
+                    typeof initMedia === "function"
+                ){
+
+                    initMedia();
+
+                }
+
+            break;
+
+
             case "settings":
 
                 if(
@@ -548,7 +561,7 @@ function prefetchAllPages(){
     const pages = [
         "deposits","withdrawals","transactions","plans","users",
         "verification","exchange","notifications","activity-log",
-        "support-chat","settings"
+        "support-chat","media","settings"
     ];
 
     pages.forEach(page=>{
@@ -690,7 +703,7 @@ function refreshModalOverlay(){
 
     modals.forEach(modal=>{
         if(!isRealModal(modal)) return; // skip stray buttons/boxes that just end in "-modal"
-        if(modal.querySelector(':scope > [class*="-overlay"]')) return; // settings-style self-managed modals
+        if(modal.querySelector(':scope > [class*="-overlay"]')) return; // media-style self-managed modals
         if(isVisible(modal)){
             anyOpen = true;
         }

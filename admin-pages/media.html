@@ -1,0 +1,1083 @@
+<!-- =========================================================
+     KT CLOUD MINING ADMIN
+     MEDIA / CONTENT MANAGEMENT PAGE
+     ========================================================= -->
+
+<div class="media-page">
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
+
+    <div class="media-header">
+
+        <div class="media-header-text">
+
+            <h1>
+                <i class="fa-solid fa-photo-film"></i>
+                Media
+            </h1>
+
+            <p>
+                Manage educational videos, guides and
+                downloadable PDF files available in the user app.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         MEDIA NAVIGATION
+         ===================================================== -->
+
+    <div class="media-tabs">
+
+        <button
+            type="button"
+            class="media-tab active"
+            data-media-tab="overview"
+            onclick="showMediaTab('overview')">
+
+            <i class="fa-solid fa-chart-pie"></i>
+
+            <span>Overview</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="media-tab"
+            data-media-tab="videos"
+            onclick="showMediaTab('videos')">
+
+            <i class="fa-solid fa-film"></i>
+
+            <span>Videos</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="media-tab"
+            data-media-tab="guides"
+            onclick="showMediaTab('guides')">
+
+            <i class="fa-solid fa-book-open"></i>
+
+            <span>Guides</span>
+
+        </button>
+
+
+        <button
+            type="button"
+            class="media-tab"
+            data-media-tab="downloads"
+            onclick="showMediaTab('downloads')">
+
+            <i class="fa-solid fa-download"></i>
+
+            <span>Downloads</span>
+
+        </button>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         OVERVIEW
+         ===================================================== -->
+
+    <section
+        id="media-overview"
+        class="media-section active">
+
+
+        <div class="media-section-header">
+
+            <div>
+
+                <h2>
+                    Content Overview
+                </h2>
+
+                <p>
+                    Manage all content displayed throughout
+                    the KT Cloud Mining user app.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             STATISTICS
+             ================================================= -->
+
+        <div class="media-stats">
+
+
+            <!-- VIDEOS -->
+
+            <div class="media-stat-card">
+
+                <div class="media-stat-icon">
+
+                    <i class="fa-solid fa-film"></i>
+
+                </div>
+
+                <div class="media-stat-info">
+
+                    <span class="media-stat-label">
+                        Educational Videos
+                    </span>
+
+                    <strong id="mediaVideoCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- GUIDES -->
+
+            <div class="media-stat-card">
+
+                <div class="media-stat-icon">
+
+                    <i class="fa-solid fa-book-open"></i>
+
+                </div>
+
+                <div class="media-stat-info">
+
+                    <span class="media-stat-label">
+                        Guides
+                    </span>
+
+                    <strong id="mediaGuideCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- DOWNLOADS -->
+
+            <div class="media-stat-card">
+
+                <div class="media-stat-icon">
+
+                    <i class="fa-solid fa-file-arrow-down"></i>
+
+                </div>
+
+                <div class="media-stat-info">
+
+                    <span class="media-stat-label">
+                        Downloads
+                    </span>
+
+                    <strong id="mediaDownloadCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             QUICK ACTIONS
+             ================================================= -->
+
+        <div class="media-card">
+
+            <div class="media-card-header">
+
+                <div>
+
+                    <h3>
+                        Quick Actions
+                    </h3>
+
+                    <p>
+                        Quickly add new content to the user app.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="media-quick-actions">
+
+
+                <button
+                    type="button"
+                    class="media-action-btn"
+                    onclick="openAddVideoModal()">
+
+                    <i class="fa-solid fa-circle-play"></i>
+
+                    <span>
+                        Add Video
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="media-action-btn"
+                    onclick="openAddGuideModal()">
+
+                    <i class="fa-solid fa-book"></i>
+
+                    <span>
+                        Add Guide
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="media-action-btn"
+                    onclick="openAddDownloadModal()">
+
+                    <i class="fa-solid fa-file-arrow-up"></i>
+
+                    <span>
+                        Add Download
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         VIDEOS
+         ===================================================== -->
+
+    <section
+        id="media-videos"
+        class="media-section">
+
+
+        <div class="media-section-header">
+
+            <div>
+
+                <h2>
+                    Educational Videos
+                </h2>
+
+                <p>
+                    Manage educational videos displayed in the
+                    film section of the user app.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="media-primary-btn"
+                onclick="openAddVideoModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Video
+
+            </button>
+
+        </div>
+
+
+        <!-- SEARCH -->
+
+        <div class="media-toolbar">
+
+            <div class="media-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="videoSearchInput"
+                    placeholder="Search videos..."
+                    oninput="filterMediaVideos()">
+
+            </div>
+
+        </div>
+
+
+        <!-- VIDEO LIST -->
+
+        <div
+            id="mediaVideoList"
+            class="media-content-list">
+
+            <!--
+                Videos will be inserted here by JavaScript.
+            -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         GUIDES
+         ===================================================== -->
+
+    <section
+        id="media-guides"
+        class="media-section">
+
+
+        <div class="media-section-header">
+
+            <div>
+
+                <h2>
+                    Guides
+                </h2>
+
+                <p>
+                    Manage help and support guides displayed
+                    in the user app.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="media-primary-btn"
+                onclick="openAddGuideModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Guide
+
+            </button>
+
+        </div>
+
+
+        <div class="media-toolbar">
+
+            <div class="media-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="guideSearchInput"
+                    placeholder="Search guides..."
+                    oninput="filterMediaGuides()">
+
+            </div>
+
+
+            <select
+                id="guideCategoryFilter"
+                onchange="filterMediaGuides()">
+
+                <option value="all">
+                    All Categories
+                </option>
+
+                <option value="getting-started">
+                    Getting Started
+                </option>
+
+                <option value="deposit">
+                    Making a Deposit
+                </option>
+
+                <option value="withdraw">
+                    Requesting a Withdrawal
+                </option>
+
+                <option value="kyc">
+                    Completing KYC
+                </option>
+
+            </select>
+
+
+            <select
+                id="guideStatusFilter"
+                onchange="filterMediaGuides()">
+
+                <option value="all">
+                    All Types
+                </option>
+
+                <option value="photo">
+                    Photo
+                </option>
+
+                <option value="video">
+                    Video
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div
+            id="mediaGuideList"
+            class="media-content-list">
+
+            <!-- Guides inserted by JavaScript -->
+
+        </div>
+
+
+    </section>
+
+    <!-- =====================================================
+         DOWNLOADS
+         ===================================================== -->
+
+    <section
+        id="media-downloads"
+        class="media-section">
+
+
+        <div class="media-section-header">
+
+            <div>
+
+                <h2>
+                    Downloads
+                </h2>
+
+                <p>
+                    PDF files available for users to download
+                    from the Help & Support section.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="media-primary-btn"
+                onclick="openAddDownloadModal()">
+
+                <i class="fa-solid fa-plus"></i>
+
+                Add Download
+
+            </button>
+
+        </div>
+
+
+        <div class="media-toolbar">
+
+            <div class="media-search">
+
+                <i class="fa-solid fa-search"></i>
+
+                <input
+                    type="text"
+                    id="downloadSearchInput"
+                    placeholder="Search files..."
+                    oninput="filterMediaDownloads()">
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="mediaDownloadList"
+            class="media-content-list">
+
+            <!-- Downloads inserted by JavaScript -->
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT VIDEO MODAL
+         ===================================================== -->
+
+    <div
+        id="mediaVideoModal"
+        class="media-modal">
+
+
+        
+
+
+        <div class="media-modal-box">
+
+
+            <div class="media-modal-header">
+
+                <div>
+
+                    <h2 id="videoModalTitle">
+                        Add Video
+                    </h2>
+
+                    <p>
+                        Add an educational video to the user app.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="media-modal-close"
+                    onclick="closeVideoModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="videoForm"
+                novalidate
+                onsubmit="saveMediaVideo(event)">
+
+
+                <input
+                    type="hidden"
+                    id="videoEditId">
+
+
+                <div class="media-form-group">
+
+                    <label for="videoTitle">
+                        Video Title
+                    </label>
+
+                    <input
+                        type="text"
+                        id="videoTitle"
+                        placeholder="Enter video title"
+                        required>
+
+                </div>
+
+
+                <div class="media-form-group">
+
+                    <label for="videoDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="videoDescription"
+                        rows="4"
+                        placeholder="Describe what this video teaches...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="media-form-group">
+
+                    <label for="videoFile">
+                        Video File
+                    </label>
+
+                    <input
+                        type="file"
+                        id="videoFile"
+                        accept="video/*">
+
+                </div>
+
+
+                <div class="media-form-group">
+
+                    <label for="videoThumbnail">
+                        Thumbnail
+                    </label>
+
+                    <input
+                        type="file"
+                        id="videoThumbnail"
+                        accept="image/*">
+
+                </div>
+
+
+                <div class="media-modal-actions">
+
+                    <button
+                        type="button"
+                        class="media-secondary-btn"
+                        onclick="closeVideoModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="media-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Video
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT GUIDE MODAL
+         ===================================================== -->
+
+    <div
+        id="mediaGuideModal"
+        class="media-modal">
+
+
+        
+
+
+        <div class="media-modal-box">
+
+
+            <div class="media-modal-header">
+
+                <div>
+
+                    <h2 id="guideModalTitle">
+                        Add Guide
+                    </h2>
+
+                    <p>
+                        Create a help and support guide.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="media-modal-close"
+                    onclick="closeGuideModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="guideForm"
+                novalidate
+                onsubmit="saveMediaGuide(event)">
+
+
+                <input
+                    type="hidden"
+                    id="guideEditId">
+
+
+                <div class="media-form-group">
+
+                    <label for="guideTitle">
+                        Guide Title
+                    </label>
+
+                    <input
+                        type="text"
+                        id="guideTitle"
+                        placeholder="Enter guide title"
+                        required>
+
+                </div>
+
+
+                <div class="media-form-row">
+
+
+                    <div class="media-form-group">
+
+                        <label for="guideCategory">
+                            Category
+                        </label>
+
+                        <select
+                            id="guideCategory"
+                            required>
+
+                            <option value="">
+                                Select Category
+                            </option>
+
+                            <option value="getting-started">
+                                Getting Started
+                            </option>
+
+                            <option value="deposit">
+                                Making a Deposit
+                            </option>
+
+                            <option value="withdraw">
+                                Requesting a Withdrawal
+                            </option>
+
+                            <option value="kyc">
+                                Completing KYC
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="media-form-group">
+
+                        <label for="guideStatus">
+                            Status
+                        </label>
+
+                        <select id="guideStatus" onchange="toggleGuideMediaField()">
+
+                            <option value="photo">
+                                Photo
+                            </option>
+
+                            <option value="video">
+                                Video
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="media-form-group" id="guidePhotoField">
+
+                    <label for="guideImage">
+                        Guide Photo
+                    </label>
+
+                    <input
+                        type="file"
+                        id="guideImage"
+                        accept="image/*">
+
+                </div>
+
+
+                <div class="media-form-group" id="guideVideoField" style="display:none;">
+
+                    <label for="guideVideoFile">
+                        Guide Video
+                    </label>
+
+                    <input
+                        type="file"
+                        id="guideVideoFile"
+                        accept="video/*">
+
+                </div>
+
+
+                <div class="media-modal-actions">
+
+                    <button
+                        type="button"
+                        class="media-secondary-btn"
+                        onclick="closeGuideModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="media-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Guide
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD / EDIT DOWNLOAD MODAL
+         ===================================================== -->
+
+    <div
+        id="mediaDownloadModal"
+        class="media-modal">
+
+
+        
+
+
+        <div class="media-modal-box">
+
+
+            <div class="media-modal-header">
+
+                <div>
+
+                    <h2 id="downloadModalTitle">
+                        Add Download
+                    </h2>
+
+                    <p>
+                        Add a downloadable file to the user app.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="media-modal-close"
+                    onclick="closeDownloadModal()">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <form
+                id="downloadForm"
+                novalidate
+                onsubmit="saveMediaDownload(event)">
+
+
+                <input
+                    type="hidden"
+                    id="downloadEditId">
+
+
+                <div class="media-form-group">
+
+                    <label for="downloadTitle">
+                        File Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="downloadTitle"
+                        placeholder="Enter file name"
+                        required>
+
+                </div>
+
+
+                <div class="media-form-group">
+
+                    <label for="downloadDescription">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="downloadDescription"
+                        rows="4"
+                        placeholder="Describe this file...">
+                    </textarea>
+
+                </div>
+
+
+                <div class="media-form-group">
+
+                    <label for="downloadFile">
+                        Upload PDF
+                    </label>
+
+                    <input
+                        type="file"
+                        id="downloadFile"
+                        accept="application/pdf,.pdf">
+
+                    <small>
+                        Select the PDF users will be able to download.
+                    </small>
+
+                </div>
+
+
+                <div class="media-modal-actions">
+
+                    <button
+                        type="button"
+                        class="media-secondary-btn"
+                        onclick="closeDownloadModal()">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="media-primary-btn">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Download
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         DELETE CONFIRMATION MODAL
+         ===================================================== -->
+
+    <div
+        id="mediaDeleteModal"
+        class="media-modal">
+
+
+
+
+        <div class="media-modal-box media-delete-modal">
+
+
+            <div class="media-delete-icon">
+
+                <i class="fa-solid fa-trash"></i>
+
+            </div>
+
+
+            <h2>
+                Delete Content?
+            </h2>
+
+
+            <p id="mediaDeleteMessage">
+                Are you sure you want to delete this item?
+            </p>
+
+
+            <input
+                type="hidden"
+                id="mediaDeleteId">
+
+
+            <input
+                type="hidden"
+                id="mediaDeleteType">
+
+
+            <div class="media-modal-actions">
+
+
+                <button
+                    type="button"
+                    class="media-secondary-btn"
+                    onclick="closeMediaDeleteModal()">
+
+                    Cancel
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="media-danger-btn"
+                    onclick="confirmMediaDelete()">
+
+                    <i class="fa-solid fa-trash"></i>
+
+                    Delete
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         TOAST
+         ===================================================== -->
+
+    <div id="mediaToast" class="media-toast"></div>
+
+
+</div>

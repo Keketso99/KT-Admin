@@ -26,6 +26,7 @@ const CSS_ORDER = [
     "css/notifications.css",
     "css/activity-log.css",
     "css/support-chat.css",
+    "css/media.css",
     "css/settings.css"
 ];
 
@@ -47,6 +48,7 @@ const JS_ORDER = [
     "js/activity-details.js",
     "js/activity-log.js",
     "js/support-chat.js",
+    "js/media.js",
     "js/settings.js",
     "js/dashboard.js"
 ];
