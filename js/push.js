@@ -112,6 +112,7 @@
             }
             return subscribe().then(saveSubscription).then(function(ok){
                 paint(ok);
+                try{ window.dispatchEvent(new Event("kt-push-changed")); }catch(e){}
                 say(ok ? "Notifications on" : "Could not turn on notifications",
                     ok ? "You will be alerted even when the app is closed." : "Please try again.");
                 return ok;
@@ -132,6 +133,7 @@
             }).then(function(){ return true; });
         }).then(function(){
             paint(false);
+            try{ window.dispatchEvent(new Event("kt-push-changed")); }catch(e){}
             say("Notifications off", "This device will no longer get alerts while the app is closed.");
         }).catch(function(e){ console.warn("[KTPush] disable failed", e); });
     }
@@ -166,6 +168,21 @@
         }
     }
 
-    window.KTPush = { init: init, enable: enable, disable: disable };
+    // { supported, permission, subscribed }
+    function status(){
+        if(!supported()){
+            return Promise.resolve({ supported: false, permission: "unsupported", subscribed: false });
+        }
+        if(Notification.permission !== "granted"){
+            return Promise.resolve({ supported: true, permission: Notification.permission, subscribed: false });
+        }
+        return currentSubscription().then(function(sub){
+            return { supported: true, permission: "granted", subscribed: !!sub };
+        }).catch(function(){
+            return { supported: true, permission: "granted", subscribed: false };
+        });
+    }
+
+    window.KTPush = { init: init, enable: enable, disable: disable, status: status };
 
 })();

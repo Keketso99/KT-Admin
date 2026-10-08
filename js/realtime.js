@@ -211,10 +211,13 @@
     var audioCtx = null;
 
     function soundOn(){
+        if(window.KTSound) return KTSound.isOn();
         try{ return localStorage.getItem("kt.admin.sound") !== "off"; }catch(e){ return true; }
     }
 
     function beep(){
+        // chosen sound (built-in or from the phone) from Settings > Sound
+        if(window.KTSound){ KTSound.playAlert(); return; }
         if(!soundOn()) return;
         try{
             var AC = window.AudioContext || window.webkitAudioContext;
@@ -273,10 +276,12 @@
         }
         paint();
         i.addEventListener("click", function(){
-            try{ localStorage.setItem("kt.admin.sound", soundOn() ? "off" : "on"); }catch(e){}
+            if(window.KTSound){ KTSound.setOn(!soundOn()); }
+            else { try{ localStorage.setItem("kt.admin.sound", soundOn() ? "off" : "on"); }catch(e){} }
             paint();
             if(soundOn()) beep();
         });
+        window.addEventListener("kt-sound-changed", paint);
         logout.parentNode.insertBefore(i, logout);
     }
 
@@ -321,6 +326,9 @@
         } else if(payload.eventType !== "INSERT"){
             return;
         }
+
+        // Settings > Sound & Notifications: this kind of alert may be switched off.
+        if(window.KTSound && !KTSound.typeEnabled(KTSound.groupForAction(row.action))) return;
 
         // Do not alert for the conversation that is open on screen right now.
         if(isChat && currentPage === "support-chat" &&

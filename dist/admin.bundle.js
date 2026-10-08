@@ -92,6 +92,9 @@ window.sb = supabase.createClient(
         ".kt-ui-btn.kt-secondary{background:#e5e7eb;color:#111827}" +
         ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}" +
 
+        ".kt-pw{position:relative;display:block}" +
+        ".kt-pw .kt-ui-input{padding-right:46px;margin-top:0}" +
+        ".kt-pw-eye{position:absolute;top:0;right:0;height:100%;width:44px;border:0;background:transparent;color:#6b7280;font-size:16px;cursor:pointer}" +
         ".kt-empty-row td{padding:0!important;border:0!important;background:transparent!important}" +
         ".kt-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 16px;color:#6b7280;font-family:Arial,sans-serif;font-size:14px;line-height:1.4;text-align:center}" +
         ".kt-empty i{font-size:26px;opacity:.55}" +
@@ -232,7 +235,15 @@ window.sb = supabase.createClient(
                 if(config.input.placeholder) input.placeholder = config.input.placeholder;
                 if(config.input.value !== undefined) input.value = String(config.input.value);
                 input.setAttribute("autocomplete", "off");
-                card.appendChild(input);
+
+                if(input.type === "password"){
+                    var pw = passwordWrap(input);
+                    pw.style.marginTop = "12px";
+                    input.style.marginTop = "0";
+                    card.appendChild(pw);
+                } else {
+                    card.appendChild(input);
+                }
 
                 errorLine = el("div", "kt-ui-error", "");
                 card.appendChild(errorLine);
@@ -350,6 +361,38 @@ window.sb = supabase.createClient(
                 try{ (input || okBtn).focus(); }catch(e){}
             });
         });
+    }
+
+    // ---------------------------------------------------------
+    // Password input with a show / hide (eye) button
+    // ---------------------------------------------------------
+    function passwordWrap(input){
+        var wrap = el("div", "kt-pw");
+        var eye = el("button", "kt-pw-eye");
+        eye.type = "button";
+        eye.setAttribute("aria-label", "Show or hide password");
+        eye.innerHTML = '<i class="fa-solid fa-eye"></i>';
+        eye.addEventListener("click", function(){
+            var show = input.type === "password";
+            input.type = show ? "text" : "password";
+            eye.innerHTML = '<i class="fa-solid ' + (show ? "fa-eye-slash" : "fa-eye") + '"></i>';
+            try{ input.focus(); }catch(e){}
+        });
+        wrap.appendChild(input);
+        wrap.appendChild(eye);
+        return wrap;
+    }
+
+    // KTUI.passwordField({placeholder, autocomplete}) -> { wrap, input }
+    function passwordField(options){
+        injectStyles();
+        options = options || {};
+        var input = el("input", "kt-ui-input");
+        input.type = "password";
+        input.style.marginTop = "0";
+        if(options.placeholder) input.placeholder = options.placeholder;
+        input.setAttribute("autocomplete", options.autocomplete || "off");
+        return { wrap: passwordWrap(input), input: input };
     }
 
     // ---------------------------------------------------------
@@ -578,6 +621,7 @@ window.sb = supabase.createClient(
 
     window.KTUI = {
         busy: busy,
+        passwordField: passwordField,
         syncTableEmpty: syncTableEmpty,
         syncBlockEmpty: syncBlockEmpty,
         toast: toast,
@@ -596,6 +640,691 @@ window.sb = supabase.createClient(
     window.alert = function(message){
         notify(message);
     };
+
+})();
+
+
+/* ===== js/sound.js ===== */
+// =========================================================
+// KT ADMIN — NOTIFICATION SOUND & ALERT PREFERENCES
+// Saved on THIS device (localStorage + IndexedDB for a custom file).
+//
+//   KTSound.isOn() / setOn(bool)           master switch for alert sounds
+//   KTSound.list()                         built-in sounds [{id, name}]
+//   KTSound.getChoice() / setChoice(id)    "chime" ... or "custom"
+//   KTSound.preview(id)                    play a sound now (even if switched off)
+//   KTSound.playAlert()                    what the app plays for a new alert
+//   KTSound.saveCustomFile(file)           choose a sound from phone storage
+//   KTSound.clearCustom()
+//   KTSound.typeEnabled(group)             pop-up alerts per type
+//   KTSound.setType(group, bool)
+//
+// Everything is generated with the Web Audio API — no sound files needed.
+// =========================================================
+
+(function(){
+
+    var KEY_ON     = "kt.admin.sound";            // same key the header speaker icon uses
+    var KEY_CHOICE = "kt.admin.soundChoice";
+    var KEY_TYPES  = "kt.admin.alertTypes";
+    var KEY_NAME   = "kt.admin.soundCustomName";
+
+    var MAX_BYTES = 3 * 1024 * 1024;              // 3 MB
+    var MAX_SECONDS = 30;
+
+    var GROUPS = [
+        { id: "deposits",     label: "Deposits" },
+        { id: "withdrawals",  label: "Withdrawals" },
+        { id: "verification", label: "Verification (KYC)" },
+        { id: "requests",     label: "User requests (password, PIN, profile, reactivation)" },
+        { id: "chat",         label: "Support chat messages" }
+    ];
+
+    var audioCtx = null;
+    var currentEl = null;
+
+    // ---------------------------------------------------------
+    // storage helpers (never throw)
+    // ---------------------------------------------------------
+    function get(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+    function put(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
+    function del(key){ try{ localStorage.removeItem(key); }catch(e){} }
+
+    function changed(){
+        try{ window.dispatchEvent(new Event("kt-sound-changed")); }catch(e){}
+    }
+
+    // ---------------------------------------------------------
+    // IndexedDB (custom sound file)
+    // ---------------------------------------------------------
+    function openDb(){
+        return new Promise(function(resolve, reject){
+            if(!window.indexedDB){ reject(new Error("Storage is not available")); return; }
+            var req = indexedDB.open("kt-admin-sounds", 1);
+            req.onupgradeneeded = function(){ req.result.createObjectStore("files"); };
+            req.onsuccess = function(){ resolve(req.result); };
+            req.onerror = function(){ reject(req.error || new Error("Storage error")); };
+        });
+    }
+
+    function dbGet(){
+        return openDb().then(function(db){
+            return new Promise(function(resolve, reject){
+                var r = db.transaction("files", "readonly").objectStore("files").get("custom");
+                r.onsuccess = function(){ resolve(r.result || null); };
+                r.onerror = function(){ reject(r.error); };
+            });
+        });
+    }
+
+    function dbPut(blob){
+        return openDb().then(function(db){
+            return new Promise(function(resolve, reject){
+                var tx = db.transaction("files", "readwrite");
+                tx.objectStore("files").put(blob, "custom");
+                tx.oncomplete = function(){ resolve(); };
+                tx.onerror = function(){ reject(tx.error); };
+            });
+        });
+    }
+
+    function dbDelete(){
+        return openDb().then(function(db){
+            return new Promise(function(resolve, reject){
+                var tx = db.transaction("files", "readwrite");
+                tx.objectStore("files").delete("custom");
+                tx.oncomplete = function(){ resolve(); };
+                tx.onerror = function(){ reject(tx.error); };
+            });
+        });
+    }
+
+    // ---------------------------------------------------------
+    // Built-in sounds (Web Audio)
+    // ---------------------------------------------------------
+    function ctx(){
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return null;
+        if(!audioCtx) audioCtx = new AC();
+        if(audioCtx.state === "suspended"){ try{ audioCtx.resume(); }catch(e){} }
+        return audioCtx;
+    }
+
+    // one tone: freq Hz, start offset s, length s, wave type, peak gain
+    function tone(c, freq, at, len, type, peak){
+        var o = c.createOscillator();
+        var g = c.createGain();
+        var t0 = c.currentTime + at;
+        o.type = type || "sine";
+        o.frequency.setValueAtTime(freq, t0);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(peak || 0.2, t0 + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+        o.connect(g);
+        g.connect(c.destination);
+        o.start(t0);
+        o.stop(t0 + len + 0.03);
+    }
+
+    var BUILTIN = [
+        { id: "chime", name: "Chime",     play: function(c){ tone(c, 880, 0, .35); tone(c, 1175, .16, .5); } },
+        { id: "bell",  name: "Bell",      play: function(c){ tone(c, 1046, 0, 1.2, "sine", .22); tone(c, 2093, 0, .8, "sine", .06); } },
+        { id: "ding",  name: "Ding",      play: function(c){ tone(c, 1318, 0, .45, "sine", .25); } },
+        { id: "pulse", name: "Pulse",     play: function(c){ tone(c, 660, 0, .12, "triangle", .25); tone(c, 660, .2, .12, "triangle", .25); tone(c, 660, .4, .12, "triangle", .25); } },
+        { id: "soft",  name: "Soft tone", play: function(c){ tone(c, 523, 0, .5, "triangle", .2); tone(c, 659, .22, .6, "triangle", .2); } },
+        { id: "alert", name: "Alert",     play: function(c){ for(var i = 0; i < 3; i++){ tone(c, 880, i * .36, .16, "square", .09); tone(c, 660, i * .36 + .17, .16, "square", .09); } } }
+    ];
+
+    function builtin(id){
+        for(var i = 0; i < BUILTIN.length; i++) if(BUILTIN[i].id === id) return BUILTIN[i];
+        return null;
+    }
+
+    // ---------------------------------------------------------
+    // Playing
+    // ---------------------------------------------------------
+    function stopCurrent(){
+        if(currentEl){
+            try{ currentEl.pause(); }catch(e){}
+            currentEl = null;
+        }
+    }
+
+    function playCustom(){
+        return dbGet().then(function(blob){
+            if(!blob) return false;
+            stopCurrent();
+            var url = URL.createObjectURL(blob);
+            var a = new Audio(url);
+            currentEl = a;
+            a.volume = 1;
+            var cleanup = function(){ try{ URL.revokeObjectURL(url); }catch(e){} if(currentEl === a) currentEl = null; };
+            a.addEventListener("ended", cleanup);
+            a.addEventListener("error", cleanup);
+            var p = a.play();
+            if(p && p.catch) p.catch(cleanup);
+            // never play for more than the limit
+            setTimeout(function(){ try{ a.pause(); }catch(e){} cleanup(); }, MAX_SECONDS * 1000);
+            return true;
+        }).catch(function(){ return false; });
+    }
+
+    function preview(id){
+        if(id === "custom") return playCustom();
+        var b = builtin(id) || BUILTIN[0];
+        var c = ctx();
+        if(!c) return Promise.resolve(false);
+        try{ b.play(c); }catch(e){ return Promise.resolve(false); }
+        return Promise.resolve(true);
+    }
+
+    function isOn(){ return get(KEY_ON) !== "off"; }
+
+    function setOn(on){
+        put(KEY_ON, on ? "on" : "off");
+        changed();
+    }
+
+    function getChoice(){
+        var c = get(KEY_CHOICE) || "chime";
+        if(c === "custom") return c;
+        return builtin(c) ? c : "chime";
+    }
+
+    function setChoice(id){
+        put(KEY_CHOICE, id === "custom" ? "custom" : (builtin(id) ? id : "chime"));
+        changed();
+    }
+
+    function playAlert(){
+        if(!isOn()) return;
+        var choice = getChoice();
+        if(choice === "custom"){
+            playCustom().then(function(ok){ if(!ok) preview("chime"); });
+            return;
+        }
+        preview(choice);
+    }
+
+    // ---------------------------------------------------------
+    // Custom sound from phone storage
+    // ---------------------------------------------------------
+    function saveCustomFile(file){
+        return new Promise(function(resolve, reject){
+            if(!file) { reject(new Error("No file selected.")); return; }
+            if(file.type && file.type.indexOf("audio") !== 0){
+                reject(new Error("Please choose an audio file (mp3, wav, m4a, ogg...).")); return;
+            }
+            if(file.size > MAX_BYTES){
+                reject(new Error("That file is too large. Choose a sound under 3 MB.")); return;
+            }
+
+            // make sure the browser can really play it, and that it is short
+            var url = URL.createObjectURL(file);
+            var probe = new Audio();
+            var done = false;
+            var finish = function(err){
+                if(done) return;
+                done = true;
+                try{ URL.revokeObjectURL(url); }catch(e){}
+                if(err){ reject(err); return; }
+                dbPut(file).then(function(){
+                    put(KEY_NAME, file.name || "Custom sound");
+                    put(KEY_CHOICE, "custom");
+                    changed();
+                    resolve(file.name || "Custom sound");
+                }).catch(function(){ reject(new Error("Could not save the sound on this device.")); });
+            };
+            probe.preload = "metadata";
+            probe.onloadedmetadata = function(){
+                if(isFinite(probe.duration) && probe.duration > MAX_SECONDS){
+                    finish(new Error("That sound is longer than " + MAX_SECONDS + " seconds. Choose a shorter one."));
+                } else { finish(null); }
+            };
+            probe.onerror = function(){ finish(new Error("That file cannot be played on this device.")); };
+            probe.src = url;
+            setTimeout(function(){ finish(new Error("That file could not be read.")); }, 8000);
+        });
+    }
+
+    function clearCustom(){
+        return dbDelete().catch(function(){}).then(function(){
+            del(KEY_NAME);
+            if(get(KEY_CHOICE) === "custom") put(KEY_CHOICE, "chime");
+            changed();
+        });
+    }
+
+    function customName(){ return get(KEY_NAME); }
+
+    function hasCustom(){ return !!get(KEY_NAME); }
+
+    // ---------------------------------------------------------
+    // Alert types (pop-ups + sound)
+    // ---------------------------------------------------------
+    function readTypes(){
+        try{ return JSON.parse(get(KEY_TYPES) || "{}") || {}; }catch(e){ return {}; }
+    }
+
+    function typeEnabled(group){
+        var t = readTypes();
+        return t[group] !== false;
+    }
+
+    function setType(group, on){
+        var t = readTypes();
+        t[group] = !!on;
+        put(KEY_TYPES, JSON.stringify(t));
+        changed();
+    }
+
+    // which group a notification record belongs to
+    function groupForAction(action){
+        switch(action){
+            case "deposit_requested": return "deposits";
+            case "withdrawal_requested": return "withdrawals";
+            case "kyc_verification_requested":
+            case "kyc_resubmission_requested": return "verification";
+            case "support_message_received": return "chat";
+            default: return "requests";
+        }
+    }
+
+    window.KTSound = {
+        list: function(){ return BUILTIN.map(function(b){ return { id: b.id, name: b.name }; }); },
+        groups: function(){ return GROUPS.slice(); },
+        isOn: isOn,
+        setOn: setOn,
+        getChoice: getChoice,
+        setChoice: setChoice,
+        preview: preview,
+        playAlert: playAlert,
+        saveCustomFile: saveCustomFile,
+        clearCustom: clearCustom,
+        customName: customName,
+        hasCustom: hasCustom,
+        typeEnabled: typeEnabled,
+        setType: setType,
+        groupForAction: groupForAction
+    };
+
+})();
+
+
+/* ===== js/xlsx-writer.js ===== */
+// =========================================================
+// KT ADMIN — XLSX WRITER (no libraries, no network)
+// Builds a real .xlsx file (zip of XML parts, "stored" = uncompressed).
+//
+//   var bytes = KTXlsx.build({
+//     sheets: [{
+//       name: "Summary",
+//       widths: [30, 18, 18],              // column widths (characters)
+//       freeze: { rows: 1 },               // optional: freeze header rows
+//       merges: ["A1:C1"],                 // optional
+//       rows: [
+//         [ {v:"Title", s:"title"} ],
+//         [ "Text", 12.5, {v:34, s:"money"}, {f:"B2+C2", v:46.5, s:"money"} ],
+//         ...
+//       ]
+//     }]
+//   });
+//   KTXlsx.download(bytes, "report.xlsx");
+//
+// Cell values:  null | number | string | Date | { v, f, s }
+//   f = formula text without "=" ; v = value shown until the app recalculates
+//   s = style name: title, header, section, bold, money, moneyBold, date,
+//       note, good, bad, wrap, int, pct
+// =========================================================
+
+(function(){
+
+    var enc = new TextEncoder();
+
+    // ---------------------------------------------------------
+    // Styles
+    // ---------------------------------------------------------
+    var NUMFMTS = {
+        money: '"R"#,##0.00;[Red]-"R"#,##0.00',
+        date:  'yyyy-mm-dd hh:mm',
+        pct:   '0.00%',
+        int:   '#,##0'
+    };
+    var NUMFMT_IDS = { money: 164, date: 165, pct: 166, int: 167 };
+
+    var FONTS = [
+        '<font><sz val="11"/><name val="Calibri"/></font>',                                              // 0 normal
+        '<font><b/><sz val="11"/><name val="Calibri"/></font>',                                          // 1 bold
+        '<font><b/><sz val="16"/><color rgb="FF0F2A55"/><name val="Calibri"/></font>',                   // 2 title
+        '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>',                   // 3 header (white)
+        '<font><i/><sz val="10"/><color rgb="FF6B7280"/><name val="Calibri"/></font>',                   // 4 note
+        '<font><b/><sz val="11"/><color rgb="FF166534"/><name val="Calibri"/></font>',                   // 5 good
+        '<font><b/><sz val="11"/><color rgb="FF991B1B"/><name val="Calibri"/></font>'                    // 6 bad
+    ];
+
+    var FILLS = [
+        '<fill><patternFill patternType="none"/></fill>',
+        '<fill><patternFill patternType="gray125"/></fill>',
+        '<fill><patternFill patternType="solid"><fgColor rgb="FF0F2A55"/><bgColor indexed="64"/></patternFill></fill>', // 2 header
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFE5ECF6"/><bgColor indexed="64"/></patternFill></fill>', // 3 section
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill>', // 4 good
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>'  // 5 bad
+    ];
+
+    var BORDERS = [
+        '<border><left/><right/><top/><bottom/><diagonal/></border>',
+        '<border><left/><right/><top style="thin"><color rgb="FF9CA3AF"/></top><bottom style="double"><color rgb="FF9CA3AF"/></bottom><diagonal/></border>'  // 1 total line
+    ];
+
+    // name -> [numFmt, font, fill, border, wrap]
+    var STYLES = {
+        "default":   [null,    0, 0, 0, false],
+        "title":     [null,    2, 0, 0, false],
+        "header":    [null,    3, 2, 0, false],
+        "section":   [null,    1, 3, 0, false],
+        "bold":      [null,    1, 0, 0, false],
+        "money":     ["money", 0, 0, 0, false],
+        "moneyBold": ["money", 1, 0, 1, false],
+        "date":      ["date",  0, 0, 0, false],
+        "note":      [null,    4, 0, 0, true],
+        "good":      [null,    5, 4, 0, false],
+        "bad":       [null,    6, 5, 0, false],
+        "wrap":      [null,    0, 0, 0, true],
+        "int":       ["int",   0, 0, 0, false],
+        "pct":       ["pct",   0, 0, 0, false]
+    };
+    var STYLE_NAMES = Object.keys(STYLES);
+
+    function stylesXml(){
+        var numFmts = Object.keys(NUMFMTS).map(function(k){
+            return '<numFmt numFmtId="' + NUMFMT_IDS[k] + '" formatCode="' + esc(NUMFMTS[k]) + '"/>';
+        }).join("");
+
+        var xfs = STYLE_NAMES.map(function(n){
+            var d = STYLES[n];
+            var numId = d[0] ? NUMFMT_IDS[d[0]] : 0;
+            return '<xf numFmtId="' + numId + '" fontId="' + d[1] + '" fillId="' + d[2] + '" borderId="' + d[3] +
+                '" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"' +
+                (d[4] ? ' applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' : '/>');
+        }).join("");
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+            '<numFmts count="' + Object.keys(NUMFMTS).length + '">' + numFmts + '</numFmts>' +
+            '<fonts count="' + FONTS.length + '">' + FONTS.join("") + '</fonts>' +
+            '<fills count="' + FILLS.length + '">' + FILLS.join("") + '</fills>' +
+            '<borders count="' + BORDERS.length + '">' + BORDERS.join("") + '</borders>' +
+            '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+            '<cellXfs count="' + STYLE_NAMES.length + '">' + xfs + '</cellXfs>' +
+            '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+            '</styleSheet>';
+    }
+
+    // ---------------------------------------------------------
+    // XML helpers
+    // ---------------------------------------------------------
+    function esc(s){
+        return String(s)
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function colName(i){            // 0 -> A, 25 -> Z, 26 -> AA
+        var s = "";
+        i = i + 1;
+        while(i > 0){
+            var m = (i - 1) % 26;
+            s = String.fromCharCode(65 + m) + s;
+            i = Math.floor((i - 1) / 26);
+        }
+        return s;
+    }
+
+    function styleIndex(name){
+        var i = STYLE_NAMES.indexOf(name || "default");
+        return i < 0 ? 0 : i;
+    }
+
+    function excelDate(d){
+        // local wall-clock time, so the sheet shows the admin's own time
+        return (d.getTime() - d.getTimezoneOffset() * 60000) / 86400000 + 25569;
+    }
+
+    function cellXml(ref, cell){
+        if(cell === null || cell === undefined || cell === "") return "";
+
+        var v = cell, f = null, s = "default";
+        if(cell && typeof cell === "object" && !(cell instanceof Date)){
+            v = cell.v; f = cell.f || null; s = cell.s || "default";
+        }
+
+        var si = styleIndex(s);
+        var sAttr = si ? ' s="' + si + '"' : "";
+
+        if(v instanceof Date){
+            if(s === "default") sAttr = ' s="' + styleIndex("date") + '"';
+            v = excelDate(v);
+        }
+
+        if(f){
+            var fx = '<f>' + esc(f) + '</f>';
+            if(typeof v === "number" && isFinite(v)) return '<c r="' + ref + '"' + sAttr + '>' + fx + '<v>' + v + '</v></c>';
+            if(typeof v === "string") return '<c r="' + ref + '"' + sAttr + ' t="str">' + fx + '<v>' + esc(v) + '</v></c>';
+            return '<c r="' + ref + '"' + sAttr + '>' + fx + '</c>';
+        }
+
+        if(typeof v === "number"){
+            if(!isFinite(v)) return "";
+            return '<c r="' + ref + '"' + sAttr + '><v>' + v + '</v></c>';
+        }
+        if(typeof v === "boolean"){
+            return '<c r="' + ref + '"' + sAttr + ' t="b"><v>' + (v ? 1 : 0) + '</v></c>';
+        }
+        return '<c r="' + ref + '"' + sAttr + ' t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+    }
+
+    function sheetXml(sheet){
+        var rows = sheet.rows || [];
+        var maxCols = 1;
+        rows.forEach(function(r){ if(r.length > maxCols) maxCols = r.length; });
+
+        var cols = "";
+        if(sheet.widths && sheet.widths.length){
+            cols = '<cols>' + sheet.widths.map(function(w, i){
+                return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>';
+            }).join("") + '</cols>';
+        }
+
+        var pane = "";
+        if(sheet.freeze && sheet.freeze.rows){
+            var top = sheet.freeze.rows + 1;
+            pane = '<pane ySplit="' + sheet.freeze.rows + '" topLeftCell="A' + top + '" activePane="bottomLeft" state="frozen"/>' +
+                   '<selection pane="bottomLeft" activeCell="A' + top + '" sqref="A' + top + '"/>';
+        }
+
+        var data = rows.map(function(r, ri){
+            var cells = r.map(function(c, ci){ return cellXml(colName(ci) + (ri + 1), c); }).join("");
+            return cells ? '<row r="' + (ri + 1) + '">' + cells + '</row>' : '<row r="' + (ri + 1) + '"/>';
+        }).join("");
+
+        var merges = "";
+        if(sheet.merges && sheet.merges.length){
+            merges = '<mergeCells count="' + sheet.merges.length + '">' +
+                sheet.merges.map(function(m){ return '<mergeCell ref="' + m + '"/>'; }).join("") + '</mergeCells>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+            '<dimension ref="A1:' + colName(maxCols - 1) + Math.max(rows.length, 1) + '"/>' +
+            '<sheetViews><sheetView workbookViewId="0"' + (sheet.hideGrid ? ' showGridLines="0"' : '') + '>' + pane + '</sheetView></sheetViews>' +
+            '<sheetFormatPr defaultRowHeight="15"/>' + cols +
+            '<sheetData>' + data + '</sheetData>' + merges +
+            '</worksheet>';
+    }
+
+    // ---------------------------------------------------------
+    // ZIP (stored)
+    // ---------------------------------------------------------
+    var CRC_TABLE = null;
+    function crc32(bytes){
+        if(!CRC_TABLE){
+            CRC_TABLE = new Uint32Array(256);
+            for(var n = 0; n < 256; n++){
+                var c = n;
+                for(var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+                CRC_TABLE[n] = c >>> 0;
+            }
+        }
+        var crc = 0xFFFFFFFF;
+        for(var i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function zip(files){          // files: [{name, data(Uint8Array)}]
+        var now = new Date();
+        var dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+        var dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+
+        var parts = [], central = [], offset = 0;
+
+        files.forEach(function(f){
+            var name = enc.encode(f.name);
+            var crc = crc32(f.data);
+            var size = f.data.length;
+
+            var lh = new DataView(new ArrayBuffer(30));
+            lh.setUint32(0, 0x04034b50, true);
+            lh.setUint16(4, 20, true);
+            lh.setUint16(6, 0x0800, true);
+            lh.setUint16(8, 0, true);
+            lh.setUint16(10, dosTime, true);
+            lh.setUint16(12, dosDate, true);
+            lh.setUint32(14, crc, true);
+            lh.setUint32(18, size, true);
+            lh.setUint32(22, size, true);
+            lh.setUint16(26, name.length, true);
+            lh.setUint16(28, 0, true);
+
+            parts.push(new Uint8Array(lh.buffer), name, f.data);
+
+            var ch = new DataView(new ArrayBuffer(46));
+            ch.setUint32(0, 0x02014b50, true);
+            ch.setUint16(4, 20, true);
+            ch.setUint16(6, 20, true);
+            ch.setUint16(8, 0x0800, true);
+            ch.setUint16(10, 0, true);
+            ch.setUint16(12, dosTime, true);
+            ch.setUint16(14, dosDate, true);
+            ch.setUint32(16, crc, true);
+            ch.setUint32(20, size, true);
+            ch.setUint32(24, size, true);
+            ch.setUint16(28, name.length, true);
+            ch.setUint32(42, offset, true);
+            central.push(new Uint8Array(ch.buffer), name);
+
+            offset += 30 + name.length + size;
+        });
+
+        var centralSize = central.reduce(function(n, p){ return n + p.length; }, 0);
+
+        var end = new DataView(new ArrayBuffer(22));
+        end.setUint32(0, 0x06054b50, true);
+        end.setUint16(8, files.length, true);
+        end.setUint16(10, files.length, true);
+        end.setUint32(12, centralSize, true);
+        end.setUint32(16, offset, true);
+
+        var all = parts.concat(central, [new Uint8Array(end.buffer)]);
+        var total = all.reduce(function(n, p){ return n + p.length; }, 0);
+        var out = new Uint8Array(total), pos = 0;
+        all.forEach(function(p){ out.set(p, pos); pos += p.length; });
+        return out;
+    }
+
+    // ---------------------------------------------------------
+    // Workbook
+    // ---------------------------------------------------------
+    function safeSheetName(n, used){
+        var name = String(n || "Sheet").replace(/[\[\]\:\*\?\/\\]/g, " ").trim().slice(0, 31) || "Sheet";
+        var base = name, i = 2;
+        while(used.indexOf(name.toLowerCase()) !== -1){
+            name = base.slice(0, 28) + " " + i++;
+        }
+        used.push(name.toLowerCase());
+        return name;
+    }
+
+    function build(workbook){
+        var sheets = workbook.sheets || [];
+        var used = [];
+        var names = sheets.map(function(s){ return safeSheetName(s.name, used); });
+
+        var files = [];
+        function add(name, text){ files.push({ name: name, data: enc.encode(text) }); }
+
+        add("[Content_Types].xml",
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+            '<Default Extension="xml" ContentType="application/xml"/>' +
+            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+            '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+            sheets.map(function(_, i){
+                return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+            }).join("") +
+            '</Types>');
+
+        add("_rels/.rels",
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+            '</Relationships>');
+
+        add("xl/workbook.xml",
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+            '<bookViews><workbookView/></bookViews><sheets>' +
+            names.map(function(n, i){
+                return '<sheet name="' + esc(n) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>';
+            }).join("") +
+            '</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>');
+
+        add("xl/_rels/workbook.xml.rels",
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+            sheets.map(function(_, i){
+                return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+            }).join("") +
+            '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+            '</Relationships>');
+
+        add("xl/styles.xml", stylesXml());
+
+        sheets.forEach(function(s, i){ add("xl/worksheets/sheet" + (i + 1) + ".xml", sheetXml(s)); });
+
+        return zip(files);
+    }
+
+    function download(bytes, filename){
+        var blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1500);
+    }
+
+    var api = { build: build, download: download, colName: colName };
+
+    if(typeof window !== "undefined") window.KTXlsx = api;
+    if(typeof module !== "undefined" && module.exports) module.exports = api;
 
 })();
 
@@ -814,10 +1543,13 @@ window.sb = supabase.createClient(
     var audioCtx = null;
 
     function soundOn(){
+        if(window.KTSound) return KTSound.isOn();
         try{ return localStorage.getItem("kt.admin.sound") !== "off"; }catch(e){ return true; }
     }
 
     function beep(){
+        // chosen sound (built-in or from the phone) from Settings > Sound
+        if(window.KTSound){ KTSound.playAlert(); return; }
         if(!soundOn()) return;
         try{
             var AC = window.AudioContext || window.webkitAudioContext;
@@ -876,10 +1608,12 @@ window.sb = supabase.createClient(
         }
         paint();
         i.addEventListener("click", function(){
-            try{ localStorage.setItem("kt.admin.sound", soundOn() ? "off" : "on"); }catch(e){}
+            if(window.KTSound){ KTSound.setOn(!soundOn()); }
+            else { try{ localStorage.setItem("kt.admin.sound", soundOn() ? "off" : "on"); }catch(e){} }
             paint();
             if(soundOn()) beep();
         });
+        window.addEventListener("kt-sound-changed", paint);
         logout.parentNode.insertBefore(i, logout);
     }
 
@@ -924,6 +1658,9 @@ window.sb = supabase.createClient(
         } else if(payload.eventType !== "INSERT"){
             return;
         }
+
+        // Settings > Sound & Notifications: this kind of alert may be switched off.
+        if(window.KTSound && !KTSound.typeEnabled(KTSound.groupForAction(row.action))) return;
 
         // Do not alert for the conversation that is open on screen right now.
         if(isChat && currentPage === "support-chat" &&
@@ -1259,6 +1996,7 @@ window.sb = supabase.createClient(
             }
             return subscribe().then(saveSubscription).then(function(ok){
                 paint(ok);
+                try{ window.dispatchEvent(new Event("kt-push-changed")); }catch(e){}
                 say(ok ? "Notifications on" : "Could not turn on notifications",
                     ok ? "You will be alerted even when the app is closed." : "Please try again.");
                 return ok;
@@ -1279,6 +2017,7 @@ window.sb = supabase.createClient(
             }).then(function(){ return true; });
         }).then(function(){
             paint(false);
+            try{ window.dispatchEvent(new Event("kt-push-changed")); }catch(e){}
             say("Notifications off", "This device will no longer get alerts while the app is closed.");
         }).catch(function(e){ console.warn("[KTPush] disable failed", e); });
     }
@@ -1313,7 +2052,22 @@ window.sb = supabase.createClient(
         }
     }
 
-    window.KTPush = { init: init, enable: enable, disable: disable };
+    // { supported, permission, subscribed }
+    function status(){
+        if(!supported()){
+            return Promise.resolve({ supported: false, permission: "unsupported", subscribed: false });
+        }
+        if(Notification.permission !== "granted"){
+            return Promise.resolve({ supported: true, permission: Notification.permission, subscribed: false });
+        }
+        return currentSubscription().then(function(sub){
+            return { supported: true, permission: "granted", subscribed: !!sub };
+        }).catch(function(){
+            return { supported: true, permission: "granted", subscribed: false };
+        });
+    }
+
+    window.KTPush = { init: init, enable: enable, disable: disable, status: status };
 
 })();
 
@@ -10320,6 +11074,18 @@ function sendNotification(){
     function renderSecurity(entry, ctx, all){
         var m = metaParts(entry).meta, a = adminOf(entry), d = deviceText(entry);
 
+        if(entry.action === "settings_password_created" || entry.action === "settings_password_changed"){
+            var created = entry.action === "settings_password_created";
+            return {
+                summary: a.name + (created ? " created" : " changed") + " their settings password.",
+                body: section("Settings password", "fa-solid fa-key", [
+                    row("Action", created ? "Password created" : "Password changed"),
+                    row("Result", resultLabelSafe(entry))
+                ]) + note("The password itself is never recorded.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
+
         if(entry.action === "failed_login"){
             var burst = failedBurst(entry, all);
             return {
@@ -10391,6 +11157,20 @@ function sendNotification(){
     function renderChanges(entry, ctx){
         var p = metaParts(entry), a = adminOf(entry), act = entry.action;
         var b = p.before, af = p.after;
+
+        if(act === "audit_records_deleted"){
+            var m = p.meta;
+            var older = m.scope === "older";
+            return {
+                summary: a.name + " deleted " + (m.deleted != null ? m.deleted : "some") + " audit record" + (Number(m.deleted) === 1 ? "" : "s") + ".",
+                body: section("Audit records deleted", "fa-solid fa-trash-can", [
+                    row("Records deleted", plain(m.deleted)),
+                    row("Which records", (older ? "Older than " : "From the last ") + (m.days || "?") + " days"),
+                    row("Cut-off", when(m.cutoff))
+                ]) + note("Only the audit was affected. Deposits, withdrawals, wallets and other pages were not changed.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
 
         if(act.indexOf("exchange_rate_") === 0){
             var src = Object.keys(af).length ? af : b;
@@ -10821,6 +11601,9 @@ payment_methods_rejected: "users",
 
 // KYC
 kyc_additional_documents_requested: "users",
+    settings_password_created: "security",
+    settings_password_changed: "security",
+    audit_records_deleted: "changes",
 kyc_approved: "users",
 approved_kyc: "users",
 kyc_rejected: "users",
@@ -10920,6 +11703,9 @@ payment_methods_approved: "fa-solid fa-circle-check",
 payment_methods_rejected: "fa-solid fa-circle-xmark",
 
 kyc_additional_documents_requested: "fa-solid fa-file-circle-question",
+    settings_password_created: "fa-solid fa-key",
+    settings_password_changed: "fa-solid fa-key",
+    audit_records_deleted: "fa-solid fa-trash-can",
 kyc_resubmission_rejected: "fa-solid fa-circle-xmark",
 kyc_resubmission_completed: "fa-solid fa-circle-check",
 
@@ -16149,16 +16935,970 @@ document.addEventListener("click", function(event) {
 
 /* ===== js/settings.js ===== */
 // =========================================================
-// KT ADMIN - SETTINGS PAGE (placeholder)
-// Intentionally empty for now. Add settings features here.
-// (Content management - videos, guides, downloads - lives in media.js.)
+// KT ADMIN — SETTINGS PAGE
+//   Sound & notifications | Admins | Audit | Safety
+//
+// Every category except Safety asks for the settings password each time it
+// is opened. The password is kept in memory only while a category is open
+// and is checked again by the server on every sensitive action.
 // =========================================================
 
-function initSettings(){
+(function(){
 
-    console.log("KT Settings page initialized.");
+    var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
+    var LOCKED_VIEWS = ["sound", "admin", "audit"];
 
-}
+    var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
+
+    // ---------------------------------------------------------
+    // tiny helpers
+    // ---------------------------------------------------------
+    function $(id){ return document.getElementById(id); }
+
+    function esc(v){
+        if(v === null || v === undefined) return "";
+        return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function rand(n){
+        var x = Number(n) || 0;
+        var abs = Math.abs(x).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return (x < 0 ? "-R" : "R") + abs;
+    }
+
+    function dt(v){
+        if(!v) return "—";
+        var d = new Date(v);
+        return isNaN(d) ? "—" : d.toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function dOnly(v){
+        if(!v) return "—";
+        var d = new Date(v);
+        return isNaN(d) ? "—" : d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+    }
+
+    var ERRORS = {
+        wrong: "Wrong password.",
+        none: "No settings password has been created yet.",
+        denied: "Admin access is required.",
+        too_short: "Use at least 8 characters.",
+        same_password: "The new password must be different from the old one.",
+        exists: "A settings password already exists.",
+        user_not_found: "That user could not be found.",
+        already_admin: "This user is already an admin.",
+        self: "You cannot remove your own admin role.",
+        last_admin: "At least one admin must remain.",
+        not_admin: "That user is not an admin.",
+        bad_scope: "Choose which records to delete.",
+        bad_stream: "Something went wrong. Please try again."
+    };
+
+    function errorText(d){
+        if(!d) return "Something went wrong.";
+        if(d.error === "locked"){
+            var mins = d.locked_until ? Math.max(1, Math.ceil((new Date(d.locked_until) - Date.now()) / 60000)) : 5;
+            return "Too many wrong attempts. Try again in " + mins + " minute" + (mins === 1 ? "" : "s") + ".";
+        }
+        return ERRORS[d.error] || d.message || "Something went wrong.";
+    }
+
+    function rpc(name, args){
+        return sb.rpc(name, args || {}).then(function(res){
+            if(res.error) throw new Error(res.error.message);
+            return res.data;
+        });
+    }
+
+    // sensitive call: always sends the in-memory password; locks the page if it stops working
+    function guarded(name, args){
+        args = args || {};
+        args.p_password = S.password;
+        return rpc(name, args).then(function(d){
+            if(d && d.ok === false){
+                if(d.error === "wrong" || d.error === "none" || d.error === "locked" || d.error === "denied"){
+                    lock();
+                }
+                var err = new Error(errorText(d));
+                err.code = d.error;
+                throw err;
+            }
+            return d;
+        });
+    }
+
+    // ---------------------------------------------------------
+    // views, locking
+    // ---------------------------------------------------------
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", safety: "setSafety" };
+
+    function show(view){
+        S.view = view;
+        Object.keys(VIEW_IDS).forEach(function(k){
+            var el = $(VIEW_IDS[k]);
+            if(el) el.hidden = (k !== view);
+        });
+        armIdle();
+        var body = document.getElementById("admin-body");
+        if(body) body.scrollTop = 0;
+        try{ window.scrollTo(0, 0); }catch(e){}
+    }
+
+    function armIdle(){
+        clearTimeout(S.idle);
+        if(LOCKED_VIEWS.indexOf(S.view) === -1) return;
+        S.idle = setTimeout(function(){
+            lock();
+            KTUI.info("Settings were locked after 10 minutes without use.");
+        }, IDLE_MS);
+    }
+
+    function lock(){
+        S.password = null;
+        S.users = null;
+        S.audit = null;
+        clearTimeout(S.idle);
+        if(S.view !== "create" && S.view !== "loading"){
+            show("menu");
+        }
+    }
+
+    function openCategory(cat){
+        if(cat === "safety"){ openView("safety"); return; }
+
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit" };
+
+        KTUI.prompt("Enter your settings password to open " + titles[cat] + ".", {
+            title: "Settings password",
+            inputType: "password",
+            placeholder: "Settings password",
+            confirmText: "Open",
+            busyText: "Checking...",
+            validate: function(v){ return v ? null : "Enter your password."; },
+            run: function(pw){
+                return rpc("settings_verify_password", { p_password: pw }).then(function(d){
+                    if(d && d.ok){ S.password = pw; return null; }
+                    return errorText(d);
+                });
+            }
+        }).then(function(value){
+            if(value === null || !S.password) return;
+            openView(cat);
+        });
+    }
+
+    function openView(cat){
+        if(cat === "sound") renderSound();
+        else if(cat === "admin") renderAdmin();
+        else if(cat === "audit") renderAudit();
+        else if(cat === "safety") renderSafety();
+        show(cat);
+    }
+
+    // ---------------------------------------------------------
+    // password fields
+    // ---------------------------------------------------------
+    function mountPassword(containerId, placeholder, autocomplete){
+        var holder = $(containerId);
+        if(!holder) return null;
+        holder.innerHTML = "";
+        var f = KTUI.passwordField({ placeholder: placeholder, autocomplete: autocomplete });
+        holder.appendChild(f.wrap);
+        return f.input;
+    }
+
+    // ---------------------------------------------------------
+    // CREATE PASSWORD (first time)
+    // ---------------------------------------------------------
+    function setupCreate(){
+        var p1 = mountPassword("createPw1", "Password", "new-password");
+        var p2 = mountPassword("createPw2", "Re-enter password", "new-password");
+        var err = $("createError");
+        var btn = $("createBtn");
+        if(!p1 || !p2 || !btn) return;
+        err.textContent = "";
+
+        function submit(){
+            err.textContent = "";
+            if(p1.value.length < 8){ err.textContent = ERRORS.too_short; return; }
+            if(p1.value !== p2.value){ err.textContent = "The two passwords do not match."; return; }
+
+            var done = KTUI.busy(btn, "Saving...");
+            rpc("settings_set_password", { p_password: p1.value }).then(function(d){
+                done();
+                if(!d || d.ok === false){ err.textContent = errorText(d); return; }
+                p1.value = ""; p2.value = "";
+                KTUI.success("Settings password created.");
+                show("menu");
+            }).catch(function(e){
+                done();
+                err.textContent = e.message;
+            });
+        }
+
+        btn.onclick = submit;
+        p2.onkeydown = function(e){ if(e.key === "Enter") submit(); };
+    }
+
+    // ---------------------------------------------------------
+    // SAFETY
+    // ---------------------------------------------------------
+    function renderSafety(){
+        $("setSafetyBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
+                '<p class="kt-set-hint">Enter your current password, then choose a new one (at least 8 characters).</p>' +
+                '<label>Current password</label><div id="chgOld"></div>' +
+                '<label>New password</label><div id="chgNew"></div>' +
+                '<label>Re-enter new password</label><div id="chgNew2"></div>' +
+                '<div class="kt-set-error" id="chgError"></div>' +
+                '<button class="kt-set-btn primary" id="chgBtn">Change password</button>' +
+            '</div>' +
+            '<div class="kt-set-card muted">' +
+                '<h3><i class="fa-solid fa-shield-halved"></i> How it protects you</h3>' +
+                '<ul class="kt-set-list">' +
+                    '<li>Sound &amp; Notifications, Admins and Audit ask for this password every time you open them.</li>' +
+                    '<li>The password is stored as a one-way hash. Nobody, including you, can read it back.</li>' +
+                    '<li>After 5 wrong attempts it is locked for 5 minutes.</li>' +
+                    '<li>Each admin has their own settings password.</li>' +
+                '</ul>' +
+            '</div>';
+
+        var o = mountPassword("chgOld", "Current password", "current-password");
+        var n = mountPassword("chgNew", "New password", "new-password");
+        var n2 = mountPassword("chgNew2", "Re-enter new password", "new-password");
+        var err = $("chgError");
+        var btn = $("chgBtn");
+
+        function submit(){
+            err.textContent = "";
+            if(!o.value){ err.textContent = "Enter your current password."; return; }
+            if(n.value.length < 8){ err.textContent = ERRORS.too_short; return; }
+            if(n.value !== n2.value){ err.textContent = "The new passwords do not match."; return; }
+
+            var done = KTUI.busy(btn, "Saving...");
+            rpc("settings_change_password", { p_old: o.value, p_new: n.value }).then(function(d){
+                done();
+                if(!d || d.ok === false){ err.textContent = errorText(d); return; }
+                o.value = ""; n.value = ""; n2.value = "";
+                KTUI.success("Settings password changed.");
+            }).catch(function(e){
+                done();
+                err.textContent = e.message;
+            });
+        }
+
+        btn.onclick = submit;
+        n2.onkeydown = function(e){ if(e.key === "Enter") submit(); };
+    }
+
+    // ---------------------------------------------------------
+    // SOUND & NOTIFICATIONS
+    // ---------------------------------------------------------
+    function switchHtml(act, checked, extra){
+        return '<label class="kt-switch"><input type="checkbox" data-act="' + act + '"' + (extra || "") + (checked ? " checked" : "") + '><span></span></label>';
+    }
+
+    function renderSound(){
+        var choice = KTSound.getChoice();
+        var on = KTSound.isOn();
+
+        var rows = KTSound.list().map(function(s){
+            return '<div class="kt-set-row">' +
+                '<label class="kt-radio"><input type="radio" name="ktSound" data-act="pick" value="' + s.id + '"' + (choice === s.id ? " checked" : "") + '><span>' + esc(s.name) + '</span></label>' +
+                '<button class="kt-set-mini" data-act="play" data-id="' + s.id + '"><i class="fa-solid fa-play"></i> Play</button></div>';
+        }).join("");
+
+        var custom = KTSound.hasCustom()
+            ? '<div class="kt-set-row">' +
+                '<label class="kt-radio"><input type="radio" name="ktSound" data-act="pick" value="custom"' + (choice === "custom" ? " checked" : "") + '><span>' + esc(KTSound.customName()) + '<small>From this phone</small></span></label>' +
+                '<span class="kt-set-actions"><button class="kt-set-mini" data-act="play" data-id="custom"><i class="fa-solid fa-play"></i> Play</button>' +
+                '<button class="kt-set-mini danger" data-act="remove-custom"><i class="fa-solid fa-trash"></i></button></span></div>'
+            : '<div class="kt-set-row"><span class="kt-set-hint" style="margin:0">No sound chosen from your phone yet.</span></div>';
+
+        var types = KTSound.groups().map(function(g){
+            return '<div class="kt-set-row"><span>' + esc(g.label) + '</span>' + switchHtml("type", KTSound.typeEnabled(g.id), ' data-group="' + g.id + '"') + '</div>';
+        }).join("");
+
+        $("setSoundBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<div class="kt-set-row head"><div><h3><i class="fa-solid fa-volume-high"></i> Alert sound</h3>' +
+                '<p class="kt-set-hint">Plays when a new request or message arrives while the app is open.</p></div>' + switchHtml("sound-on", on) + '</div>' +
+                '<div class="kt-set-sub">Choose a sound</div>' + rows + custom +
+                '<input type="file" id="setSoundFile" accept="audio/*" hidden>' +
+                '<button class="kt-set-btn light" data-act="choose-file"><i class="fa-solid fa-folder-open"></i> Choose from phone</button>' +
+                '<p class="kt-set-hint">mp3, wav, m4a or ogg, up to 3 MB and 30 seconds. Saved on this device only.</p>' +
+            '</div>' +
+
+            '<div class="kt-set-card">' +
+                '<div class="kt-set-row head"><div><h3><i class="fa-solid fa-bell"></i> Notifications when the app is closed</h3>' +
+                '<p class="kt-set-hint" id="pushHint">Checking...</p></div>' +
+                '<label class="kt-switch"><input type="checkbox" data-act="push" id="pushSwitch" disabled><span></span></label></div>' +
+                '<p class="kt-set-hint">The sound for these is chosen by your phone\'s notification settings.</p>' +
+            '</div>' +
+
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-sliders"></i> Pop-up alerts</h3>' +
+                '<p class="kt-set-hint">Choose which new items show a pop-up and play the sound while the app is open. Counts and badges always stay up to date.</p>' +
+                types +
+            '</div>';
+
+        refreshPush();
+    }
+
+    function refreshPush(){
+        var sw = $("pushSwitch"), hint = $("pushHint");
+        if(!sw || !hint) return;
+
+        if(!window.KTPush){ hint.textContent = "Not available in this version."; return; }
+
+        KTPush.status().then(function(st){
+            sw = $("pushSwitch"); hint = $("pushHint");
+            if(!sw || !hint) return;
+            if(!st.supported){
+                sw.checked = false; sw.disabled = true;
+                hint.textContent = "This browser cannot show notifications. On iPhone, add the app to the Home Screen first.";
+            } else if(st.permission === "denied"){
+                sw.checked = false; sw.disabled = true;
+                hint.textContent = "Blocked in your phone settings. Allow notifications for this app, then come back.";
+            } else {
+                sw.disabled = false;
+                sw.checked = !!st.subscribed;
+                hint.textContent = st.subscribed
+                    ? "On. You will be alerted for new requests and messages even when the app is closed."
+                    : "Off. Turn on to be alerted when the app is closed.";
+            }
+        });
+    }
+
+    function onSoundClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+
+        if(act === "play"){ KTSound.preview(t.getAttribute("data-id")); return; }
+
+        if(act === "choose-file"){
+            var f = $("setSoundFile");
+            if(f) f.click();
+            return;
+        }
+
+        if(act === "remove-custom"){
+            KTSound.clearCustom().then(function(){
+                KTUI.success("Custom sound removed.");
+                renderSound();
+            });
+        }
+    }
+
+    function onSoundChange(e){
+        var t = e.target;
+        var act = t.getAttribute && t.getAttribute("data-act");
+
+        if(t.id === "setSoundFile"){
+            var file = t.files && t.files[0];
+            if(!file) return;
+            KTSound.saveCustomFile(file).then(function(name){
+                KTUI.success("Sound saved: " + name);
+                renderSound();
+                KTSound.preview("custom");
+            }).catch(function(err){
+                KTUI.error(err.message);
+            });
+            t.value = "";
+            return;
+        }
+
+        if(act === "sound-on"){
+            KTSound.setOn(t.checked);
+            KTUI.success(t.checked ? "Alert sound is on." : "Alert sound is off.");
+            return;
+        }
+
+        if(act === "pick"){
+            KTSound.setChoice(t.value);
+            KTSound.preview(t.value);
+            return;
+        }
+
+        if(act === "type"){
+            KTSound.setType(t.getAttribute("data-group"), t.checked);
+            return;
+        }
+
+        if(act === "push"){
+            t.disabled = true;
+            var p = t.checked ? KTPush.enable() : KTPush.disable();
+            Promise.resolve(p).then(refreshPush, refreshPush);
+        }
+    }
+
+    // ---------------------------------------------------------
+    // ADMINS
+    // ---------------------------------------------------------
+    function renderAdmin(){
+        $("setAdminBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-user-shield"></i> Admins</h3>' +
+                '<div id="adminList"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-user-plus"></i> Add an admin</h3>' +
+                '<p class="kt-set-hint">Search an existing user by name, phone or email, then give them the admin role.</p>' +
+                '<input class="kt-set-input" id="adminSearch" type="text" placeholder="Search users..." autocomplete="off">' +
+                '<div id="adminResults"></div>' +
+            '</div>';
+
+        loadAdmins();
+    }
+
+    function loadAdmins(){
+        guarded("settings_list_admins").then(function(d){
+            var list = $("adminList");
+            if(!list) return;
+            var admins = d.admins || [];
+            if(!admins.length){ list.innerHTML = '<p class="kt-set-hint">No admins found.</p>'; return; }
+
+            list.innerHTML = admins.map(function(a){
+                var name = a.name || a.email || "Admin";
+                return '<div class="kt-set-person">' +
+                    '<div class="kt-set-avatar">' + esc(name.charAt(0).toUpperCase()) + '</div>' +
+                    '<div class="kt-set-person-info"><b>' + esc(name) + (a.is_you ? ' <span class="kt-set-tag">You</span>' : '') + '</b>' +
+                    '<small>' + esc([a.email, a.phone].filter(Boolean).join(" · ") || "—") + '</small>' +
+                    '<small>Admin since ' + esc(dOnly(a.since)) + '</small></div>' +
+                    (a.is_you ? '' : '<button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
+                '</div>';
+            }).join("");
+        }).catch(function(e){
+            var list = $("adminList");
+            if(list) list.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function loadUsersOnce(){
+        if(S.users) return Promise.resolve(S.users);
+        return rpc("admin_list_users").then(function(rows){ S.users = rows || []; return S.users; });
+    }
+
+    function searchUsers(){
+        var box = $("adminSearch"), out = $("adminResults");
+        if(!box || !out) return;
+        var q = box.value.trim().toLowerCase();
+        if(q.length < 2){ out.innerHTML = ""; return; }
+
+        loadUsersOnce().then(function(users){
+            var hits = users.filter(function(u){
+                var hay = [u.username, u.surname, u.phone, u.email].filter(Boolean).join(" ").toLowerCase();
+                return hay.indexOf(q) !== -1;
+            }).slice(0, 8);
+
+            if(!hits.length){ out.innerHTML = '<p class="kt-set-hint">No users match "' + esc(box.value.trim()) + '".</p>'; return; }
+
+            out.innerHTML = hits.map(function(u){
+                var name = ((u.username || "") + " " + (u.surname || "")).trim() || u.email || "User";
+                return '<div class="kt-set-person">' +
+                    '<div class="kt-set-avatar">' + esc(name.charAt(0).toUpperCase()) + '</div>' +
+                    '<div class="kt-set-person-info"><b>' + esc(name) + '</b><small>' + esc([u.phone, u.email].filter(Boolean).join(" · ") || "—") + '</small></div>' +
+                    '<button class="kt-set-mini primary" data-act="add-admin" data-id="' + esc(u.id) + '" data-name="' + esc(name) + '">Make admin</button></div>';
+            }).join("");
+        }).catch(function(e){
+            out.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function onAdminClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+        var id = t.getAttribute("data-id");
+        var name = t.getAttribute("data-name") || "this user";
+
+        if(act === "remove-admin"){
+            KTUI.confirm("Remove the admin role from " + name + "? They will no longer be able to use the admin app or receive admin alerts.", {
+                title: "Remove admin", danger: true, confirmText: "Remove", busyText: "Removing...",
+                run: function(){
+                    return guarded("settings_remove_admin", { p_user_id: id }).then(function(){ return null; }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success(name + " is no longer an admin.");
+                S.users = null;
+                loadAdmins();
+            });
+            return;
+        }
+
+        if(act === "add-admin"){
+            KTUI.confirm("Give " + name + " the admin role? They will be able to sign in to the admin app and manage users and money. They will set their own settings password.", {
+                title: "Add admin", confirmText: "Make admin", busyText: "Adding...",
+                run: function(){
+                    return guarded("settings_add_admin", { p_user_id: id }).then(function(){ return null; }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success(name + " is now an admin.");
+                S.users = null;
+                var box = $("adminSearch"); if(box) box.value = "";
+                var out = $("adminResults"); if(out) out.innerHTML = "";
+                loadAdmins();
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // AUDIT
+    // ---------------------------------------------------------
+    var WALLET_TYPES = [
+        ["deposit", "Deposits credited to wallets"],
+        ["withdrawal", "Withdrawals (requested, net of refunds)"],
+        ["mining_payout", "Mining payouts"],
+        ["plan_purchase", "Plan purchases"],
+        ["plan_upgrade", "Plan upgrades"],
+        ["plan_refund", "Plan refunds (principal returned)"],
+        ["bonus", "Bonuses"],
+        ["admin_credit", "Admin credits"],
+        ["admin_debit", "Admin debits"]
+    ];
+
+    function renderAudit(){
+        $("setAuditBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-scale-balanced"></i> Profit &amp; loss balancing</h3>' +
+                '<p class="kt-set-hint">Balance the records for the last number of days.</p>' +
+                '<div class="kt-set-days">' +
+                    '<input class="kt-set-input" id="auditDays" type="number" min="1" max="3650" value="30" inputmode="numeric">' +
+                    '<span>days</span>' +
+                    '<button class="kt-set-chip" data-act="days" data-days="7">7</button>' +
+                    '<button class="kt-set-chip" data-act="days" data-days="30">30</button>' +
+                    '<button class="kt-set-chip" data-act="days" data-days="90">90</button>' +
+                '</div>' +
+                '<button class="kt-set-btn primary" id="auditCalc" data-act="calc"><i class="fa-solid fa-calculator"></i> Calculate</button>' +
+                '<div id="auditResult"></div>' +
+            '</div>' +
+
+            '<div class="kt-set-card danger-zone">' +
+                '<h3><i class="fa-solid fa-trash-can"></i> Delete audit records</h3>' +
+                '<p class="kt-set-hint">Removes records from this audit only. Deposits, withdrawals, wallets, transactions and every other page are not touched. Records of deleted users stay here until you delete them.</p>' +
+                '<div class="kt-set-days">' +
+                    '<select class="kt-set-input" id="delScope"><option value="older">Older than</option><option value="last">From the last</option></select>' +
+                    '<input class="kt-set-input" id="delDays" type="number" min="1" max="3650" value="90" inputmode="numeric">' +
+                    '<span>days</span>' +
+                '</div>' +
+                '<button class="kt-set-btn danger" id="delBtn" data-act="delete"><i class="fa-solid fa-trash"></i> Delete records</button>' +
+            '</div>';
+
+        calculateAudit();
+    }
+
+    function daysValue(id){
+        var n = parseInt(($(id) || {}).value, 10);
+        if(!n || n < 1) return null;
+        return Math.min(n, 3650);
+    }
+
+    function calculateAudit(){
+        var days = daysValue("auditDays");
+        var holder = $("auditResult");
+        if(!holder) return;
+        if(!days){ holder.innerHTML = '<p class="kt-set-error">Enter a number of days (1 or more).</p>'; return; }
+
+        var btn = $("auditCalc");
+        var done = KTUI.busy(btn, "Calculating...");
+        holder.innerHTML = "";
+
+        guarded("settings_audit_summary", { p_days: days }).then(function(d){
+            done();
+            S.audit = d;
+            if($("auditResult")) $("auditResult").innerHTML = auditHtml(d);
+        }).catch(function(e){
+            done();
+            if($("auditResult")) $("auditResult").innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function sumOf(t, k){ return t[k] ? Number(t[k].sum) || 0 : 0; }
+    function cntOf(t, k){ return t[k] ? Number(t[k].count) || 0 : 0; }
+
+    // The balancing, from the server totals (same maths the spreadsheet uses)
+    function compute(d){
+        var t = d.totals || {};
+        var wd = d.withdrawals || {};
+        var m = {};
+        m.cashIn = sumOf(t, "cash_in");
+        m.cashOut = -sumOf(t, "cash_out");
+        m.netCash = m.cashIn - m.cashOut;
+
+        m.walletNet = 0;
+        Object.keys(t).forEach(function(k){ if(k !== "cash_in" && k !== "cash_out") m.walletNet += sumOf(t, k); });
+
+        m.requested = Number(wd.requested) || 0;
+        m.refunded = Number(wd.refunded) || 0;
+        m.pendingChange = m.requested - m.cashOut - m.refunded;
+        m.principal = (-sumOf(t, "plan_purchase")) + (-sumOf(t, "plan_upgrade")) - sumOf(t, "plan_refund");
+        m.owedChange = m.walletNet + m.pendingChange + m.principal;
+        m.profitBalance = m.netCash - m.owedChange;
+
+        m.income = -sumOf(t, "admin_debit");
+        m.costs = sumOf(t, "mining_payout") + sumOf(t, "bonus") + sumOf(t, "admin_credit");
+        m.profitEarn = m.income - m.costs;
+        m.diff = m.profitBalance - m.profitEarn;
+        return m;
+    }
+
+    function line(label, value, cls){
+        return '<div class="kt-set-line ' + (cls || "") + '"><span>' + label + '</span><b>' + value + '</b></div>';
+    }
+
+    function auditHtml(d){
+        var m = compute(d);
+        var t = d.totals || {};
+        var total = (d.ledger && d.ledger.total_records) || 0;
+        var inPeriod = Object.keys(t).reduce(function(n, k){ return n + cntOf(t, k); }, 0);
+        var balanced = Math.abs(m.diff) < 0.005;
+        var profitCls = m.profitEarn >= 0 ? "good" : "bad";
+
+        if(!inPeriod){
+            return '<div class="kt-set-empty"><i class="fa-regular fa-folder-open"></i><p>No audit records in the last ' + d.days + ' days.</p></div>';
+        }
+
+        var walletRows = WALLET_TYPES.filter(function(w){ return t[w[0]]; }).map(function(w){
+            return line(esc(w[1]) + ' <small>(' + cntOf(t, w[0]) + ')</small>', rand(sumOf(t, w[0])));
+        }).join("");
+
+        return '<div class="kt-set-period">' + esc(dt(d.from)) + ' &rarr; ' + esc(dt(d.to)) + '</div>' +
+
+            '<div class="kt-set-big ' + profitCls + '"><small>Profit / (Loss)</small><b>' + rand(m.profitEarn) + '</b></div>' +
+            '<div class="kt-set-status ' + (balanced ? "good" : "bad") + '">' +
+                (balanced ? '<i class="fa-solid fa-circle-check"></i> Balanced — both methods agree'
+                          : '<i class="fa-solid fa-triangle-exclamation"></i> Not balanced — difference ' + rand(m.diff)) +
+            '</div>' +
+
+            '<div class="kt-set-block"><h4>1. Money in and out</h4>' +
+                line('Approved deposits (in) <small>(' + cntOf(t, "cash_in") + ')</small>', rand(m.cashIn)) +
+                line('Approved withdrawals (out) <small>(' + cntOf(t, "cash_out") + ')</small>', rand(-m.cashOut)) +
+                line('Net cash retained', rand(m.netCash), "total") +
+            '</div>' +
+
+            '<div class="kt-set-block"><h4>2. Change in what is owed to users</h4>' +
+                walletRows +
+                line('Net change in wallets', rand(m.walletNet), "total") +
+                line('Change in pending withdrawals', rand(m.pendingChange)) +
+                line('Change in plan principal held', rand(m.principal)) +
+                line('Total change owed', rand(m.owedChange), "total") +
+            '</div>' +
+
+            '<div class="kt-set-block"><h4>3. Profit / (Loss)</h4>' +
+                line('Balance method (net cash &minus; change owed)', rand(m.profitBalance)) +
+                line('Income: admin debits', rand(m.income)) +
+                line('Costs: payouts, bonuses, admin credits', rand(-m.costs)) +
+                line('Earnings method (income &minus; costs)', rand(m.profitEarn), "total") +
+            '</div>' +
+
+            '<p class="kt-set-hint">' + inPeriod + ' records in this period (' + total + ' in the audit in total). Platform income from outside the app is not tracked.</p>' +
+            '<button class="kt-set-btn light" id="auditDownload" data-act="download"><i class="fa-solid fa-file-excel"></i> Download spreadsheet</button>';
+    }
+
+    // ---- spreadsheet -------------------------------------------------
+    function fetchAllRows(days, stream, onProgress){
+        var all = [];
+        function next(offset){
+            return guarded("settings_audit_rows", { p_days: days, p_stream: stream, p_offset: offset, p_limit: 1000 }).then(function(d){
+                var rows = d.rows || [];
+                all = all.concat(rows);
+                if(onProgress) onProgress(all.length);
+                if(rows.length === 1000 && all.length < 200000) return next(offset + 1000);
+                return all;
+            });
+        }
+        return next(0);
+    }
+
+    function userLabel(r){ return r.user_name || "Deleted / unknown user"; }
+
+    function buildWorkbook(days, wallet, cash){
+        var now = new Date();
+        var from = new Date(now.getTime() - days * 86400000);
+
+        function sumWhere(rows, pred){ return rows.reduce(function(n, r){ return pred(r) ? n + Number(r.amount_zar) : n; }, 0); }
+        function byType(type){ return sumWhere(wallet, function(r){ return r.entry_type === type; }); }
+
+        var wRows = [[
+            { v: "Date", s: "header" }, { v: "User", s: "header" }, { v: "Phone", s: "header" }, { v: "Type", s: "header" },
+            { v: "Amount (wallet effect)", s: "header" }, { v: "Description", s: "header" }, { v: "Reference", s: "header" }, { v: "User ID", s: "header" }
+        ]];
+        wallet.forEach(function(r){
+            wRows.push([new Date(r.occurred_at), userLabel(r), r.user_phone || "", r.entry_type, { v: Number(r.amount_zar), s: "money" }, r.description || "", r.source_id, r.user_id || ""]);
+        });
+
+        var cRows = [[
+            { v: "Date", s: "header" }, { v: "User", s: "header" }, { v: "Phone", s: "header" }, { v: "Event", s: "header" },
+            { v: "Amount (cash)", s: "header" }, { v: "Description", s: "header" }, { v: "Reference", s: "header" }, { v: "User ID", s: "header" }
+        ]];
+        cash.forEach(function(r){
+            cRows.push([new Date(r.occurred_at), userLabel(r), r.user_phone || "", r.entry_type, { v: Number(r.amount_zar), s: "money" }, r.description || "", r.source_id, r.user_id || ""]);
+        });
+
+        var W = "Wallet", C = "Cash";
+        function wSum(type){ return 'SUMIFS(' + W + '!$E:$E,' + W + '!$D:$D,"' + type + '")'; }
+
+        // cached values (so the numbers show even before a spreadsheet app recalculates)
+        var cashIn = sumWhere(cash, function(r){ return r.entry_type === "cash_in"; });
+        var cashOut = -sumWhere(cash, function(r){ return r.entry_type === "cash_out"; });
+        var netCash = cashIn - cashOut;
+        var typeVals = {};
+        WALLET_TYPES.forEach(function(w){ typeVals[w[0]] = byType(w[0]); });
+        var walletNet = wallet.reduce(function(n, r){ return n + Number(r.amount_zar); }, 0);
+        var requested = -sumWhere(wallet, function(r){ return r.entry_type === "withdrawal" && Number(r.amount_zar) < 0; });
+        var refunded = sumWhere(wallet, function(r){ return r.entry_type === "withdrawal" && Number(r.amount_zar) > 0; });
+        var pending = requested - cashOut - refunded;
+        var principal = -typeVals.plan_purchase - typeVals.plan_upgrade - typeVals.plan_refund;
+        var owed = walletNet + pending + principal;
+        var profitBal = netCash - owed;
+        var income = -typeVals.admin_debit;
+        var costs = typeVals.mining_payout + typeVals.bonus + typeVals.admin_credit;
+        var profitEarn = income - costs;
+        var diff = profitBal - profitEarn;
+
+        var S1 = [];
+        var r = 0;
+        function push(row){ S1.push(row); r++; return r; }           // returns the 1-based row number
+
+        push([{ v: "KT Cloud Mining — Profit & Loss balancing", s: "title" }]);
+        push([{ v: "Period", s: "bold" }, from, now]);
+        push([{ v: "Days", s: "bold" }, { v: days, s: "int" }]);
+        push([{ v: "Prepared by", s: "bold" }, S.adminName, { v: "Times are shown in the preparer's local time.", s: "note" }]);
+        push([]);
+
+        push([{ v: "STEP 1 — Money in and out (cash)", s: "section" }, { v: "", s: "section" }, { v: "How it is worked out", s: "section" }]);
+        var rIn = push(["Approved deposits (money in)", { f: 'SUMIFS(' + C + '!$E:$E,' + C + '!$D:$D,"cash_in")', v: cashIn, s: "money" }, { v: "Deposits approved in the period", s: "note" }]);
+        var rOut = push(["Approved withdrawals (money out)", { f: '-SUMIFS(' + C + '!$E:$E,' + C + '!$D:$D,"cash_out")', v: cashOut, s: "money" }, { v: "Withdrawals approved in the period (paid out)", s: "note" }]);
+        var rNet = push([{ v: "Net cash retained", s: "bold" }, { f: 'B' + rIn + '-B' + rOut, v: netCash, s: "moneyBold" }, { v: "Money in − money out", s: "note" }]);
+        push([]);
+
+        push([{ v: "STEP 2 — Change in what the platform owes users", s: "section" }, { v: "", s: "section" }, { v: "", s: "section" }]);
+        var firstW = r + 1;
+        WALLET_TYPES.forEach(function(w){
+            push([w[1], { f: wSum(w[0]), v: typeVals[w[0]], s: "money" }, { v: "Wallet entries of type: " + w[0], s: "note" }]);
+        });
+        var lastW = r;
+        var rWalletNet = push([{ v: "Net change in user wallets", s: "bold" }, { f: 'SUM(B' + firstW + ':B' + lastW + ')', v: walletNet, s: "moneyBold" }, { v: "Sum of the lines above", s: "note" }]);
+        var rReq = push(["Withdrawals requested (taken from wallets)", { f: '-SUMIFS(' + W + '!$E:$E,' + W + '!$D:$D,"withdrawal",' + W + '!$E:$E,"<0")', v: requested, s: "money" }, { v: "Negative withdrawal entries", s: "note" }]);
+        var rRef = push(["Withdrawals refunded (rejected)", { f: 'SUMIFS(' + W + '!$E:$E,' + W + '!$D:$D,"withdrawal",' + W + '!$E:$E,">0")', v: refunded, s: "money" }, { v: "Positive withdrawal entries", s: "note" }]);
+        var rPend = push([{ v: "Change in pending (unpaid) withdrawals", s: "bold" }, { f: 'B' + rReq + '-B' + rOut + '-B' + rRef, v: pending, s: "moneyBold" }, { v: "Requested − paid out − refunded", s: "note" }]);
+        var pPur = firstW + 3, pUp = firstW + 4, pRef = firstW + 5;   // positions of purchase / upgrade / refund lines
+        var rPrin = push([{ v: "Change in plan principal held", s: "bold" }, { f: '-B' + pPur + '-B' + pUp + '-B' + pRef, v: principal, s: "moneyBold" }, { v: "Purchases + upgrades − refunds (customer capital held in plans)", s: "note" }]);
+        var rOwed = push([{ v: "Total change in amount owed to users", s: "bold" }, { f: 'B' + rWalletNet + '+B' + rPend + '+B' + rPrin, v: owed, s: "moneyBold" }, { v: "Wallets + pending withdrawals + plan principal", s: "note" }]);
+        push([]);
+
+        push([{ v: "STEP 3 — Profit / (Loss), balance method", s: "section" }, { v: "", s: "section" }, { v: "", s: "section" }]);
+        var rBal = push([{ v: "Profit / (Loss)", s: "bold" }, { f: 'B' + rNet + '-B' + rOwed, v: profitBal, s: "moneyBold" }, { v: "Net cash retained − change in amount owed", s: "note" }]);
+        push([]);
+
+        push([{ v: "STEP 4 — Profit / (Loss), earnings method", s: "section" }, { v: "", s: "section" }, { v: "", s: "section" }]);
+        var pPay = firstW + 2, pBon = firstW + 6, pCr = firstW + 7, pDb = firstW + 8;
+        var rInc = push(["Income: admin debits", { f: '-B' + pDb, v: income, s: "money" }, { v: "Money the admin removed from wallets", s: "note" }]);
+        var rCost = push(["Costs: mining payouts + bonuses + admin credits", { f: 'B' + pPay + '+B' + pBon + '+B' + pCr, v: costs, s: "money" }, { v: "Money the platform added to wallets", s: "note" }]);
+        var rEarn = push([{ v: "Profit / (Loss)", s: "bold" }, { f: 'B' + rInc + '-B' + rCost, v: profitEarn, s: "moneyBold" }, { v: "Income − costs", s: "note" }]);
+        push([]);
+
+        push([{ v: "STEP 5 — Check", s: "section" }, { v: "", s: "section" }, { v: "", s: "section" }]);
+        var rDiff = push(["Difference between the two methods", { f: 'B' + rBal + '-B' + rEarn, v: diff, s: "money" }, { v: "Should be R0.00", s: "note" }]);
+        var balanced = Math.abs(diff) < 0.005;
+        push([{ v: "Result", s: "bold" }, { f: 'IF(ABS(B' + rDiff + ')<0.005,"BALANCED","NOT BALANCED")', v: balanced ? "BALANCED" : "NOT BALANCED", s: balanced ? "good" : "bad" },
+              { v: "If not balanced, approved deposits in cash and deposits credited to wallets differ.", s: "note" }]);
+        push([]);
+
+        push([{ v: "Records included", s: "section" }, { v: "", s: "section" }, { v: "", s: "section" }]);
+        push(["Wallet entries", { f: 'COUNTA(' + W + '!$A:$A)-1', v: wallet.length, s: "int" }]);
+        push(["Cash entries", { f: 'COUNTA(' + C + '!$A:$A)-1', v: cash.length, s: "int" }]);
+        push([]);
+        push([{ v: "Notes", s: "bold" }]);
+        [
+            "Deposits and withdrawals move money between users and the platform but do not change profit.",
+            "Plan purchases, upgrades and refunds move customer capital in and out of plans; they are shown as principal, not profit.",
+            "Profit / (Loss) here is the in-app result: admin debits less payouts, bonuses and admin credits.",
+            "Platform income from outside this app (for example real mining returns) is not recorded and is not included.",
+            "Records of deleted users stay in this audit until they are deleted from Settings > Audit."
+        ].forEach(function(n){ push([{ v: n, s: "note" }]); });
+
+        // ---- By user sheet
+        var users = {};
+        function touchUser(rw){
+            var key = rw.user_id || ("name:" + (rw.user_name || "unknown"));
+            if(!users[key]) users[key] = { key: rw.user_id || "", name: userLabel(rw), phone: rw.user_phone || "" };
+            return users[key];
+        }
+        wallet.forEach(touchUser);
+        cash.forEach(touchUser);
+        var ulist = Object.keys(users).map(function(k){ return users[k]; }).sort(function(a, b){ return a.name.localeCompare(b.name); });
+
+        var uRows = [[
+            { v: "User", s: "header" }, { v: "Phone", s: "header" }, { v: "Cash in", s: "header" }, { v: "Cash out", s: "header" },
+            { v: "Payouts", s: "header" }, { v: "Bonuses + credits", s: "header" }, { v: "Debits", s: "header" }, { v: "Net wallet change", s: "header" }, { v: "User ID", s: "header" }
+        ]];
+        ulist.forEach(function(u, i){
+            var row = i + 2;
+            var mine = function(rw){ return (rw.user_id || "") === u.key; };
+            var wv = function(types){ return wallet.reduce(function(n, rw){ return (mine(rw) && types.indexOf(rw.entry_type) !== -1) ? n + Number(rw.amount_zar) : n; }, 0); };
+            var cv = function(type){ return cash.reduce(function(n, rw){ return (mine(rw) && rw.entry_type === type) ? n + Number(rw.amount_zar) : n; }, 0); };
+            var fW = function(types){ return types.map(function(t){ return 'SUMIFS(' + W + '!$E:$E,' + W + '!$H:$H,$I' + row + ',' + W + '!$D:$D,"' + t + '")'; }).join("+"); };
+            uRows.push([
+                u.name, u.phone,
+                { f: 'SUMIFS(' + C + '!$E:$E,' + C + '!$H:$H,$I' + row + ',' + C + '!$D:$D,"cash_in")', v: cv("cash_in"), s: "money" },
+                { f: '-SUMIFS(' + C + '!$E:$E,' + C + '!$H:$H,$I' + row + ',' + C + '!$D:$D,"cash_out")', v: -cv("cash_out"), s: "money" },
+                { f: fW(["mining_payout"]), v: wv(["mining_payout"]), s: "money" },
+                { f: fW(["bonus", "admin_credit"]), v: wv(["bonus", "admin_credit"]), s: "money" },
+                { f: fW(["admin_debit"]), v: wv(["admin_debit"]), s: "money" },
+                { f: 'SUMIFS(' + W + '!$E:$E,' + W + '!$H:$H,$I' + row + ')', v: wallet.reduce(function(n, rw){ return mine(rw) ? n + Number(rw.amount_zar) : n; }, 0), s: "money" },
+                u.key
+            ]);
+        });
+
+        return {
+            sheets: [
+                { name: "Summary", widths: [52, 20, 62], rows: S1, hideGrid: true },
+                { name: "By User", widths: [28, 16, 14, 14, 14, 18, 14, 18, 38], rows: uRows, freeze: { rows: 1 } },
+                { name: "Wallet", widths: [18, 26, 16, 16, 20, 44, 38, 38], rows: wRows, freeze: { rows: 1 } },
+                { name: "Cash", widths: [18, 26, 16, 12, 16, 30, 38, 38], rows: cRows, freeze: { rows: 1 } }
+            ]
+        };
+    }
+
+    function downloadSpreadsheet(btn){
+        var days = (S.audit && S.audit.days) || daysValue("auditDays") || 30;
+        var done = KTUI.busy(btn, "Preparing...");
+        var progress = function(label){ if(btn.lastChild) btn.lastChild.nodeValue = label; };
+        var wcount = 0;
+
+        fetchAllRows(days, "wallet", function(n){ wcount = n; progress("Preparing... " + n + " rows"); }).then(function(wallet){
+            return fetchAllRows(days, "cash", function(n){ progress("Preparing... " + (wcount + n) + " rows"); }).then(function(cash){
+                progress("Building file...");
+                var bytes = KTXlsx.build(buildWorkbook(days, wallet, cash));
+                var stamp = new Date().toISOString().slice(0, 10);
+                KTXlsx.download(bytes, "KT-Profit-Loss-" + days + "days-" + stamp + ".xlsx");
+                done();
+                KTUI.success("Spreadsheet downloaded (" + (wallet.length + cash.length) + " records).");
+            });
+        }).catch(function(e){
+            done();
+            KTUI.error("Could not prepare the spreadsheet: " + e.message);
+        });
+    }
+
+    function deleteRecords(btn){
+        var days = daysValue("delDays");
+        var scope = ($("delScope") || {}).value || "older";
+        if(!days){ KTUI.warning("Enter a number of days (1 or more)."); return; }
+
+        var done = KTUI.busy(btn, "Checking...");
+        guarded("settings_audit_delete_preview", { p_days: days, p_scope: scope }).then(function(p){
+            done();
+            if(!p.count){ KTUI.info("There are no audit records in that period."); return; }
+
+            var when = scope === "last" ? "from the last " + days + " days" : "older than " + days + " days";
+            KTUI.confirm("Delete " + p.count + " audit record" + (p.count === 1 ? "" : "s") + " " + when + "?\n\nOnly the audit is affected. Deposits, withdrawals, wallets, transactions and every other page stay as they are. This cannot be undone.", {
+                title: "Delete audit records", danger: true, confirmText: "Delete",
+                busyText: "Deleting...",
+                run: function(){
+                    return guarded("settings_audit_delete", { p_days: days, p_scope: scope }).then(function(res){
+                        S.lastDeleted = res.deleted;
+                        return null;
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success(S.lastDeleted + " audit record" + (S.lastDeleted === 1 ? "" : "s") + " deleted.");
+                calculateAudit();
+            });
+        }).catch(function(e){
+            done();
+            KTUI.error(e.message);
+        });
+    }
+
+    function onAuditClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+
+        if(act === "days"){ var i = $("auditDays"); if(i) i.value = t.getAttribute("data-days"); calculateAudit(); return; }
+        if(act === "calc"){ calculateAudit(); return; }
+        if(act === "download"){ downloadSpreadsheet(t); return; }
+        if(act === "delete"){ deleteRecords(t); }
+    }
+
+    // ---------------------------------------------------------
+    // wiring
+    // ---------------------------------------------------------
+    var pushListener = false;
+
+    function bindRoot(){
+        var root = $("ktSettings");
+        if(!root || root.getAttribute("data-bound") === "1") return;
+        root.setAttribute("data-bound", "1");
+
+        root.addEventListener("click", function(e){
+            armIdle();
+
+            var card = e.target.closest("[data-cat]");
+            if(card){ openCategory(card.getAttribute("data-cat")); return; }
+
+            var back = e.target.closest("[data-back]");
+            if(back){ lock(); show("menu"); return; }
+
+            if(S.view === "sound") onSoundClick(e);
+            else if(S.view === "admin") onAdminClick(e);
+            else if(S.view === "audit") onAuditClick(e);
+        });
+
+        root.addEventListener("change", function(e){
+            armIdle();
+            if(S.view === "sound") onSoundChange(e);
+        });
+
+        root.addEventListener("input", function(e){
+            armIdle();
+            if(S.view === "admin" && e.target.id === "adminSearch") searchUsers();
+        });
+
+        if(!pushListener){
+            pushListener = true;
+            window.addEventListener("kt-push-changed", function(){
+                if(S.view === "sound") refreshPush();
+            });
+        }
+    }
+
+    window.KTSettingsInternals = { compute: compute, buildWorkbook: buildWorkbook };
+
+    window.initSettings = function(){
+        // a fresh visit always starts locked
+        S.password = null; S.users = null; S.audit = null;
+        clearTimeout(S.idle);
+        bindRoot();
+        show("loading");
+
+        sb.auth.getUser().then(function(r){
+            var u = r && r.data && r.data.user;
+            if(u) S.adminName = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email || "Admin";
+        }).catch(function(){});
+
+        rpc("settings_password_status").then(function(st){
+            if(!st || !st.has_password){
+                setupCreate();
+                show("create");
+            } else {
+                show("menu");
+            }
+        }).catch(function(e){
+            show("menu");
+            KTUI.error("Could not check the settings password: " + e.message);
+        });
+    };
+
+})();
 
 
 /* ===== js/dashboard.js ===== */

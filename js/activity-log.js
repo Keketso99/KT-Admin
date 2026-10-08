@@ -89,6 +89,9 @@ payment_methods_rejected: "users",
 
 // KYC
 kyc_additional_documents_requested: "users",
+    settings_password_created: "security",
+    settings_password_changed: "security",
+    audit_records_deleted: "changes",
 kyc_approved: "users",
 approved_kyc: "users",
 kyc_rejected: "users",
@@ -188,6 +191,9 @@ payment_methods_approved: "fa-solid fa-circle-check",
 payment_methods_rejected: "fa-solid fa-circle-xmark",
 
 kyc_additional_documents_requested: "fa-solid fa-file-circle-question",
+    settings_password_created: "fa-solid fa-key",
+    settings_password_changed: "fa-solid fa-key",
+    audit_records_deleted: "fa-solid fa-trash-can",
 kyc_resubmission_rejected: "fa-solid fa-circle-xmark",
 kyc_resubmission_completed: "fa-solid fa-circle-check",
 

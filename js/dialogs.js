@@ -79,6 +79,9 @@
         ".kt-ui-btn.kt-secondary{background:#e5e7eb;color:#111827}" +
         ".kt-ui-btn.kt-primary{background:var(--kt-c);color:#fff}" +
 
+        ".kt-pw{position:relative;display:block}" +
+        ".kt-pw .kt-ui-input{padding-right:46px;margin-top:0}" +
+        ".kt-pw-eye{position:absolute;top:0;right:0;height:100%;width:44px;border:0;background:transparent;color:#6b7280;font-size:16px;cursor:pointer}" +
         ".kt-empty-row td{padding:0!important;border:0!important;background:transparent!important}" +
         ".kt-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 16px;color:#6b7280;font-family:Arial,sans-serif;font-size:14px;line-height:1.4;text-align:center}" +
         ".kt-empty i{font-size:26px;opacity:.55}" +
@@ -219,7 +222,15 @@
                 if(config.input.placeholder) input.placeholder = config.input.placeholder;
                 if(config.input.value !== undefined) input.value = String(config.input.value);
                 input.setAttribute("autocomplete", "off");
-                card.appendChild(input);
+
+                if(input.type === "password"){
+                    var pw = passwordWrap(input);
+                    pw.style.marginTop = "12px";
+                    input.style.marginTop = "0";
+                    card.appendChild(pw);
+                } else {
+                    card.appendChild(input);
+                }
 
                 errorLine = el("div", "kt-ui-error", "");
                 card.appendChild(errorLine);
@@ -337,6 +348,38 @@
                 try{ (input || okBtn).focus(); }catch(e){}
             });
         });
+    }
+
+    // ---------------------------------------------------------
+    // Password input with a show / hide (eye) button
+    // ---------------------------------------------------------
+    function passwordWrap(input){
+        var wrap = el("div", "kt-pw");
+        var eye = el("button", "kt-pw-eye");
+        eye.type = "button";
+        eye.setAttribute("aria-label", "Show or hide password");
+        eye.innerHTML = '<i class="fa-solid fa-eye"></i>';
+        eye.addEventListener("click", function(){
+            var show = input.type === "password";
+            input.type = show ? "text" : "password";
+            eye.innerHTML = '<i class="fa-solid ' + (show ? "fa-eye-slash" : "fa-eye") + '"></i>';
+            try{ input.focus(); }catch(e){}
+        });
+        wrap.appendChild(input);
+        wrap.appendChild(eye);
+        return wrap;
+    }
+
+    // KTUI.passwordField({placeholder, autocomplete}) -> { wrap, input }
+    function passwordField(options){
+        injectStyles();
+        options = options || {};
+        var input = el("input", "kt-ui-input");
+        input.type = "password";
+        input.style.marginTop = "0";
+        if(options.placeholder) input.placeholder = options.placeholder;
+        input.setAttribute("autocomplete", options.autocomplete || "off");
+        return { wrap: passwordWrap(input), input: input };
     }
 
     // ---------------------------------------------------------
@@ -565,6 +608,7 @@
 
     window.KTUI = {
         busy: busy,
+        passwordField: passwordField,
         syncTableEmpty: syncTableEmpty,
         syncBlockEmpty: syncBlockEmpty,
         toast: toast,

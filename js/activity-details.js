@@ -367,6 +367,18 @@
     function renderSecurity(entry, ctx, all){
         var m = metaParts(entry).meta, a = adminOf(entry), d = deviceText(entry);
 
+        if(entry.action === "settings_password_created" || entry.action === "settings_password_changed"){
+            var created = entry.action === "settings_password_created";
+            return {
+                summary: a.name + (created ? " created" : " changed") + " their settings password.",
+                body: section("Settings password", "fa-solid fa-key", [
+                    row("Action", created ? "Password created" : "Password changed"),
+                    row("Result", resultLabelSafe(entry))
+                ]) + note("The password itself is never recorded.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
+
         if(entry.action === "failed_login"){
             var burst = failedBurst(entry, all);
             return {
@@ -438,6 +450,20 @@
     function renderChanges(entry, ctx){
         var p = metaParts(entry), a = adminOf(entry), act = entry.action;
         var b = p.before, af = p.after;
+
+        if(act === "audit_records_deleted"){
+            var m = p.meta;
+            var older = m.scope === "older";
+            return {
+                summary: a.name + " deleted " + (m.deleted != null ? m.deleted : "some") + " audit record" + (Number(m.deleted) === 1 ? "" : "s") + ".",
+                body: section("Audit records deleted", "fa-solid fa-trash-can", [
+                    row("Records deleted", plain(m.deleted)),
+                    row("Which records", (older ? "Older than " : "From the last ") + (m.days || "?") + " days"),
+                    row("Cut-off", when(m.cutoff))
+                ]) + note("Only the audit was affected. Deposits, withdrawals, wallets and other pages were not changed.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
 
         if(act.indexOf("exchange_rate_") === 0){
             var src = Object.keys(af).length ? af : b;

@@ -1,22 +1,100 @@
 <!-- =========================================================
-     KT CLOUD MINING ADMIN
-     SETTINGS PAGE (placeholder - features will be added here)
+     KT CLOUD MINING ADMIN - SETTINGS
+     Sound & notifications | Admins | Audit | Safety
      ========================================================= -->
 
-<div class="app-settings-page">
+<div class="kt-set" id="ktSettings">
 
-    <div class="app-settings-header">
-        <h1>
-            <i class="fa-solid fa-gear"></i>
-            Settings
-        </h1>
-        <p>Admin and app settings will be available here.</p>
+    <div class="kt-set-loading" id="setLoading">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading settings...
     </div>
 
-    <div class="app-settings-empty">
-        <i class="fa-solid fa-sliders"></i>
-        <h3>Nothing here yet</h3>
-        <p>New settings will appear on this page as they are added.</p>
-    </div>
+    <!-- First time: a settings password must be created before anything else -->
+    <section class="kt-set-view" id="setCreate" hidden>
+        <div class="kt-set-hero">
+            <i class="fa-solid fa-lock"></i>
+            <h1>Create your settings password</h1>
+            <p>Settings contain sensitive tools. Create a password now. You will enter it every time you open Sound &amp; Notifications, Admins or Audit.</p>
+        </div>
+        <div class="kt-set-card">
+            <label>Password</label>
+            <div id="createPw1"></div>
+            <label>Re-enter password</label>
+            <div id="createPw2"></div>
+            <p class="kt-set-hint">At least 8 characters. Keep it private; it cannot be recovered, only changed.</p>
+            <div class="kt-set-error" id="createError"></div>
+            <button class="kt-set-btn primary" id="createBtn">Save password</button>
+        </div>
+    </section>
+
+    <!-- Menu -->
+    <section class="kt-set-view" id="setMenu" hidden>
+        <div class="kt-set-header">
+            <h1><i class="fa-solid fa-gear"></i> Settings</h1>
+            <p>Tap a category. Everything except Safety asks for your settings password.</p>
+        </div>
+
+        <div class="kt-set-cards">
+            <button class="kt-set-cat" data-cat="sound">
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-bell"></i></span>
+                <span class="kt-set-cat-text"><b>Sound &amp; Notifications</b><small>Alert sound, alerts when the app is closed, pop-up types</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
+            <button class="kt-set-cat" data-cat="admin">
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-user-shield"></i></span>
+                <span class="kt-set-cat-text"><b>Admins</b><small>See admins, add or remove the admin role</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
+            <button class="kt-set-cat" data-cat="audit">
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-scale-balanced"></i></span>
+                <span class="kt-set-cat-text"><b>Audit</b><small>Profit &amp; loss balancing, spreadsheet download, delete records</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
+            <button class="kt-set-cat" data-cat="safety">
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-key"></i></span>
+                <span class="kt-set-cat-text"><b>Safety</b><small>Change your settings password</small></span>
+                <i class="fa-solid fa-chevron-right kt-set-cat-lock"></i>
+            </button>
+        </div>
+    </section>
+
+    <!-- Sound & notifications -->
+    <section class="kt-set-view" id="setSound" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Sound &amp; Notifications</h2>
+        </div>
+        <div id="setSoundBody"></div>
+    </section>
+
+    <!-- Admins -->
+    <section class="kt-set-view" id="setAdmin" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Admins</h2>
+        </div>
+        <div id="setAdminBody"></div>
+    </section>
+
+    <!-- Audit -->
+    <section class="kt-set-view" id="setAudit" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Audit</h2>
+        </div>
+        <div id="setAuditBody"></div>
+    </section>
+
+    <!-- Safety -->
+    <section class="kt-set-view" id="setSafety" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Safety</h2>
+        </div>
+        <div id="setSafetyBody"></div>
+    </section>
 
 </div>
