@@ -8,6 +8,8 @@ function initVerification() {
     const pendingRequests = document.getElementById("pendingRequests");
     const approvedRequests = document.getElementById("approvedRequests");
     const rejectedRequests = document.getElementById("rejectedRequests");
+    const resubmissionRequests = document.getElementById("resubmissionRequests");
+    const resetRequests = document.getElementById("resetRequests");
 
     const modal = document.getElementById("reviewModal");
     const closeModal = document.querySelector(".close-review");
@@ -32,22 +34,51 @@ function initVerification() {
     let selectedRow = null;
     let kycData = {};
 
+    // Users with a resubmission request the admin has not acted on yet
+    // (account_reset_requests, kind = 'kyc', status = 'pending').
+    let requestUserIds = {};
+
+    // Every list that shows KYC rows (used by search, user filter and stats).
+    const ALL_LIST_ROWS =
+        "#pendingList tbody tr, #approvedList tbody tr, #rejectedList tbody tr, " +
+        "#requestsList tbody tr, #resetsList tbody tr";
+
     // ===============================
     // Load KYC submissions from Supabase
     // ===============================
 
     function loadKyc(){
 
-                sb.from("kyc_submissions")
+        const submissionsQuery = sb.from("kyc_submissions")
             .select("id, user_id, id_front_url, id_back_url, selfie_url, status, needs_resubmission, admin_note, created_at, country, profiles(username, surname, email, phone)")
-            .order("created_at", { ascending: false })
+            .order("created_at", { ascending: false });
 
-            .then(({ data, error }) => {
+        const requestsQuery = sb.from("account_reset_requests")
+            .select("user_id")
+            .eq("kind", "kyc")
+            .eq("status", "pending");
+
+        Promise.all([submissionsQuery, requestsQuery])
+
+            .then(([submissionsRes, requestsRes]) => {
+
+                const data = submissionsRes.data;
+                const error = submissionsRes.error;
 
                 if(error){
                     console.error("Failed to load KYC submissions:", error);
                     return;
                 }
+
+                if(requestsRes.error){
+                    console.error("Failed to load resubmission requests:", requestsRes.error);
+                }
+
+                requestUserIds = {};
+
+                (requestsRes.data || []).forEach(r => {
+                    requestUserIds[r.user_id] = true;
+                });
 
                 kycData = {};
 
@@ -106,7 +137,9 @@ function initVerification() {
         entry.phone,
         entry.country,
         entry.date,
-        entry.status
+        entry.status,
+        entry.isRequest ? "request" : "",
+        entry.needsResubmission ? "reset" : ""
     ]
         .filter(Boolean)
         .join(" ")
@@ -115,9 +148,15 @@ function initVerification() {
         const buttonLabel =
             entry.status === "pending" ? "Review" : "View";
 
-        const nameCell = entry.needsResubmission
-            ? entry.name + " <span style=\"opacity:.6;font-size:11px;\">(reset)</span>"
-            : entry.name;
+        let nameCell = entry.name;
+
+        if (entry.needsResubmission) {
+            nameCell += " <span style=\"opacity:.6;font-size:11px;\">(reset)</span>";
+        }
+
+        if (entry.isRequest) {
+            nameCell += " <span class=\"kyc-request-badge\">request</span>";
+        }
 
         tr.innerHTML =
             "<td>" + nameCell + "</td>" +
@@ -137,7 +176,9 @@ function initVerification() {
         const lists = [
             { id: "pendingList",  none: "No pending verification requests", icon: "fa-solid fa-inbox" },
             { id: "approvedList", none: "No approved verifications",        icon: "fa-solid fa-circle-check" },
-            { id: "rejectedList", none: "No rejected verifications",        icon: "fa-solid fa-circle-xmark" }
+            { id: "rejectedList", none: "No rejected verifications",        icon: "fa-solid fa-circle-xmark" },
+            { id: "requestsList", none: "No resubmission requests waiting for action", icon: "fa-solid fa-paper-plane" },
+            { id: "resetsList",   none: "No reset verifications",         icon: "fa-solid fa-rotate-left" }
         ];
 
         lists.forEach(function (item) {
@@ -170,11 +211,36 @@ function initVerification() {
         const rejectedBody =
             document.querySelector("#rejectedList tbody");
 
+        const requestsBody =
+            document.querySelector("#requestsList tbody");
+
+        const resetsBody =
+            document.querySelector("#resetsList tbody");
+
         pendingBody.innerHTML = "";
         approvedBody.innerHTML = "";
         rejectedBody.innerHTML = "";
+        requestsBody.innerHTML = "";
+        resetsBody.innerHTML = "";
 
         const allEntries = Object.values(kycData);
+
+        // Each user's most recent submission (any status). A resubmission
+        // request belongs to that record, so it is the one tagged "request".
+        const latestByUser = {};
+
+        allEntries.forEach(entry => {
+            const existing = latestByUser[entry.userId];
+            if (!existing || new Date(entry.createdAt) > new Date(existing.createdAt)) {
+                latestByUser[entry.userId] = entry;
+            }
+        });
+
+        allEntries.forEach(entry => {
+            entry.isRequest =
+                !!requestUserIds[entry.userId] &&
+                latestByUser[entry.userId] === entry;
+        });
 
         // Pending: show every pending row, no dedup needed.
         allEntries
@@ -201,6 +267,17 @@ function initVerification() {
             } else {
                 rejectedBody.appendChild(renderRow(entry));
             }
+
+            // Users whose verification was reset (the ones with the reset badge).
+            if (entry.needsResubmission) {
+                resetsBody.appendChild(renderRow(entry));
+            }
+        });
+
+        // Users who applied for a resubmission that admin has not acted on.
+        Object.keys(requestUserIds).forEach(userId => {
+            const entry = latestByUser[userId];
+            if (entry) requestsBody.appendChild(renderRow(entry));
         });
 
         loadReviewButtons();
@@ -258,11 +335,7 @@ function applyVerificationUserFilter(){
 
 
     // Hide every KYC row that belongs to another user
-    document.querySelectorAll(
-        "#pendingList tbody tr, " +
-        "#approvedList tbody tr, " +
-        "#rejectedList tbody tr"
-    ).forEach(row => {
+    document.querySelectorAll(ALL_LIST_ROWS).forEach(row => {
 
         const entry =
             kycData[row.dataset.kycid];
@@ -296,11 +369,7 @@ if (verificationSearch) {
         const searchTerm =
             this.value.trim().toLowerCase();
 
-        const rows = document.querySelectorAll(
-            "#pendingList tbody tr, " +
-            "#approvedList tbody tr, " +
-            "#rejectedList tbody tr"
-        );
+        const rows = document.querySelectorAll(ALL_LIST_ROWS);
 
         rows.forEach(row => {
 
@@ -336,8 +405,17 @@ if (verificationSearch) {
         const rejected =
             document.querySelectorAll("#rejectedList tbody tr[data-kycid]").length;
 
+        const requests =
+            document.querySelectorAll("#requestsList tbody tr[data-kycid]").length;
+
+        const resets =
+            document.querySelectorAll("#resetsList tbody tr[data-kycid]").length;
+
         totalRequests.textContent =
             pending + approved + rejected;
+
+        resubmissionRequests.textContent = requests;
+        resetRequests.textContent = resets;
 
         pendingRequests.textContent = pending;
         approvedRequests.textContent = approved;
@@ -357,17 +435,30 @@ if (verificationSearch) {
     const tabs = document.querySelectorAll(".kyc-tab");
     const sections = document.querySelectorAll(".verification-section");
 
-    document.querySelector("#pendingList")
-        .closest(".verification-section")
-        .style.display = "block";
+    // Tab (data-status) -> the list it shows.
+    const TAB_LISTS = {
+        pending:  "pendingList",
+        approved: "approvedList",
+        rejected: "rejectedList",
+        requests: "requestsList",
+        resets:   "resetsList"
+    };
 
-    document.querySelector("#approvedList")
-        .closest(".verification-section")
-        .style.display = "none";
+    function showKycSection(status){
 
-    document.querySelector("#rejectedList")
-        .closest(".verification-section")
-        .style.display = "none";
+        sections.forEach(section => {
+            section.style.display = "none";
+        });
+
+        const listId = TAB_LISTS[status] || TAB_LISTS.pending;
+
+        document.getElementById(listId)
+            .closest(".verification-section")
+            .style.display = "block";
+
+    }
+
+    showKycSection("pending");
 
     tabs.forEach(tab => {
 
@@ -378,38 +469,7 @@ if (verificationSearch) {
 
             this.classList.add("active");
 
-            const status =
-                this.dataset.status;
-
-            sections.forEach(section => {
-
-                section.style.display = "none";
-
-            });
-
-            if (status === "pending") {
-
-                document.querySelector("#pendingList")
-                    .closest(".verification-section")
-                    .style.display = "block";
-
-            }
-
-            if (status === "approved") {
-
-                document.querySelector("#approvedList")
-                    .closest(".verification-section")
-                    .style.display = "block";
-
-            }
-
-            if (status === "rejected") {
-
-                document.querySelector("#rejectedList")
-                    .closest(".verification-section")
-                    .style.display = "block";
-
-            }
+            showKycSection(this.dataset.status);
 
         });
 
@@ -716,6 +776,8 @@ if (verificationSearch) {
                 KTUI.notify("Resubmission request rejected — the user has been notified.");
 
                 refreshResubmissionStatus(entry.userId);
+
+                loadKyc();
 
             });
 

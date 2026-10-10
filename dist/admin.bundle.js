@@ -8932,6 +8932,8 @@ function initVerification() {
     const pendingRequests = document.getElementById("pendingRequests");
     const approvedRequests = document.getElementById("approvedRequests");
     const rejectedRequests = document.getElementById("rejectedRequests");
+    const resubmissionRequests = document.getElementById("resubmissionRequests");
+    const resetRequests = document.getElementById("resetRequests");
 
     const modal = document.getElementById("reviewModal");
     const closeModal = document.querySelector(".close-review");
@@ -8956,22 +8958,51 @@ function initVerification() {
     let selectedRow = null;
     let kycData = {};
 
+    // Users with a resubmission request the admin has not acted on yet
+    // (account_reset_requests, kind = 'kyc', status = 'pending').
+    let requestUserIds = {};
+
+    // Every list that shows KYC rows (used by search, user filter and stats).
+    const ALL_LIST_ROWS =
+        "#pendingList tbody tr, #approvedList tbody tr, #rejectedList tbody tr, " +
+        "#requestsList tbody tr, #resetsList tbody tr";
+
     // ===============================
     // Load KYC submissions from Supabase
     // ===============================
 
     function loadKyc(){
 
-                sb.from("kyc_submissions")
+        const submissionsQuery = sb.from("kyc_submissions")
             .select("id, user_id, id_front_url, id_back_url, selfie_url, status, needs_resubmission, admin_note, created_at, country, profiles(username, surname, email, phone)")
-            .order("created_at", { ascending: false })
+            .order("created_at", { ascending: false });
 
-            .then(({ data, error }) => {
+        const requestsQuery = sb.from("account_reset_requests")
+            .select("user_id")
+            .eq("kind", "kyc")
+            .eq("status", "pending");
+
+        Promise.all([submissionsQuery, requestsQuery])
+
+            .then(([submissionsRes, requestsRes]) => {
+
+                const data = submissionsRes.data;
+                const error = submissionsRes.error;
 
                 if(error){
                     console.error("Failed to load KYC submissions:", error);
                     return;
                 }
+
+                if(requestsRes.error){
+                    console.error("Failed to load resubmission requests:", requestsRes.error);
+                }
+
+                requestUserIds = {};
+
+                (requestsRes.data || []).forEach(r => {
+                    requestUserIds[r.user_id] = true;
+                });
 
                 kycData = {};
 
@@ -9030,7 +9061,9 @@ function initVerification() {
         entry.phone,
         entry.country,
         entry.date,
-        entry.status
+        entry.status,
+        entry.isRequest ? "request" : "",
+        entry.needsResubmission ? "reset" : ""
     ]
         .filter(Boolean)
         .join(" ")
@@ -9039,9 +9072,15 @@ function initVerification() {
         const buttonLabel =
             entry.status === "pending" ? "Review" : "View";
 
-        const nameCell = entry.needsResubmission
-            ? entry.name + " <span style=\"opacity:.6;font-size:11px;\">(reset)</span>"
-            : entry.name;
+        let nameCell = entry.name;
+
+        if (entry.needsResubmission) {
+            nameCell += " <span style=\"opacity:.6;font-size:11px;\">(reset)</span>";
+        }
+
+        if (entry.isRequest) {
+            nameCell += " <span class=\"kyc-request-badge\">request</span>";
+        }
 
         tr.innerHTML =
             "<td>" + nameCell + "</td>" +
@@ -9061,7 +9100,9 @@ function initVerification() {
         const lists = [
             { id: "pendingList",  none: "No pending verification requests", icon: "fa-solid fa-inbox" },
             { id: "approvedList", none: "No approved verifications",        icon: "fa-solid fa-circle-check" },
-            { id: "rejectedList", none: "No rejected verifications",        icon: "fa-solid fa-circle-xmark" }
+            { id: "rejectedList", none: "No rejected verifications",        icon: "fa-solid fa-circle-xmark" },
+            { id: "requestsList", none: "No resubmission requests waiting for action", icon: "fa-solid fa-paper-plane" },
+            { id: "resetsList",   none: "No reset verifications",         icon: "fa-solid fa-rotate-left" }
         ];
 
         lists.forEach(function (item) {
@@ -9094,11 +9135,36 @@ function initVerification() {
         const rejectedBody =
             document.querySelector("#rejectedList tbody");
 
+        const requestsBody =
+            document.querySelector("#requestsList tbody");
+
+        const resetsBody =
+            document.querySelector("#resetsList tbody");
+
         pendingBody.innerHTML = "";
         approvedBody.innerHTML = "";
         rejectedBody.innerHTML = "";
+        requestsBody.innerHTML = "";
+        resetsBody.innerHTML = "";
 
         const allEntries = Object.values(kycData);
+
+        // Each user's most recent submission (any status). A resubmission
+        // request belongs to that record, so it is the one tagged "request".
+        const latestByUser = {};
+
+        allEntries.forEach(entry => {
+            const existing = latestByUser[entry.userId];
+            if (!existing || new Date(entry.createdAt) > new Date(existing.createdAt)) {
+                latestByUser[entry.userId] = entry;
+            }
+        });
+
+        allEntries.forEach(entry => {
+            entry.isRequest =
+                !!requestUserIds[entry.userId] &&
+                latestByUser[entry.userId] === entry;
+        });
 
         // Pending: show every pending row, no dedup needed.
         allEntries
@@ -9125,6 +9191,17 @@ function initVerification() {
             } else {
                 rejectedBody.appendChild(renderRow(entry));
             }
+
+            // Users whose verification was reset (the ones with the reset badge).
+            if (entry.needsResubmission) {
+                resetsBody.appendChild(renderRow(entry));
+            }
+        });
+
+        // Users who applied for a resubmission that admin has not acted on.
+        Object.keys(requestUserIds).forEach(userId => {
+            const entry = latestByUser[userId];
+            if (entry) requestsBody.appendChild(renderRow(entry));
         });
 
         loadReviewButtons();
@@ -9182,11 +9259,7 @@ function applyVerificationUserFilter(){
 
 
     // Hide every KYC row that belongs to another user
-    document.querySelectorAll(
-        "#pendingList tbody tr, " +
-        "#approvedList tbody tr, " +
-        "#rejectedList tbody tr"
-    ).forEach(row => {
+    document.querySelectorAll(ALL_LIST_ROWS).forEach(row => {
 
         const entry =
             kycData[row.dataset.kycid];
@@ -9220,11 +9293,7 @@ if (verificationSearch) {
         const searchTerm =
             this.value.trim().toLowerCase();
 
-        const rows = document.querySelectorAll(
-            "#pendingList tbody tr, " +
-            "#approvedList tbody tr, " +
-            "#rejectedList tbody tr"
-        );
+        const rows = document.querySelectorAll(ALL_LIST_ROWS);
 
         rows.forEach(row => {
 
@@ -9260,8 +9329,17 @@ if (verificationSearch) {
         const rejected =
             document.querySelectorAll("#rejectedList tbody tr[data-kycid]").length;
 
+        const requests =
+            document.querySelectorAll("#requestsList tbody tr[data-kycid]").length;
+
+        const resets =
+            document.querySelectorAll("#resetsList tbody tr[data-kycid]").length;
+
         totalRequests.textContent =
             pending + approved + rejected;
+
+        resubmissionRequests.textContent = requests;
+        resetRequests.textContent = resets;
 
         pendingRequests.textContent = pending;
         approvedRequests.textContent = approved;
@@ -9281,17 +9359,30 @@ if (verificationSearch) {
     const tabs = document.querySelectorAll(".kyc-tab");
     const sections = document.querySelectorAll(".verification-section");
 
-    document.querySelector("#pendingList")
-        .closest(".verification-section")
-        .style.display = "block";
+    // Tab (data-status) -> the list it shows.
+    const TAB_LISTS = {
+        pending:  "pendingList",
+        approved: "approvedList",
+        rejected: "rejectedList",
+        requests: "requestsList",
+        resets:   "resetsList"
+    };
 
-    document.querySelector("#approvedList")
-        .closest(".verification-section")
-        .style.display = "none";
+    function showKycSection(status){
 
-    document.querySelector("#rejectedList")
-        .closest(".verification-section")
-        .style.display = "none";
+        sections.forEach(section => {
+            section.style.display = "none";
+        });
+
+        const listId = TAB_LISTS[status] || TAB_LISTS.pending;
+
+        document.getElementById(listId)
+            .closest(".verification-section")
+            .style.display = "block";
+
+    }
+
+    showKycSection("pending");
 
     tabs.forEach(tab => {
 
@@ -9302,38 +9393,7 @@ if (verificationSearch) {
 
             this.classList.add("active");
 
-            const status =
-                this.dataset.status;
-
-            sections.forEach(section => {
-
-                section.style.display = "none";
-
-            });
-
-            if (status === "pending") {
-
-                document.querySelector("#pendingList")
-                    .closest(".verification-section")
-                    .style.display = "block";
-
-            }
-
-            if (status === "approved") {
-
-                document.querySelector("#approvedList")
-                    .closest(".verification-section")
-                    .style.display = "block";
-
-            }
-
-            if (status === "rejected") {
-
-                document.querySelector("#rejectedList")
-                    .closest(".verification-section")
-                    .style.display = "block";
-
-            }
+            showKycSection(this.dataset.status);
 
         });
 
@@ -9640,6 +9700,8 @@ if (verificationSearch) {
                 KTUI.notify("Resubmission request rejected — the user has been notified.");
 
                 refreshResubmissionStatus(entry.userId);
+
+                loadKyc();
 
             });
 
@@ -12771,6 +12833,10 @@ let replyingToMessage = null;
 let editingMessage = null;
 
 let currentChatFilter = "all";
+
+// user id -> number of requests the admin has not acted on yet
+// (pending deposits, withdrawals, KYC, resets, change requests ...)
+let pendingRequestCounts = {};
 let currentChatSearch = "";
 
 let chatMenuOpen = false;
@@ -12883,6 +12949,15 @@ function findSupportUser(userId) {
 
 function initSupportChatPage() {
 
+    // Keep the "Requests" filter live: refresh when a request is made or acted on.
+    if (window.KTRealtime && typeof KTRealtime.register === "function") {
+        KTRealtime.register(
+            "support-chat",
+            ["deposits", "withdrawals", "kyc_submissions", "account_reset_requests", "profile_signals"],
+            refreshPendingRequestCounts
+        );
+    }
+
     if (supportChatInitialized) {
         loadSupportConversations();
         return;
@@ -12950,9 +13025,58 @@ function hideChatLoadingOverlay() {
 
 }
 
+// Which users have requests the admin has not acted on yet.
+// Never rejects: if it fails the chats simply show no request tag.
+function loadPendingRequestCounts() {
+
+    return sb.rpc("admin_pending_request_users").then(function (res) {
+
+        if (res.error) {
+            console.error("Failed to load pending requests:", res.error);
+            return;
+        }
+
+        pendingRequestCounts = {};
+
+        (res.data || []).forEach(function (row) {
+            pendingRequestCounts[row.user_id] = Number(row.pending_count) || 0;
+        });
+
+    }, function (error) {
+        console.error("Failed to load pending requests:", error);
+    });
+
+}
+
+// Refresh just the request tags (a request was made or acted on).
+function refreshPendingRequestCounts() {
+
+    loadPendingRequestCounts().then(function () {
+
+        individualChats.forEach(function (chat) {
+            chat.requestCount = pendingRequestCounts[chat.userId] || 0;
+        });
+
+        renderIndividualChats();
+
+    });
+
+}
+
+function chatHasPendingRequests(chat) {
+
+    return !!chat && Number(chat.requestCount) > 0;
+
+}
+
 function loadSupportConversations(onDone) {
 
-    sb.rpc("admin_list_support_conversations").then(function (res) {
+    Promise.all([
+        sb.rpc("admin_list_support_conversations"),
+        loadPendingRequestCounts()
+    ]).then(function (results) {
+
+        const res = results[0];
 
         if (res.error) {
             console.error("Failed to load support conversations:", res.error);
@@ -12981,6 +13105,7 @@ function loadSupportConversations(onDone) {
                 : "No messages yet";
             chat.lastMessageTime = formatChatListTime(row.last_message_at || row.created_at);
             chat.unread = row.unread_count || 0;
+            chat.requestCount = pendingRequestCounts[row.user_id] || 0;
 
             if (!existing) {
                 individualChats.push(chat);
@@ -13034,6 +13159,10 @@ function renderIndividualChats() {
 
     if (currentChatFilter === "priority") {
         chats = chats.filter(function (chat) { return chat.priority; });
+    }
+
+    if (currentChatFilter === "requests") {
+        chats = chats.filter(chatHasPendingRequests);
     }
 
     if (currentChatSearch.trim()) {
@@ -13160,6 +13289,14 @@ function createIndividualChatItem(chat) {
         unread.className = "chat-unread-badge";
         unread.textContent = chat.unread;
         bottom.appendChild(unread);
+    }
+
+    if (chatHasPendingRequests(chat)) {
+        const requestTag = document.createElement("span");
+        requestTag.className = "chat-request-badge";
+        requestTag.textContent = chat.requestCount > 1 ? chat.requestCount + " requests" : "Request";
+        requestTag.title = "This user has requests you have not acted on yet";
+        bottom.appendChild(requestTag);
     }
 
     if (chat.priority) {
@@ -14626,11 +14763,20 @@ function clearChatMessages() {
 
 }
 
+const CHAT_DELETE_BLOCKED_MESSAGE =
+    "This user has requests you have not acted on yet. " +
+    "Approve, reject or otherwise act on their requests first, then you can delete the chat.";
+
 function deleteCurrentChat() {
 
     if (!currentChat) return;
 
     closeChatMenu();
+
+    if (chatHasPendingRequests(currentChat)) {
+        KTUI.alert(CHAT_DELETE_BLOCKED_MESSAGE, { title: "Chat can't be deleted" });
+        return;
+    }
 
     deleteActionType = "chat";
     deleteActionId = currentChat.id;
@@ -15851,15 +15997,43 @@ function confirmDeleteSelectedChats() {
 
     if (selectedChatIds.length === 0) return;
 
+    // Chats of users with requests that are still waiting for the admin can't be deleted.
+    const blockedIds = selectedChatIds.filter(function (id) {
+        return chatHasPendingRequests(findIndividualChat(id));
+    });
+
+    const deletableIds = selectedChatIds.filter(function (id) {
+        return blockedIds.indexOf(id) === -1;
+    });
+
+    if (blockedIds.length > 0) {
+
+        if (deletableIds.length === 0) {
+            KTUI.alert(
+                blockedIds.length === 1
+                    ? CHAT_DELETE_BLOCKED_MESSAGE
+                    : "These users have requests you have not acted on yet, so their chats can't be deleted. Act on their requests first.",
+                { title: "Chats can't be deleted" }
+            );
+            return;
+        }
+
+        KTUI.warning(
+            blockedIds.length + (blockedIds.length === 1 ? " chat was" : " chats were") +
+            " skipped because the user has requests you have not acted on yet."
+        );
+
+    }
+
     deleteActionType = "bulkChats";
-    deleteActionIds = [...selectedChatIds];
+    deleteActionIds = [...deletableIds];
 
     const titleElement = supportChatElement("deleteConfirmTitle");
     const textElement = supportChatElement("deleteConfirmText");
     const confirmBtn = supportChatElement("confirmDeleteBtn");
     const modal = supportChatElement("deleteConfirmModal");
 
-    if (titleElement) titleElement.textContent = "Delete " + selectedChatIds.length + " Conversation" + (selectedChatIds.length === 1 ? "" : "s") + "?";
+    if (titleElement) titleElement.textContent = "Delete " + deletableIds.length + " Conversation" + (deletableIds.length === 1 ? "" : "s") + "?";
     if (textElement) textElement.textContent = "This will permanently delete the selected conversations. This action cannot be undone.";
     if (confirmBtn) confirmBtn.textContent = "Delete";
     if (modal) modal.classList.remove("hidden");

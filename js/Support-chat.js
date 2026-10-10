@@ -55,6 +55,10 @@ let replyingToMessage = null;
 let editingMessage = null;
 
 let currentChatFilter = "all";
+
+// user id -> number of requests the admin has not acted on yet
+// (pending deposits, withdrawals, KYC, resets, change requests ...)
+let pendingRequestCounts = {};
 let currentChatSearch = "";
 
 let chatMenuOpen = false;
@@ -167,6 +171,15 @@ function findSupportUser(userId) {
 
 function initSupportChatPage() {
 
+    // Keep the "Requests" filter live: refresh when a request is made or acted on.
+    if (window.KTRealtime && typeof KTRealtime.register === "function") {
+        KTRealtime.register(
+            "support-chat",
+            ["deposits", "withdrawals", "kyc_submissions", "account_reset_requests", "profile_signals"],
+            refreshPendingRequestCounts
+        );
+    }
+
     if (supportChatInitialized) {
         loadSupportConversations();
         return;
@@ -234,9 +247,58 @@ function hideChatLoadingOverlay() {
 
 }
 
+// Which users have requests the admin has not acted on yet.
+// Never rejects: if it fails the chats simply show no request tag.
+function loadPendingRequestCounts() {
+
+    return sb.rpc("admin_pending_request_users").then(function (res) {
+
+        if (res.error) {
+            console.error("Failed to load pending requests:", res.error);
+            return;
+        }
+
+        pendingRequestCounts = {};
+
+        (res.data || []).forEach(function (row) {
+            pendingRequestCounts[row.user_id] = Number(row.pending_count) || 0;
+        });
+
+    }, function (error) {
+        console.error("Failed to load pending requests:", error);
+    });
+
+}
+
+// Refresh just the request tags (a request was made or acted on).
+function refreshPendingRequestCounts() {
+
+    loadPendingRequestCounts().then(function () {
+
+        individualChats.forEach(function (chat) {
+            chat.requestCount = pendingRequestCounts[chat.userId] || 0;
+        });
+
+        renderIndividualChats();
+
+    });
+
+}
+
+function chatHasPendingRequests(chat) {
+
+    return !!chat && Number(chat.requestCount) > 0;
+
+}
+
 function loadSupportConversations(onDone) {
 
-    sb.rpc("admin_list_support_conversations").then(function (res) {
+    Promise.all([
+        sb.rpc("admin_list_support_conversations"),
+        loadPendingRequestCounts()
+    ]).then(function (results) {
+
+        const res = results[0];
 
         if (res.error) {
             console.error("Failed to load support conversations:", res.error);
@@ -265,6 +327,7 @@ function loadSupportConversations(onDone) {
                 : "No messages yet";
             chat.lastMessageTime = formatChatListTime(row.last_message_at || row.created_at);
             chat.unread = row.unread_count || 0;
+            chat.requestCount = pendingRequestCounts[row.user_id] || 0;
 
             if (!existing) {
                 individualChats.push(chat);
@@ -318,6 +381,10 @@ function renderIndividualChats() {
 
     if (currentChatFilter === "priority") {
         chats = chats.filter(function (chat) { return chat.priority; });
+    }
+
+    if (currentChatFilter === "requests") {
+        chats = chats.filter(chatHasPendingRequests);
     }
 
     if (currentChatSearch.trim()) {
@@ -444,6 +511,14 @@ function createIndividualChatItem(chat) {
         unread.className = "chat-unread-badge";
         unread.textContent = chat.unread;
         bottom.appendChild(unread);
+    }
+
+    if (chatHasPendingRequests(chat)) {
+        const requestTag = document.createElement("span");
+        requestTag.className = "chat-request-badge";
+        requestTag.textContent = chat.requestCount > 1 ? chat.requestCount + " requests" : "Request";
+        requestTag.title = "This user has requests you have not acted on yet";
+        bottom.appendChild(requestTag);
     }
 
     if (chat.priority) {
@@ -1910,11 +1985,20 @@ function clearChatMessages() {
 
 }
 
+const CHAT_DELETE_BLOCKED_MESSAGE =
+    "This user has requests you have not acted on yet. " +
+    "Approve, reject or otherwise act on their requests first, then you can delete the chat.";
+
 function deleteCurrentChat() {
 
     if (!currentChat) return;
 
     closeChatMenu();
+
+    if (chatHasPendingRequests(currentChat)) {
+        KTUI.alert(CHAT_DELETE_BLOCKED_MESSAGE, { title: "Chat can't be deleted" });
+        return;
+    }
 
     deleteActionType = "chat";
     deleteActionId = currentChat.id;
@@ -3135,15 +3219,43 @@ function confirmDeleteSelectedChats() {
 
     if (selectedChatIds.length === 0) return;
 
+    // Chats of users with requests that are still waiting for the admin can't be deleted.
+    const blockedIds = selectedChatIds.filter(function (id) {
+        return chatHasPendingRequests(findIndividualChat(id));
+    });
+
+    const deletableIds = selectedChatIds.filter(function (id) {
+        return blockedIds.indexOf(id) === -1;
+    });
+
+    if (blockedIds.length > 0) {
+
+        if (deletableIds.length === 0) {
+            KTUI.alert(
+                blockedIds.length === 1
+                    ? CHAT_DELETE_BLOCKED_MESSAGE
+                    : "These users have requests you have not acted on yet, so their chats can't be deleted. Act on their requests first.",
+                { title: "Chats can't be deleted" }
+            );
+            return;
+        }
+
+        KTUI.warning(
+            blockedIds.length + (blockedIds.length === 1 ? " chat was" : " chats were") +
+            " skipped because the user has requests you have not acted on yet."
+        );
+
+    }
+
     deleteActionType = "bulkChats";
-    deleteActionIds = [...selectedChatIds];
+    deleteActionIds = [...deletableIds];
 
     const titleElement = supportChatElement("deleteConfirmTitle");
     const textElement = supportChatElement("deleteConfirmText");
     const confirmBtn = supportChatElement("confirmDeleteBtn");
     const modal = supportChatElement("deleteConfirmModal");
 
-    if (titleElement) titleElement.textContent = "Delete " + selectedChatIds.length + " Conversation" + (selectedChatIds.length === 1 ? "" : "s") + "?";
+    if (titleElement) titleElement.textContent = "Delete " + deletableIds.length + " Conversation" + (deletableIds.length === 1 ? "" : "s") + "?";
     if (textElement) textElement.textContent = "This will permanently delete the selected conversations. This action cannot be undone.";
     if (confirmBtn) confirmBtn.textContent = "Delete";
     if (modal) modal.classList.remove("hidden");

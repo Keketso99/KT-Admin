@@ -22,6 +22,14 @@
             <h4>Rejected</h4>
             <span id="rejectedRequests">0</span>
         </div>
+        <div class="kyc-stat-card">
+            <h4>Requests</h4>
+            <span id="resubmissionRequests">0</span>
+        </div>
+        <div class="kyc-stat-card">
+            <h4>Resets</h4>
+            <span id="resetRequests">0</span>
+        </div>
     </div>
 
 <!-- Verification Search -->
@@ -39,6 +47,8 @@
         <button class="kyc-tab active" data-status="pending">Pending</button>
         <button class="kyc-tab" data-status="approved">Approved</button>
         <button class="kyc-tab" data-status="rejected">Rejected</button>
+        <button class="kyc-tab" data-status="requests">Requests</button>
+        <button class="kyc-tab" data-status="resets">Resets</button>
     </div>
 
 
@@ -102,6 +112,48 @@
                     </thead>
                     <tbody>
                         <!-- Rows are injected from verificationData.rejected in verification.js -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resubmission Requests (approved users who applied to resubmit; admin has not acted yet) -->
+    <div class="verification-section">
+        <h3>Resubmission Requests</h3>
+        <div id="requestsList">
+            <div class="verification-row" data-status="requests">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows are injected in verification.js -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Verifications (users whose verification was reset) -->
+    <div class="verification-section">
+        <h3>Reset Verifications</h3>
+        <div id="resetsList">
+            <div class="verification-row" data-status="resets">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows are injected in verification.js -->
                     </tbody>
                 </table>
             </div>
