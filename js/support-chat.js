@@ -2712,9 +2712,8 @@ function openNewChatModal() {
 
     if (input) input.value = "";
 
-    sb.from("profiles")
-        .select("id, username, surname, phone")
-        .order("username", { ascending: true })
+    // Users only (admins are excluded) — an admin cannot chat with an admin.
+    sb.rpc("admin_list_users")
         .then(function (res) {
 
             if (res.error) {
@@ -2725,7 +2724,7 @@ function openNewChatModal() {
 
             supportChatUsers = (res.data || []).map(function (row) {
                 return { id: row.id, name: fullNameOf(row), phone: row.phone };
-            });
+            }).sort(function (a, b) { return a.name.localeCompare(b.name); });
 
             renderAvailableUsers("");
 
@@ -2784,9 +2783,11 @@ function startNewConversation(userId) {
     // list — a conversation this admin previously deleted is hidden
     // from individualChats but still exists, and must be reused
     // (un-hidden) rather than duplicated.
+    // Each admin has their own chat with a user, so only look at this admin's.
     sb.from("support_conversations")
         .select("*")
         .eq("user_id", userId)
+        .eq("assigned_admin", supportAdminId)
         .order("created_at", { ascending: false })
         .limit(1)
         .then(function (res) {

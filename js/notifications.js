@@ -172,7 +172,7 @@ function detailRowsForEntry(entry){
 
     if(entry.action === "notification_sent"){
 
-        rows.push({ label: "Sent by", value: "You (Admin)" });
+        rows.push({ label: "Sent by", value: entry.requesterName || "Admin" });
         rows.push({ label: "Audience", value: AUDIENCE_LABELS[meta.audience] || meta.audience || "—" });
         rows.push({ label: "Recipients", value: String(meta.recipient_count || 0) });
         rows.push({ label: "Title", value: meta.title || "—" });
@@ -254,9 +254,28 @@ function renderNotificationDetail(entry){
 
 function loadNotifications(){
 
-    sb.from("activity_log")
+    sb.auth.getUser().then(function(res){
+
+        const me = res && res.data && res.data.user ? res.data.user.id : null;
+
+        runNotificationsLoad(me);
+
+    });
+
+}
+
+function runNotificationsLoad(me){
+
+    let query = sb.from("activity_log")
         .select("*")
-        .eq("category", "REQUESTS")
+        .eq("category", "REQUESTS");
+
+    // New-support-message notifications belong to the admin whose chat it is.
+    if(me){
+        query = query.or("action.neq.support_message_received,metadata->>admin_id.eq." + me + ",metadata->>admin_id.is.null");
+    }
+
+    query
         .order("created_at", { ascending: false })
         .limit(100)
 
@@ -273,7 +292,7 @@ function loadNotifications(){
             // requesting user — only look up names for rows that have one.
             const userIds = [...new Set(
                 rows
-                    .filter(r => r.action !== "notification_sent" && r.actor_id)
+                    .filter(r => r.actor_id)
                     .map(r => r.actor_id)
             )];
 

@@ -1513,11 +1513,16 @@ window.sb = supabase.createClient(
                                      (r.unblock_requests_pending || 0));
         });
 
-        sb.from("activity_log")
+        var notifQuery = sb.from("activity_log")
             .select("id", { count: "exact", head: true })
             .eq("category", "REQUESTS")
             .eq("is_read", false)
-            .neq("action", "notification_sent")
+            .neq("action", "notification_sent");
+        // Chat notifications are private to the admin whose chat it is.
+        if(myAdminId){
+            notifQuery = notifQuery.or("action.neq.support_message_received,metadata->>admin_id.eq." + myAdminId + ",metadata->>admin_id.is.null");
+        }
+        notifQuery
             .then(function(res){
                 if(res.error) return;
                 setBadge("notifications", res.count || 0);
@@ -1637,6 +1642,7 @@ window.sb = supabase.createClient(
     };
 
     var nameCache = {};
+    var myAdminId = null;
 
     function lookupName(userId){
         if(!userId) return Promise.resolve(null);
@@ -1657,6 +1663,9 @@ window.sb = supabase.createClient(
         if(!row || row.category !== "REQUESTS" || row.action === "notification_sent") return;
 
         var isChat = row.action === "support_message_received";
+
+        // Someone else's chat: not this admin's alert.
+        if(isChat && myAdminId && row.metadata && row.metadata.admin_id && row.metadata.admin_id !== myAdminId) return;
 
         if(payload.eventType === "UPDATE"){
             // Only a refreshed (still unread) chat record is news; reading it is not.
@@ -1719,6 +1728,12 @@ window.sb = supabase.createClient(
         started = true;
 
         injectStyles();
+        try{
+            sb.auth.getSession().then(function(res){
+                var s = res && res.data && res.data.session;
+                if(s){ myAdminId = s.user.id; scheduleBadges(); }
+            });
+        }catch(e){}
         removeSoundToggle();
         startPresence();
 
@@ -10226,7 +10241,7 @@ function detailRowsForEntry(entry){
 
     if(entry.action === "notification_sent"){
 
-        rows.push({ label: "Sent by", value: "You (Admin)" });
+        rows.push({ label: "Sent by", value: entry.requesterName || "Admin" });
         rows.push({ label: "Audience", value: AUDIENCE_LABELS[meta.audience] || meta.audience || "—" });
         rows.push({ label: "Recipients", value: String(meta.recipient_count || 0) });
         rows.push({ label: "Title", value: meta.title || "—" });
@@ -10308,9 +10323,28 @@ function renderNotificationDetail(entry){
 
 function loadNotifications(){
 
-    sb.from("activity_log")
+    sb.auth.getUser().then(function(res){
+
+        const me = res && res.data && res.data.user ? res.data.user.id : null;
+
+        runNotificationsLoad(me);
+
+    });
+
+}
+
+function runNotificationsLoad(me){
+
+    let query = sb.from("activity_log")
         .select("*")
-        .eq("category", "REQUESTS")
+        .eq("category", "REQUESTS");
+
+    // New-support-message notifications belong to the admin whose chat it is.
+    if(me){
+        query = query.or("action.neq.support_message_received,metadata->>admin_id.eq." + me + ",metadata->>admin_id.is.null");
+    }
+
+    query
         .order("created_at", { ascending: false })
         .limit(100)
 
@@ -10327,7 +10361,7 @@ function loadNotifications(){
             // requesting user — only look up names for rows that have one.
             const userIds = [...new Set(
                 rows
-                    .filter(r => r.action !== "notification_sent" && r.actor_id)
+                    .filter(r => r.actor_id)
                     .map(r => r.actor_id)
             )];
 
@@ -15502,9 +15536,8 @@ function openNewChatModal() {
 
     if (input) input.value = "";
 
-    sb.from("profiles")
-        .select("id, username, surname, phone")
-        .order("username", { ascending: true })
+    // Users only (admins are excluded) — an admin cannot chat with an admin.
+    sb.rpc("admin_list_users")
         .then(function (res) {
 
             if (res.error) {
@@ -15515,7 +15548,7 @@ function openNewChatModal() {
 
             supportChatUsers = (res.data || []).map(function (row) {
                 return { id: row.id, name: fullNameOf(row), phone: row.phone };
-            });
+            }).sort(function (a, b) { return a.name.localeCompare(b.name); });
 
             renderAvailableUsers("");
 
@@ -15574,9 +15607,11 @@ function startNewConversation(userId) {
     // list — a conversation this admin previously deleted is hidden
     // from individualChats but still exists, and must be reused
     // (un-hidden) rather than duplicated.
+    // Each admin has their own chat with a user, so only look at this admin's.
     sb.from("support_conversations")
         .select("*")
         .eq("user_id", userId)
+        .eq("assigned_admin", supportAdminId)
         .order("created_at", { ascending: false })
         .limit(1)
         .then(function (res) {

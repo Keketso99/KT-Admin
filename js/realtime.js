@@ -181,11 +181,16 @@
                                      (r.unblock_requests_pending || 0));
         });
 
-        sb.from("activity_log")
+        var notifQuery = sb.from("activity_log")
             .select("id", { count: "exact", head: true })
             .eq("category", "REQUESTS")
             .eq("is_read", false)
-            .neq("action", "notification_sent")
+            .neq("action", "notification_sent");
+        // Chat notifications are private to the admin whose chat it is.
+        if(myAdminId){
+            notifQuery = notifQuery.or("action.neq.support_message_received,metadata->>admin_id.eq." + myAdminId + ",metadata->>admin_id.is.null");
+        }
+        notifQuery
             .then(function(res){
                 if(res.error) return;
                 setBadge("notifications", res.count || 0);
@@ -305,6 +310,7 @@
     };
 
     var nameCache = {};
+    var myAdminId = null;
 
     function lookupName(userId){
         if(!userId) return Promise.resolve(null);
@@ -325,6 +331,9 @@
         if(!row || row.category !== "REQUESTS" || row.action === "notification_sent") return;
 
         var isChat = row.action === "support_message_received";
+
+        // Someone else's chat: not this admin's alert.
+        if(isChat && myAdminId && row.metadata && row.metadata.admin_id && row.metadata.admin_id !== myAdminId) return;
 
         if(payload.eventType === "UPDATE"){
             // Only a refreshed (still unread) chat record is news; reading it is not.
@@ -387,6 +396,12 @@
         started = true;
 
         injectStyles();
+        try{
+            sb.auth.getSession().then(function(res){
+                var s = res && res.data && res.data.session;
+                if(s){ myAdminId = s.user.id; scheduleBadges(); }
+            });
+        }catch(e){}
         removeSoundToggle();
         startPresence();
 
