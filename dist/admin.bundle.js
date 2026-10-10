@@ -17560,8 +17560,8 @@ document.addEventListener("click", function(event) {
                     '<div class="kt-set-person-info"><b>' + esc(name) + (a.is_you ? ' <span class="kt-set-tag">You</span>' : '') + '</b>' +
                     '<small>' + esc([a.email, a.phone].filter(Boolean).join(" · ") || "—") + '</small>' +
                     '<small>Admin since ' + esc(dOnly(a.since)) + '</small>' +
-                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b>' + (nicks[a.user_id] ? '' : ' (real name)') + '</small></div>' +
-                    '<button class="kt-set-mini primary" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '">Nickname</button>' +
+                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small>' +
+                    '<button class="kt-set-mini primary kt-set-rename" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button></div>' +
                     (a.is_you ? '' : '<button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
                 '</div>';
             }).join("");
@@ -17611,16 +17611,16 @@ document.addEventListener("click", function(event) {
 
         if(act === "set-nickname"){
             var current = t.getAttribute("data-nick") || "";
-            KTUI.prompt("Nickname users will see in KT Support instead of " + name + "'s real name. Leave empty to use the real name.", {
-                title: "Admin nickname", confirmText: "Save", busyText: "Saving...", value: current, placeholder: "e.g. Thabo from KT Support",
-                validate: function(v){ return (v || "").trim().length > 40 ? "Use 40 characters or fewer." : null; },
+            KTUI.prompt("Nickname users will see in KT Support instead of " + name + "'s real name. It must be different from every other admin's nickname.", {
+                title: "Admin nickname", confirmText: "Save", busyText: "Saving...", value: current, placeholder: "e.g. Admin 1",
+                validate: function(v){ v = (v || "").trim(); return !v ? "Enter a nickname." : v.length > 40 ? "Use 40 characters or fewer." : null; },
                 run: function(v){
                     return rpc("settings_set_admin_nickname", { p_user_id: id, p_nickname: (v || "").trim() })
                         .then(function(){ return null; }, function(err){ return err.message; });
                 }
             }).then(function(v){
                 if(v === null) return;
-                KTUI.success(String(v).trim() ? "Nickname saved." : "Nickname cleared.");
+                KTUI.success("Nickname saved.");
                 loadAdmins();
             });
             return;

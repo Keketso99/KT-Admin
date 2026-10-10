@@ -132,3 +132,5 @@
 .kt-set-card.danger-zone h3 i{ color:#dc2626; }
 
 .kt-set-person .kt-set-mini + .kt-set-mini{ margin-left:6px; }
+.kt-set-rename{ margin-top:8px; align-self:flex-start; }
+.kt-set-person-info{ display:flex; flex-direction:column; }
