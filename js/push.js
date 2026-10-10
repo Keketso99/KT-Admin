@@ -153,9 +153,15 @@
         paint(false);
     }
 
+    // The header bell was moved to Settings > Sound & Notifications.
+    function removeBell(){
+        var old = document.getElementById("kt-push-toggle");
+        if(old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
     // Call once after sign-in.
     function init(){
-        installBell();
+        removeBell();
         if(!supported()) return;
 
         // Already allowed on this device: make sure the subscription exists and is saved.

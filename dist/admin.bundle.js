@@ -1596,6 +1596,12 @@ window.sb = supabase.createClient(
         beep();
     }
 
+    // The header speaker was moved to Settings > Sound & Notifications.
+    function removeSoundToggle(){
+        var old = document.getElementById("kt-sound-toggle");
+        if(old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
     function installSoundToggle(){
         if(document.getElementById("kt-sound-toggle")) return;
         var logout = document.getElementById("logout-btn");
@@ -1713,7 +1719,7 @@ window.sb = supabase.createClient(
         started = true;
 
         injectStyles();
-        installSoundToggle();
+        removeSoundToggle();
         startPresence();
 
         channel = sb.channel("kt-admin-live");
@@ -2037,9 +2043,15 @@ window.sb = supabase.createClient(
         paint(false);
     }
 
+    // The header bell was moved to Settings > Sound & Notifications.
+    function removeBell(){
+        var old = document.getElementById("kt-push-toggle");
+        if(old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
     // Call once after sign-in.
     function init(){
-        installBell();
+        removeBell();
         if(!supported()) return;
 
         // Already allowed on this device: make sure the subscription exists and is saved.
@@ -17529,7 +17541,13 @@ document.addEventListener("click", function(event) {
     }
 
     function loadAdmins(){
-        guarded("settings_list_admins").then(function(d){
+        Promise.all([
+            guarded("settings_list_admins"),
+            rpc("settings_list_admin_nicknames").catch(function(){ return []; })
+        ]).then(function(res){
+            var d = res[0], nickRows = res[1] || [];
+            var nicks = {};
+            nickRows.forEach(function(n){ nicks[n.user_id] = n.nickname; });
             var list = $("adminList");
             if(!list) return;
             var admins = d.admins || [];
@@ -17541,7 +17559,9 @@ document.addEventListener("click", function(event) {
                     '<div class="kt-set-avatar">' + esc(name.charAt(0).toUpperCase()) + '</div>' +
                     '<div class="kt-set-person-info"><b>' + esc(name) + (a.is_you ? ' <span class="kt-set-tag">You</span>' : '') + '</b>' +
                     '<small>' + esc([a.email, a.phone].filter(Boolean).join(" · ") || "—") + '</small>' +
-                    '<small>Admin since ' + esc(dOnly(a.since)) + '</small></div>' +
+                    '<small>Admin since ' + esc(dOnly(a.since)) + '</small>' +
+                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b>' + (nicks[a.user_id] ? '' : ' (real name)') + '</small></div>' +
+                    '<button class="kt-set-mini primary" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '">Nickname</button>' +
                     (a.is_you ? '' : '<button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
                 '</div>';
             }).join("");
@@ -17588,6 +17608,23 @@ document.addEventListener("click", function(event) {
         var act = t.getAttribute("data-act");
         var id = t.getAttribute("data-id");
         var name = t.getAttribute("data-name") || "this user";
+
+        if(act === "set-nickname"){
+            var current = t.getAttribute("data-nick") || "";
+            KTUI.prompt("Nickname users will see in KT Support instead of " + name + "'s real name. Leave empty to use the real name.", {
+                title: "Admin nickname", confirmText: "Save", busyText: "Saving...", value: current, placeholder: "e.g. Thabo from KT Support",
+                validate: function(v){ return (v || "").trim().length > 40 ? "Use 40 characters or fewer." : null; },
+                run: function(v){
+                    return rpc("settings_set_admin_nickname", { p_user_id: id, p_nickname: (v || "").trim() })
+                        .then(function(){ return null; }, function(err){ return err.message; });
+                }
+            }).then(function(v){
+                if(v === null) return;
+                KTUI.success(String(v).trim() ? "Nickname saved." : "Nickname cleared.");
+                loadAdmins();
+            });
+            return;
+        }
 
         if(act === "remove-admin"){
             KTUI.confirm("Remove the admin role from " + name + "? They will no longer be able to use the admin app or receive admin alerts.", {

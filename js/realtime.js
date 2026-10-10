@@ -264,6 +264,12 @@
         beep();
     }
 
+    // The header speaker was moved to Settings > Sound & Notifications.
+    function removeSoundToggle(){
+        var old = document.getElementById("kt-sound-toggle");
+        if(old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
     function installSoundToggle(){
         if(document.getElementById("kt-sound-toggle")) return;
         var logout = document.getElementById("logout-btn");
@@ -381,7 +387,7 @@
         started = true;
 
         injectStyles();
-        installSoundToggle();
+        removeSoundToggle();
         startPresence();
 
         channel = sb.channel("kt-admin-live");
