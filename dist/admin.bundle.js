@@ -15621,6 +15621,26 @@ function renderAvailableUsers(query) {
 
 function startNewConversation(userId) {
 
+    // Always use the CURRENT admin's id (it can be stale if another admin
+    // signed in without the page being reloaded).
+    sb.auth.getUser().then(function (authRes) {
+
+        const me = authRes && authRes.data && authRes.data.user ? authRes.data.user.id : null;
+
+        if (!me) {
+            KTUI.notify("Your session has expired. Please sign in again.");
+            return;
+        }
+
+        supportAdminId = me;
+        startNewConversationFor(userId);
+
+    });
+
+}
+
+function startNewConversationFor(userId) {
+
     // Check the DATABASE directly, not the local (already-filtered)
     // list — a conversation this admin previously deleted is hidden
     // from individualChats but still exists, and must be reused
@@ -15630,6 +15650,8 @@ function startNewConversation(userId) {
         .select("*")
         .eq("user_id", userId)
         .eq("assigned_admin", supportAdminId)
+        // A chat passed on from a removed admin stays separate; never reuse it.
+        .eq("passed_on", false)
         .order("created_at", { ascending: false })
         .limit(1)
         .then(function (res) {
