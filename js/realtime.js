@@ -562,7 +562,9 @@
 
     // Safety net: if the admin signs out by any route, tear down.
     if(typeof sb !== "undefined" && sb.auth && sb.auth.onAuthStateChange){
-        sb.auth.onAuthStateChange(function(event){
+        sb.auth.onAuthStateChange(function(event, session){
+            // keep the cached admin id right if another admin signs in
+            myAdminId = session && session.user ? session.user.id : null;
             if(event === "SIGNED_OUT") stop();
         });
     }

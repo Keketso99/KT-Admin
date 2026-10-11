@@ -1894,7 +1894,9 @@ window.sb = supabase.createClient(
 
     // Safety net: if the admin signs out by any route, tear down.
     if(typeof sb !== "undefined" && sb.auth && sb.auth.onAuthStateChange){
-        sb.auth.onAuthStateChange(function(event){
+        sb.auth.onAuthStateChange(function(event, session){
+            // keep the cached admin id right if another admin signs in
+            myAdminId = session && session.user ? session.user.id : null;
             if(event === "SIGNED_OUT") stop();
         });
     }
@@ -12916,6 +12918,73 @@ let supportMsgChannel = null;
 let supportConvChannel = null;
 let supportChatInitialized = false;
 
+// ------------------------------------------------------
+// Keep "who is the signed-in admin" correct at all times.
+// supportAdminId used to be read once when the page first opened, so after
+// signing out and in as a different admin (or after roles change) every send /
+// new-chat used the PREVIOUS admin's id and the database refused it with
+// "new row violates row-level security policy". It now follows the session.
+// ------------------------------------------------------
+function resetSupportChatForAdmin(newId) {
+
+    supportAdminId = newId;
+
+    // Never show the previous admin's chats to the next admin.
+    individualChats = [];
+    currentChat = null;
+    pendingRequestCounts = {};
+    selectedChatIds = [];
+    chatSelectionMode = false;
+
+    try {
+        const list = document.getElementById("individualChatList");
+        if (list) list.innerHTML = "";
+    } catch (e) { /* page not open */ }
+
+}
+
+if (typeof sb !== "undefined" && sb.auth && typeof sb.auth.onAuthStateChange === "function") {
+
+    sb.auth.onAuthStateChange(function (event, session) {
+
+        // Only set variables here (no supabase calls inside this callback).
+        const id = session && session.user ? session.user.id : null;
+
+        if (!id) {
+            if (supportAdminId !== null) resetSupportChatForAdmin(null);
+            return;
+        }
+
+        if (id !== supportAdminId) {
+            resetSupportChatForAdmin(id);
+            // Reload for the new admin once the callback has finished.
+            setTimeout(function () {
+                if (typeof loadSupportConversations === "function" && document.getElementById("chatWindow")) {
+                    loadSupportConversations();
+                }
+            }, 0);
+        }
+
+    });
+
+}
+
+// Friendly text when the database refuses a support action.
+function supportActionError(prefix, error) {
+
+    const raw = error && error.message ? String(error.message) : "";
+
+    if (/row-level security|permission denied/i.test(raw)) {
+        // Most likely the chat now belongs to another admin (or roles just
+        // changed): refresh from the database instead of leaving stale data.
+        if (typeof loadSupportConversations === "function") loadSupportConversations();
+        return prefix + ": you no longer have access to this chat. It may have been passed to another admin. The list has been refreshed.";
+    }
+
+    return prefix + ": " + raw;
+
+}
+
 
 // ======================================================
 // DOM HELPER
@@ -13163,6 +13232,14 @@ function loadSupportConversations(onDone) {
         const validIds = rows.map(function (r) { return r.id; });
 
         individualChats = individualChats.filter(function (c) { return validIds.indexOf(c.id) !== -1; });
+
+        // The open chat is no longer this admin's (passed to another admin,
+        // roles changed, deleted): close it instead of leaving a window that
+        // cannot send.
+        if (currentChat && validIds.indexOf(currentChat.id) === -1) {
+            closeLostChatWindow();
+            KTUI.notify("That chat is no longer in your list. It may have been passed to another admin.");
+        }
 
         renderIndividualChats();
         updateUnreadCounts();
@@ -13722,6 +13799,26 @@ function openChatWindow() {
 
 }
 
+// Hide the chat window without saving anything (the chat is not ours any more).
+function closeLostChatWindow() {
+
+    const emptyChat = supportChatElement("emptyChat");
+    const chatWindow = supportChatElement("chatWindow");
+    const chatMain = supportChatElement("chatMain");
+
+    if (emptyChat) emptyChat.style.display = "flex";
+    if (chatWindow) chatWindow.classList.add("hidden");
+    if (chatMain) chatMain.classList.remove("chat-open");
+
+    try { stopTypingChannel(); } catch (e) { /* ignore */ }
+    chatUserOnline = false;
+    currentChat = null;
+    currentUser = null;
+
+    try { closeMessageSearch(); cancelReply(); cancelEditMessage(); closeChatMenu(); } catch (e) { /* ignore */ }
+
+}
+
 function closeChat() {
 
     const emptyChat = supportChatElement("emptyChat");
@@ -14148,7 +14245,7 @@ function sendMessage() {
         .then(function (res) {
 
             if (res.error) {
-                KTUI.notify("Failed to send message: " + res.error.message);
+                KTUI.notify(supportActionError("Failed to send message", res.error));
                 return;
             }
 
@@ -15704,7 +15801,7 @@ function startNewConversationFor(userId) {
                 .then(function (insertRes) {
 
                     if (insertRes.error) {
-                        KTUI.notify("Failed to start conversation: " + insertRes.error.message);
+                        KTUI.notify(supportActionError("Failed to start conversation", insertRes.error));
                         return;
                     }
 
