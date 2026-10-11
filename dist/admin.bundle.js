@@ -13146,6 +13146,7 @@ function loadSupportConversations(onDone) {
             chat.assignedAdmin = row.assigned_admin;
             chat.priority = row.priority;
             chat.pinned = row.pinned;
+            chat.passedOn = !!row.passed_on;
             chat.lastMessage = row.last_message
                 ? (row.last_sender_type === "admin" ? "You: " : "") + row.last_message
                 : "No messages yet";
@@ -13320,6 +13321,15 @@ function createIndividualChatItem(chat) {
     time.textContent = chat.lastMessageTime;
 
     top.appendChild(name);
+
+    if (chat.passedOn) {
+        const passed = document.createElement("span");
+        passed.className = "chat-passed-badge";
+        passed.textContent = "Passed on";
+        passed.title = "This chat was passed on to you from an admin who is no longer an admin";
+        top.appendChild(passed);
+    }
+
     top.appendChild(time);
 
     const bottom = document.createElement("div");
@@ -13758,7 +13768,15 @@ function renderCurrentChat() {
     const avatarInitials = supportChatElement("chatAvatarInitials");
     const onlineDot = supportChatElement("chatOnlineStatus");
 
-    if (nameEl) nameEl.textContent = currentChat.name;
+    if (nameEl) {
+        nameEl.textContent = currentChat.name;
+        if (currentChat.passedOn) {
+            const tag = document.createElement("span");
+            tag.className = "chat-passed-badge";
+            tag.textContent = "Passed on";
+            nameEl.appendChild(tag);
+        }
+    }
     updateChatHeaderStatus();
 
     if (avatarImg) avatarImg.style.display = "none";
