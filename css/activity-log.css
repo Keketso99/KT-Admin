@@ -357,6 +357,7 @@
     left:0;
     width:100%;
     height:calc(100vh - 65px - env(safe-area-inset-top));
+    height:calc(100dvh - 65px - env(safe-area-inset-top));
     background:rgba(0,0,0,.45);
     display:none;
     align-items:center;

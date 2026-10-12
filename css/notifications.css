@@ -147,6 +147,7 @@ display:none;
     right: 60px; /* beside sidebar */
     width:calc(100% - 55px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;

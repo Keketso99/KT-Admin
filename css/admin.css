@@ -177,7 +177,7 @@ margin-left: 2px;
     left:0;
     right:0;
     width:200px;
-    height:calc(100vh - 65px - env(safe-area-inset-top));
+    bottom:0;
 
     background:#4b5563;
     color:white;
@@ -198,6 +198,9 @@ margin-left: 2px;
 .sidebar-menu-scroll{
     flex:1;
     min-height:0;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
     overflow-y:auto;
     overflow-x:hidden;
 }
@@ -223,7 +226,7 @@ margin-left: 2px;
 #sidebar-overlay{
     position:fixed;
     top:calc(65px + env(safe-area-inset-top));
-height:calc(100vh - 65px - env(safe-area-inset-top));
+bottom:0;
     left:0;
     width:100%;
     background:rgba(0,0,0,.35);
@@ -319,7 +322,7 @@ height:calc(100vh - 65px - env(safe-area-inset-top));
     top:calc(65px + env(safe-area-inset-top));
     left:260px;
     width:calc(100% - 260px);
-    height:calc(100vh - 65px - env(safe-area-inset-top));
+    bottom:0;
     overflow-y:auto;
     overflow-x:hidden;
     padding:7px;
@@ -766,3 +769,6 @@ body {
     font-weight:500;
     color:#d1d5db;
 }
+
+/* Fill the real visible screen in the browser too (not only when installed) */
+html, body { height: 100%; }

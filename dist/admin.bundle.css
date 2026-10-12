@@ -178,7 +178,7 @@ margin-left: 2px;
     left:0;
     right:0;
     width:200px;
-    height:calc(100vh - 65px - env(safe-area-inset-top));
+    bottom:0;
 
     background:#4b5563;
     color:white;
@@ -199,6 +199,9 @@ margin-left: 2px;
 .sidebar-menu-scroll{
     flex:1;
     min-height:0;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
     overflow-y:auto;
     overflow-x:hidden;
 }
@@ -224,7 +227,7 @@ margin-left: 2px;
 #sidebar-overlay{
     position:fixed;
     top:calc(65px + env(safe-area-inset-top));
-height:calc(100vh - 65px - env(safe-area-inset-top));
+bottom:0;
     left:0;
     width:100%;
     background:rgba(0,0,0,.35);
@@ -320,7 +323,7 @@ height:calc(100vh - 65px - env(safe-area-inset-top));
     top:calc(65px + env(safe-area-inset-top));
     left:260px;
     width:calc(100% - 260px);
-    height:calc(100vh - 65px - env(safe-area-inset-top));
+    bottom:0;
     overflow-y:auto;
     overflow-x:hidden;
     padding:7px;
@@ -768,6 +771,10 @@ body {
     color:#d1d5db;
 }
 
+/* Fill the real visible screen in the browser too (not only when installed) */
+html, body { height: 100%; }
+
+
 /* ===== css/dashboard.css ===== */
 /* ==========================
    DASHBOARD PAGE
@@ -1150,6 +1157,7 @@ button{
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -1460,6 +1468,7 @@ button{
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -1833,6 +1842,7 @@ button{
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -2543,6 +2553,7 @@ button{
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -3339,6 +3350,7 @@ button{
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -3779,6 +3791,7 @@ button{
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -4494,6 +4507,7 @@ button{
 
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
 
     background:rgba(0,0,0,.55);
 
@@ -4826,6 +4840,7 @@ opacity:.1;
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -5313,6 +5328,7 @@ opacity:.1;
     right: 40px; /* beside sidebar */
     width:calc(100% - 35px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -5812,6 +5828,7 @@ display:none;
     right: 60px; /* beside sidebar */
     width:calc(100% - 55px);
     height:calc(100vh - 65px);
+    height:calc(100dvh - 65px);
     background:rgba(0,0,0,.55);
     z-index:5000;
     padding: 15px;
@@ -6662,6 +6679,7 @@ transition: filter .15s ease, transform .1s ease;
     left:0;
     width:100%;
     height:calc(100vh - 65px - env(safe-area-inset-top));
+    height:calc(100dvh - 65px - env(safe-area-inset-top));
     background:rgba(0,0,0,.45);
     display:none;
     align-items:center;
@@ -7637,6 +7655,7 @@ body.activity-modal-open{
 
     width:100%;
     height:calc(100vh - 120px);
+    height:calc(100dvh - 120px);
 
     min-height:600px;
 
@@ -9585,6 +9604,7 @@ body.activity-modal-open{
     .support-chat{
 
         height:calc(100vh - 80px);
+        height:calc(100dvh - 80px);
 
         min-height:500px;
 
@@ -12575,6 +12595,7 @@ body.activity-modal-open{
 
     width: calc(100% - 35px);
     height: calc(100vh - 65px);
+    height: calc(100dvh - 65px);
 
     background: rgba(0,0,0,.55);
 
