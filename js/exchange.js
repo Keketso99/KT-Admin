@@ -119,6 +119,7 @@ function closeRateModal() {
 // =================================
 
 function saveRate() {
+    if(window.KTPerm && !KTPerm.require("change an exchange rate")) return;
 
     if (selectedRateId === null) return;
 
@@ -166,6 +167,7 @@ function saveRate() {
 // =================================
 
 function deleteCurrencyPair() {
+    if(window.KTPerm && !KTPerm.require("delete an exchange rate")) return;
 
     if (selectedRateId === null) return;
 
@@ -182,6 +184,7 @@ function deleteCurrencyPair() {
 // =================================
 
 function openAddRateModal() {
+    if(window.KTPerm && !KTPerm.require("add an exchange rate")) return;
     document.getElementById("addRateModal").style.display = "flex";
 }
 
@@ -196,6 +199,7 @@ function closeAddRateModal() {
 // =================================
 
 function addCurrencyPair() {
+    if(window.KTPerm && !KTPerm.require("add an exchange rate")) return;
 
     let pair = document.getElementById("newCurrencyPair").value.trim();
     let rate = document.getElementById("newCurrencyRate").value;
@@ -291,6 +295,7 @@ function closeConfirmDeleteModal() {
 }
 
 function confirmDelete() {
+    if(window.KTPerm && !KTPerm.require("delete an exchange rate")) return;
 
     if (!pendingDeleteId) {
         closeConfirmDeleteModal();

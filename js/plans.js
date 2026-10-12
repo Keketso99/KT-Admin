@@ -118,6 +118,7 @@ function initPlans(){
     // ADD NEW PLAN
 
     addButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("add a mining plan")) return;
 
         currentRow = null;
         currentPlan = null;
@@ -212,6 +213,7 @@ function initPlans(){
     // SAVE / CREATE PLAN
 
     saveButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("save changes to a mining plan")) return;
 
         const name = document.getElementById("planName").value.trim();
         const price = Number(document.getElementById("planPrice").value);
@@ -307,6 +309,7 @@ function initPlans(){
     // DELETE
 
     deleteButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("delete a mining plan")) return;
 
         if(!currentRow || !currentPlan) return;
 
@@ -325,6 +328,7 @@ function initPlans(){
     // ACTIVATE / DEACTIVATE (persists immediately)
 
     toggleButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("activate or deactivate a mining plan")) return;
 
         if(!currentRow || !currentPlan) return;
 
@@ -366,6 +370,7 @@ function initPlans(){
 
 
     deleteConfirmButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("delete a mining plan")) return;
 
         if(!currentRow || !currentPlan) return;
 

@@ -179,6 +179,8 @@ async function handleAuthedSession(session){
 
 await loadAdminSidebarProfile(session.user.id);
 
+if(window.KTPerm){ await KTPerm.load(); }
+
 if(typeof loadAdminPage === "function"){
     // A tapped push notification opens the app on the relevant page.
     var startPage = "dashboard";

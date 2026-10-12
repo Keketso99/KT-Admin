@@ -200,6 +200,7 @@ function showMediaTab(tabName) {
    ========================================================= */
 
 function openAddVideoModal() {
+    if(window.KTPerm && !KTPerm.require("add a video")) return;
 
     const modal = document.getElementById("mediaVideoModal");
     const form = document.getElementById("videoForm");
@@ -238,6 +239,7 @@ function editMediaVideo(id) {
 function saveMediaVideo(event) {
 
     event.preventDefault();
+    if(window.KTPerm && !KTPerm.require("save a video")) return;
 
     const editId = document.getElementById("videoEditId").value;
     const title = document.getElementById("videoTitle").value.trim();
@@ -401,6 +403,7 @@ function toggleGuideMediaField() {
 }
 
 function openAddGuideModal() {
+    if(window.KTPerm && !KTPerm.require("add a guide")) return;
 
     const modal = document.getElementById("mediaGuideModal");
     const form = document.getElementById("guideForm");
@@ -443,6 +446,7 @@ function editMediaGuide(id) {
 function saveMediaGuide(event) {
 
     event.preventDefault();
+    if(window.KTPerm && !KTPerm.require("save a guide")) return;
 
     const editId = document.getElementById("guideEditId").value;
     const title = document.getElementById("guideTitle").value.trim();
@@ -596,6 +600,7 @@ function filterMediaGuides() {
    ========================================================= */
 
 function openAddDownloadModal() {
+    if(window.KTPerm && !KTPerm.require("add a download")) return;
 
     const modal = document.getElementById("mediaDownloadModal");
     const form = document.getElementById("downloadForm");
@@ -634,6 +639,7 @@ function editMediaDownload(id) {
 function saveMediaDownload(event) {
 
     event.preventDefault();
+    if(window.KTPerm && !KTPerm.require("save a download")) return;
 
     const editId = document.getElementById("downloadEditId").value;
     const title = document.getElementById("downloadTitle").value.trim();
@@ -772,6 +778,7 @@ function filterMediaDownloads() {
    ========================================================= */
 
 function openMediaDeleteModal(id, type) {
+    if(window.KTPerm && !KTPerm.require("delete media")) return;
 
     document.getElementById("mediaDeleteId").value = id;
     document.getElementById("mediaDeleteType").value = type;
@@ -801,6 +808,7 @@ const MEDIA_DELETE_TABLES = {
 };
 
 function confirmMediaDelete() {
+    if(window.KTPerm && !KTPerm.require("delete media")) return;
 
     const id = document.getElementById("mediaDeleteId").value;
     const type = document.getElementById("mediaDeleteType").value;

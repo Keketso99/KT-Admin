@@ -636,6 +636,7 @@ function markNotificationUnread(){
 
 
 function deleteNotification(){
+    if(window.KTPerm && !KTPerm.require("delete notifications")) return;
     document.getElementById("deleteConfirmModal").style.display="flex";
 }
 
@@ -650,6 +651,7 @@ function closeDeleteConfirmModal(){
 // ===============================
 
 function confirmDeleteNotification(){
+    if(window.KTPerm && !KTPerm.require("delete notifications")) return;
 
     if(!selectedNotificationId){
         closeDeleteConfirmModal();

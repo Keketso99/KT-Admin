@@ -644,6 +644,81 @@ window.sb = supabase.createClient(
 })();
 
 
+/* ===== js/permissions.js ===== */
+// =========================================================
+// KT ADMIN — MAIN ADMIN PERMISSIONS
+//
+// One admin (the "main admin") can delete records, set/change passwords and
+// PINs, assign/remove admins and change Manage Plans, Exchange Rates and Media.
+// Every other admin gets a "not authorized" dialog for those actions.
+//
+// The database enforces the same rules, so this file only decides what to
+// show. KTPerm.require("delete users") returns true when allowed; otherwise it
+// shows the dialog and returns false:
+//
+//     if(!KTPerm.require("delete users")) return;
+// =========================================================
+
+(function(){
+
+    var state = { isSuper: false, superId: null, loaded: false };
+
+    function load(){
+        return sb.rpc("admin_permission_info").then(function(res){
+            if(res.error){
+                // The database function is not installed yet (or a network
+                // problem). Do not lock the app: the database still enforces
+                // the rules on every action.
+                state.isSuper = true;
+                state.superId = null;
+            } else {
+                var d = res.data || {};
+                state.isSuper = d.is_super === true;
+                state.superId = d.super_id || null;
+            }
+            state.loaded = true;
+            return state.isSuper;
+        }).catch(function(){
+            state.isSuper = true;
+            state.loaded = true;
+            return true;
+        });
+    }
+
+    function deny(action){
+        var what = action ? " " + action : " perform this action";
+        KTUI.alert("You are not authorized to" + what + ".", {
+            title: "Not authorized",
+            type: "warning",
+            okText: "Close"
+        });
+        return false;
+    }
+
+    function require(action){
+        if(state.isSuper) return true;
+        return deny(action);
+    }
+
+    window.KTPerm = {
+        load: load,
+        require: require,
+        deny: deny,
+        get isSuper(){ return state.isSuper; }
+    };
+
+    // a different account signing in must be checked again
+    if(typeof sb !== "undefined" && sb.auth && typeof sb.auth.onAuthStateChange === "function"){
+        sb.auth.onAuthStateChange(function(event){
+            if(event === "SIGNED_OUT"){
+                state.isSuper = false; state.superId = null; state.loaded = false;
+            }
+        });
+    }
+
+})();
+
+
 /* ===== js/sound.js ===== */
 // =========================================================
 // KT ADMIN — NOTIFICATION SOUND & ALERT PREFERENCES
@@ -2282,6 +2357,8 @@ async function handleAuthedSession(session){
         hideLoginOverlay();
 
 await loadAdminSidebarProfile(session.user.id);
+
+if(window.KTPerm){ await KTPerm.load(); }
 
 if(typeof loadAdminPage === "function"){
     // A tapped push notification opens the app on the relevant page.
@@ -5748,6 +5825,7 @@ function initPlans(){
     // ADD NEW PLAN
 
     addButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("add a mining plan")) return;
 
         currentRow = null;
         currentPlan = null;
@@ -5842,6 +5920,7 @@ function initPlans(){
     // SAVE / CREATE PLAN
 
     saveButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("save changes to a mining plan")) return;
 
         const name = document.getElementById("planName").value.trim();
         const price = Number(document.getElementById("planPrice").value);
@@ -5937,6 +6016,7 @@ function initPlans(){
     // DELETE
 
     deleteButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("delete a mining plan")) return;
 
         if(!currentRow || !currentPlan) return;
 
@@ -5955,6 +6035,7 @@ function initPlans(){
     // ACTIVATE / DEACTIVATE (persists immediately)
 
     toggleButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("activate or deactivate a mining plan")) return;
 
         if(!currentRow || !currentPlan) return;
 
@@ -5996,6 +6077,7 @@ function initPlans(){
 
 
     deleteConfirmButton.onclick = function(){
+        if(window.KTPerm && !KTPerm.require("delete a mining plan")) return;
 
         if(!currentRow || !currentPlan) return;
 
@@ -7925,6 +8007,7 @@ if(verifyBtn){
             const confirmBtn = resetPasswordActions.querySelector(".password-reset-confirm-btn");
             if(confirmBtn){
                 confirmBtn.onclick = function(){
+                    if(window.KTPerm && !KTPerm.require("reset a user's password")) return;
                     const rejectOther = resetPasswordActions.querySelector(".password-reset-reject-btn");
                     const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                     sb.rpc("admin_reset_password", { p_user_id: userId })
@@ -8042,6 +8125,7 @@ if(verifyBtn){
                 const confirmBtn = resetPinActions.querySelector(".pin-reset-confirm-btn");
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
+                        if(window.KTPerm && !KTPerm.require("reset a user's withdrawal PIN")) return;
                         const rejectOther = resetPinActions.querySelector(".pin-reset-reject-btn");
                         const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                         sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
@@ -8908,6 +8992,7 @@ if(withdrawBtn){
     if(deleteBtn){
 
         deleteBtn.onclick=function(){
+            if(window.KTPerm && !KTPerm.require("delete a user")) return;
             if(!currentRow) return;
             userModal.style.display="none";
             deleteModal.style.display="flex";
@@ -8918,6 +9003,8 @@ if(withdrawBtn){
     if(confirmDelete){
 
         confirmDelete.onclick=function(){
+
+            if(window.KTPerm && !KTPerm.require("delete a user")) return;
 
             if(!currentRow) return;
 
@@ -9861,6 +9948,7 @@ function closeRateModal() {
 // =================================
 
 function saveRate() {
+    if(window.KTPerm && !KTPerm.require("change an exchange rate")) return;
 
     if (selectedRateId === null) return;
 
@@ -9908,6 +9996,7 @@ function saveRate() {
 // =================================
 
 function deleteCurrencyPair() {
+    if(window.KTPerm && !KTPerm.require("delete an exchange rate")) return;
 
     if (selectedRateId === null) return;
 
@@ -9924,6 +10013,7 @@ function deleteCurrencyPair() {
 // =================================
 
 function openAddRateModal() {
+    if(window.KTPerm && !KTPerm.require("add an exchange rate")) return;
     document.getElementById("addRateModal").style.display = "flex";
 }
 
@@ -9938,6 +10028,7 @@ function closeAddRateModal() {
 // =================================
 
 function addCurrencyPair() {
+    if(window.KTPerm && !KTPerm.require("add an exchange rate")) return;
 
     let pair = document.getElementById("newCurrencyPair").value.trim();
     let rate = document.getElementById("newCurrencyRate").value;
@@ -10033,6 +10124,7 @@ function closeConfirmDeleteModal() {
 }
 
 function confirmDelete() {
+    if(window.KTPerm && !KTPerm.require("delete an exchange rate")) return;
 
     if (!pendingDeleteId) {
         closeConfirmDeleteModal();
@@ -10707,6 +10799,7 @@ function markNotificationUnread(){
 
 
 function deleteNotification(){
+    if(window.KTPerm && !KTPerm.require("delete notifications")) return;
     document.getElementById("deleteConfirmModal").style.display="flex";
 }
 
@@ -10721,6 +10814,7 @@ function closeDeleteConfirmModal(){
 // ===============================
 
 function confirmDeleteNotification(){
+    if(window.KTPerm && !KTPerm.require("delete notifications")) return;
 
     if(!selectedNotificationId){
         closeDeleteConfirmModal();
@@ -12602,6 +12696,7 @@ let activityDeleteCategory = null;
 ================================= */
 
 function openDeleteActivityModal(){
+    if(window.KTPerm && !KTPerm.require("delete activity records")) return;
 
     const modal = document.getElementById("activityDeleteModal");
 
@@ -12732,6 +12827,7 @@ function closeDeleteActivityConfirmModal(){
 ================================= */
 
 async function confirmDeleteActivityRecords(){
+    if(window.KTPerm && !KTPerm.require("delete activity records")) return;
 
     if(!activityDeleteCategory){
         return;
@@ -16636,6 +16732,7 @@ function showMediaTab(tabName) {
    ========================================================= */
 
 function openAddVideoModal() {
+    if(window.KTPerm && !KTPerm.require("add a video")) return;
 
     const modal = document.getElementById("mediaVideoModal");
     const form = document.getElementById("videoForm");
@@ -16674,6 +16771,7 @@ function editMediaVideo(id) {
 function saveMediaVideo(event) {
 
     event.preventDefault();
+    if(window.KTPerm && !KTPerm.require("save a video")) return;
 
     const editId = document.getElementById("videoEditId").value;
     const title = document.getElementById("videoTitle").value.trim();
@@ -16837,6 +16935,7 @@ function toggleGuideMediaField() {
 }
 
 function openAddGuideModal() {
+    if(window.KTPerm && !KTPerm.require("add a guide")) return;
 
     const modal = document.getElementById("mediaGuideModal");
     const form = document.getElementById("guideForm");
@@ -16879,6 +16978,7 @@ function editMediaGuide(id) {
 function saveMediaGuide(event) {
 
     event.preventDefault();
+    if(window.KTPerm && !KTPerm.require("save a guide")) return;
 
     const editId = document.getElementById("guideEditId").value;
     const title = document.getElementById("guideTitle").value.trim();
@@ -17032,6 +17132,7 @@ function filterMediaGuides() {
    ========================================================= */
 
 function openAddDownloadModal() {
+    if(window.KTPerm && !KTPerm.require("add a download")) return;
 
     const modal = document.getElementById("mediaDownloadModal");
     const form = document.getElementById("downloadForm");
@@ -17070,6 +17171,7 @@ function editMediaDownload(id) {
 function saveMediaDownload(event) {
 
     event.preventDefault();
+    if(window.KTPerm && !KTPerm.require("save a download")) return;
 
     const editId = document.getElementById("downloadEditId").value;
     const title = document.getElementById("downloadTitle").value.trim();
@@ -17208,6 +17310,7 @@ function filterMediaDownloads() {
    ========================================================= */
 
 function openMediaDeleteModal(id, type) {
+    if(window.KTPerm && !KTPerm.require("delete media")) return;
 
     document.getElementById("mediaDeleteId").value = id;
     document.getElementById("mediaDeleteType").value = type;
@@ -17237,6 +17340,7 @@ const MEDIA_DELETE_TABLES = {
 };
 
 function confirmMediaDelete() {
+    if(window.KTPerm && !KTPerm.require("delete media")) return;
 
     const id = document.getElementById("mediaDeleteId").value;
     const type = document.getElementById("mediaDeleteType").value;
@@ -17350,7 +17454,9 @@ document.addEventListener("click", function(event) {
         last_admin: "At least one admin must remain.",
         not_admin: "That user is not an admin.",
         bad_scope: "Choose which records to delete.",
-        bad_stream: "Something went wrong. Please try again."
+        bad_stream: "Something went wrong. Please try again.",
+        not_super: "You are not authorized to do this.",
+        main_admin: "You are not authorized to remove admin role."
     };
 
     function errorText(d){
@@ -17359,6 +17465,7 @@ document.addEventListener("click", function(event) {
             var mins = d.locked_until ? Math.max(1, Math.ceil((new Date(d.locked_until) - Date.now()) / 60000)) : 5;
             return "Too many wrong attempts. Try again in " + mins + " minute" + (mins === 1 ? "" : "s") + ".";
         }
+        if(d.error === "not_super" && d.action){ return "You are not authorized to " + d.action + "."; }
         return ERRORS[d.error] || d.message || "Something went wrong.";
     }
 
@@ -17427,7 +17534,7 @@ document.addEventListener("click", function(event) {
 
         var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit" };
 
-        KTUI.prompt("Enter your settings password to open " + titles[cat] + ".", {
+        KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
             inputType: "password",
             placeholder: "Settings password",
@@ -17479,6 +17586,7 @@ document.addEventListener("click", function(event) {
 
         function submit(){
             err.textContent = "";
+            if(window.KTPerm && !KTPerm.require("create the settings password")) return;
             if(p1.value.length < 8){ err.textContent = ERRORS.too_short; return; }
             if(p1.value !== p2.value){ err.textContent = "The two passwords do not match."; return; }
 
@@ -17506,7 +17614,7 @@ document.addEventListener("click", function(event) {
         $("setSafetyBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
-                '<p class="kt-set-hint">Enter your current password, then choose a new one (at least 8 characters).</p>' +
+                '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 8 characters).</p>' +
                 '<label>Current password</label><div id="chgOld"></div>' +
                 '<label>New password</label><div id="chgNew"></div>' +
                 '<label>Re-enter new password</label><div id="chgNew2"></div>' +
@@ -17519,7 +17627,7 @@ document.addEventListener("click", function(event) {
                     '<li>Sound &amp; Notifications, Admins and Audit ask for this password every time you open them.</li>' +
                     '<li>The password is stored as a one-way hash. Nobody, including you, can read it back.</li>' +
                     '<li>After 5 wrong attempts it is locked for 5 minutes.</li>' +
-                    '<li>Each admin has their own settings password.</li>' +
+                    '<li>All admins share this one settings password.</li>' +
                 '</ul>' +
             '</div>';
 
@@ -17531,6 +17639,7 @@ document.addEventListener("click", function(event) {
 
         function submit(){
             err.textContent = "";
+            if(window.KTPerm && !KTPerm.require("change the settings password")) return;
             if(!o.value){ err.textContent = "Enter your current password."; return; }
             if(n.value.length < 8){ err.textContent = ERRORS.too_short; return; }
             if(n.value !== n2.value){ err.textContent = "The new passwords do not match."; return; }
@@ -17799,6 +17908,7 @@ document.addEventListener("click", function(event) {
         }
 
         if(act === "remove-admin"){
+            if(window.KTPerm && !KTPerm.require("remove admin role")) return;
             KTUI.confirm("Remove the admin role from " + name + "? They will no longer be able to use the admin app or receive admin alerts.", {
                 title: "Remove admin", danger: true, confirmText: "Remove", busyText: "Removing...",
                 run: function(){
@@ -17814,6 +17924,7 @@ document.addEventListener("click", function(event) {
         }
 
         if(act === "add-admin"){
+            if(window.KTPerm && !KTPerm.require("assign admin role")) return;
             KTUI.confirm("Give " + name + " the admin role? They will be able to sign in to the admin app and manage users and money. They will set their own settings password.", {
                 title: "Add admin", confirmText: "Make admin", busyText: "Adding...",
                 run: function(){
@@ -18171,6 +18282,7 @@ document.addEventListener("click", function(event) {
     }
 
     function deleteRecords(btn){
+        if(window.KTPerm && !KTPerm.require("delete audit records")) return;
         var days = daysValue("delDays");
         var scope = ($("delScope") || {}).value || "older";
         if(!days){ KTUI.warning("Enter a number of days (1 or more)."); return; }
@@ -18270,8 +18382,13 @@ document.addEventListener("click", function(event) {
 
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){
-                setupCreate();
-                show("create");
+                if(window.KTPerm && !KTPerm.isSuper){
+                    show("menu");
+                    KTUI.alert("The settings password has not been created yet.", { title: "Settings password", type: "info", okText: "Close" });
+                } else {
+                    setupCreate();
+                    show("create");
+                }
             } else {
                 show("menu");
             }

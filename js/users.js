@@ -1884,6 +1884,7 @@ if(verifyBtn){
             const confirmBtn = resetPasswordActions.querySelector(".password-reset-confirm-btn");
             if(confirmBtn){
                 confirmBtn.onclick = function(){
+                    if(window.KTPerm && !KTPerm.require("reset a user's password")) return;
                     const rejectOther = resetPasswordActions.querySelector(".password-reset-reject-btn");
                     const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                     sb.rpc("admin_reset_password", { p_user_id: userId })
@@ -2001,6 +2002,7 @@ if(verifyBtn){
                 const confirmBtn = resetPinActions.querySelector(".pin-reset-confirm-btn");
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
+                        if(window.KTPerm && !KTPerm.require("reset a user's withdrawal PIN")) return;
                         const rejectOther = resetPinActions.querySelector(".pin-reset-reject-btn");
                         const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
                         sb.rpc("admin_reset_withdrawal_pin", { p_user_id: userId })
@@ -2867,6 +2869,7 @@ if(withdrawBtn){
     if(deleteBtn){
 
         deleteBtn.onclick=function(){
+            if(window.KTPerm && !KTPerm.require("delete a user")) return;
             if(!currentRow) return;
             userModal.style.display="none";
             deleteModal.style.display="flex";
@@ -2877,6 +2880,8 @@ if(withdrawBtn){
     if(confirmDelete){
 
         confirmDelete.onclick=function(){
+
+            if(window.KTPerm && !KTPerm.require("delete a user")) return;
 
             if(!currentRow) return;
 

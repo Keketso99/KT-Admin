@@ -56,7 +56,9 @@
         last_admin: "At least one admin must remain.",
         not_admin: "That user is not an admin.",
         bad_scope: "Choose which records to delete.",
-        bad_stream: "Something went wrong. Please try again."
+        bad_stream: "Something went wrong. Please try again.",
+        not_super: "You are not authorized to do this.",
+        main_admin: "You are not authorized to remove admin role."
     };
 
     function errorText(d){
@@ -65,6 +67,7 @@
             var mins = d.locked_until ? Math.max(1, Math.ceil((new Date(d.locked_until) - Date.now()) / 60000)) : 5;
             return "Too many wrong attempts. Try again in " + mins + " minute" + (mins === 1 ? "" : "s") + ".";
         }
+        if(d.error === "not_super" && d.action){ return "You are not authorized to " + d.action + "."; }
         return ERRORS[d.error] || d.message || "Something went wrong.";
     }
 
@@ -133,7 +136,7 @@
 
         var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit" };
 
-        KTUI.prompt("Enter your settings password to open " + titles[cat] + ".", {
+        KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
             inputType: "password",
             placeholder: "Settings password",
@@ -185,6 +188,7 @@
 
         function submit(){
             err.textContent = "";
+            if(window.KTPerm && !KTPerm.require("create the settings password")) return;
             if(p1.value.length < 8){ err.textContent = ERRORS.too_short; return; }
             if(p1.value !== p2.value){ err.textContent = "The two passwords do not match."; return; }
 
@@ -212,7 +216,7 @@
         $("setSafetyBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
-                '<p class="kt-set-hint">Enter your current password, then choose a new one (at least 8 characters).</p>' +
+                '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 8 characters).</p>' +
                 '<label>Current password</label><div id="chgOld"></div>' +
                 '<label>New password</label><div id="chgNew"></div>' +
                 '<label>Re-enter new password</label><div id="chgNew2"></div>' +
@@ -225,7 +229,7 @@
                     '<li>Sound &amp; Notifications, Admins and Audit ask for this password every time you open them.</li>' +
                     '<li>The password is stored as a one-way hash. Nobody, including you, can read it back.</li>' +
                     '<li>After 5 wrong attempts it is locked for 5 minutes.</li>' +
-                    '<li>Each admin has their own settings password.</li>' +
+                    '<li>All admins share this one settings password.</li>' +
                 '</ul>' +
             '</div>';
 
@@ -237,6 +241,7 @@
 
         function submit(){
             err.textContent = "";
+            if(window.KTPerm && !KTPerm.require("change the settings password")) return;
             if(!o.value){ err.textContent = "Enter your current password."; return; }
             if(n.value.length < 8){ err.textContent = ERRORS.too_short; return; }
             if(n.value !== n2.value){ err.textContent = "The new passwords do not match."; return; }
@@ -505,6 +510,7 @@
         }
 
         if(act === "remove-admin"){
+            if(window.KTPerm && !KTPerm.require("remove admin role")) return;
             KTUI.confirm("Remove the admin role from " + name + "? They will no longer be able to use the admin app or receive admin alerts.", {
                 title: "Remove admin", danger: true, confirmText: "Remove", busyText: "Removing...",
                 run: function(){
@@ -520,6 +526,7 @@
         }
 
         if(act === "add-admin"){
+            if(window.KTPerm && !KTPerm.require("assign admin role")) return;
             KTUI.confirm("Give " + name + " the admin role? They will be able to sign in to the admin app and manage users and money. They will set their own settings password.", {
                 title: "Add admin", confirmText: "Make admin", busyText: "Adding...",
                 run: function(){
@@ -877,6 +884,7 @@
     }
 
     function deleteRecords(btn){
+        if(window.KTPerm && !KTPerm.require("delete audit records")) return;
         var days = daysValue("delDays");
         var scope = ($("delScope") || {}).value || "older";
         if(!days){ KTUI.warning("Enter a number of days (1 or more)."); return; }
@@ -976,8 +984,13 @@
 
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){
-                setupCreate();
-                show("create");
+                if(window.KTPerm && !KTPerm.isSuper){
+                    show("menu");
+                    KTUI.alert("The settings password has not been created yet.", { title: "Settings password", type: "info", okText: "Close" });
+                } else {
+                    setupCreate();
+                    show("create");
+                }
             } else {
                 show("menu");
             }

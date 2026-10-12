@@ -980,6 +980,7 @@ let activityDeleteCategory = null;
 ================================= */
 
 function openDeleteActivityModal(){
+    if(window.KTPerm && !KTPerm.require("delete activity records")) return;
 
     const modal = document.getElementById("activityDeleteModal");
 
@@ -1110,6 +1111,7 @@ function closeDeleteActivityConfirmModal(){
 ================================= */
 
 async function confirmDeleteActivityRecords(){
+    if(window.KTPerm && !KTPerm.require("delete activity records")) return;
 
     if(!activityDeleteCategory){
         return;
