@@ -432,6 +432,15 @@ function loadAdminPage(page){
             break;
 
 
+            case "manual":
+
+                if(typeof initManual === "function"){
+                    initManual();
+                }
+
+            break;
+
+
             case "dashboard":
 
                 if(
@@ -561,7 +570,7 @@ function prefetchAllPages(){
     const pages = [
         "deposits","withdrawals","transactions","plans","users",
         "verification","exchange","notifications","activity-log",
-        "support-chat","media","settings"
+        "support-chat","media","settings","manual"
     ];
 
     pages.forEach(page=>{

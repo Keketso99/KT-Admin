@@ -985,8 +985,11 @@
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){
                 if(window.KTPerm && !KTPerm.isSuper){
-                    show("menu");
-                    KTUI.alert("The settings password has not been created yet.", { title: "Settings password", type: "info", okText: "Close" });
+                    // Settings stays closed until the password exists: only a dialog,
+                    // then back to the dashboard.
+                    KTUI.alert("The settings password has not been created yet.", { title: "Settings password", type: "info", okText: "Close" }).then(function(){
+                        if(typeof loadAdminPage === "function") loadAdminPage("dashboard");
+                    });
                 } else {
                     setupCreate();
                     show("create");
