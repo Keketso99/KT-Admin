@@ -18418,7 +18418,30 @@ document.addEventListener("click", function(event) {
 // admin app. Works fully inside the admin app (no server, no AI service needed).
 // It only knows how to USE the app and refuses anything sensitive.
 
+// Conversations are kept per admin, only in memory: logging out (or another
+// admin signing in) starts everyone fresh.
+var KT_MANUAL_CHATS = {};
+var KT_MANUAL_UID = null;
 var KT_MANUAL_HISTORY = [];
+
+(function(){
+    if(!window.sb || !sb.auth || !sb.auth.onAuthStateChange) return;
+    // Only sets variables here (no supabase calls inside this callback).
+    sb.auth.onAuthStateChange(function(event, session){
+        var uid = session && session.user ? session.user.id : null;
+        if(event === "SIGNED_OUT" || !uid){
+            KT_MANUAL_CHATS = {};
+            KT_MANUAL_UID = null;
+            KT_MANUAL_HISTORY = [];
+            return;
+        }
+        if(uid !== KT_MANUAL_UID){
+            KT_MANUAL_CHATS = {};
+            KT_MANUAL_HISTORY = [];
+        }
+        KT_MANUAL_UID = uid;
+    });
+})();
 
 var KT_MANUAL_REFUSAL = "I can only help with how to use the admin app, so I can't help with that. Try asking things like \"How do I approve a withdrawal?\" or \"How do I set my admin nickname?\"";
 
@@ -18539,14 +18562,34 @@ function initManual(){
         return d;
     }
 
-    if(KT_MANUAL_HISTORY.length){
-        KT_MANUAL_HISTORY.forEach(function(m){ add(m.content, m.role === "user" ? "me" : "bot"); });
-        if(chips) chips.style.display = "none";
-    } else {
-        add("Hi! I'm the admin manual. Ask me how to do anything in the app.", "bot");
+    var chatKey = KT_MANUAL_UID || "me";
+    KT_MANUAL_HISTORY = KT_MANUAL_CHATS[chatKey] || (KT_MANUAL_CHATS[chatKey] = []);
+    var generation = 0;
+
+    function show(){
+        msgs.innerHTML = "";
+        if(KT_MANUAL_HISTORY.length){
+            KT_MANUAL_HISTORY.forEach(function(m){ add(m.content, m.role === "user" ? "me" : "bot"); });
+            if(chips) chips.style.display = "none";
+        } else {
+            add("Hi! I'm the admin manual. Ask me how to do anything in the app.", "bot");
+            if(chips) chips.style.display = "";
+        }
     }
+    show();
 
     var busy = false;
+
+    var refresh = document.getElementById("manRefresh");
+    if(refresh) refresh.addEventListener("click", function(){
+        generation++;            // ignore any answer still on its way
+        KT_MANUAL_HISTORY.length = 0;
+        busy = false;
+        if(send) send.disabled = false;
+        input.value = "";
+        show();
+        input.focus();
+    });
 
     function ask(text){
         text = (text || "").trim();
@@ -18564,7 +18607,9 @@ function initManual(){
         msgs.appendChild(wait);
         msgs.scrollTop = msgs.scrollHeight;
 
+        var myGen = generation;
         setTimeout(function(){
+            if(myGen !== generation) return;
             var reply = ktManualAnswer(text);
             if(wait.parentNode) wait.parentNode.removeChild(wait);
             KT_MANUAL_HISTORY.push({ role: "assistant", content: reply });
