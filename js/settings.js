@@ -47,7 +47,7 @@
         wrong: "Wrong password.",
         none: "No settings password has been created yet.",
         denied: "Admin access is required.",
-        too_short: "Use at least 8 characters.",
+        too_short: "Use at least 10 characters, with letters and numbers.",
         same_password: "The new password must be different from the old one.",
         exists: "A settings password already exists.",
         user_not_found: "That user could not be found.",
@@ -189,7 +189,7 @@
         function submit(){
             err.textContent = "";
             if(window.KTPerm && !KTPerm.require("create the settings password")) return;
-            if(p1.value.length < 8){ err.textContent = ERRORS.too_short; return; }
+            if(p1.value.length < 10 || !/[A-Za-z]/.test(p1.value) || !/[0-9]/.test(p1.value)){ err.textContent = ERRORS.too_short; return; }
             if(p1.value !== p2.value){ err.textContent = "The two passwords do not match."; return; }
 
             var done = KTUI.busy(btn, "Saving...");
@@ -216,7 +216,7 @@
         $("setSafetyBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
-                '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 8 characters).</p>' +
+                '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 10 characters, with letters and numbers).</p>' +
                 '<label>Current password</label><div id="chgOld"></div>' +
                 '<label>New password</label><div id="chgNew"></div>' +
                 '<label>Re-enter new password</label><div id="chgNew2"></div>' +
@@ -243,7 +243,7 @@
             err.textContent = "";
             if(window.KTPerm && !KTPerm.require("change the settings password")) return;
             if(!o.value){ err.textContent = "Enter your current password."; return; }
-            if(n.value.length < 8){ err.textContent = ERRORS.too_short; return; }
+            if(n.value.length < 10 || !/[A-Za-z]/.test(n.value) || !/[0-9]/.test(n.value)){ err.textContent = ERRORS.too_short; return; }
             if(n.value !== n2.value){ err.textContent = "The new passwords do not match."; return; }
 
             var done = KTUI.busy(btn, "Saving...");

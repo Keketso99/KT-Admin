@@ -175,6 +175,17 @@ async function handleAuthedSession(session){
             }
         });
 
+        // Two-step sign-in: the password alone is not enough.
+        if(window.KTSecurity){
+            const mfaOk = await KTSecurity.mfaGate();
+            if(!mfaOk){
+                await sb.auth.signOut();
+                showLoginOverlay("Sign-in cancelled.");
+                return;
+            }
+            KTSecurity.startIdle();
+        }
+
         hideLoginOverlay();
 
 await loadAdminSidebarProfile(session.user.id);
@@ -236,7 +247,7 @@ async function initAuth(){
     if(session){
         await handleAuthedSession(session);
     } else {
-        showLoginOverlay();
+        showLoginOverlay(window.KTSecurity ? KTSecurity.takeIdleNotice() : null);
     }
 }
 
@@ -359,6 +370,7 @@ async function confirmAdminLogout(){
         return;
     }
 
+    if(window.KTSecurity){ KTSecurity.stopIdle(); }
     resetLogoutButtonState();
     closeLogoutModal();
     showLoginOverlay();
