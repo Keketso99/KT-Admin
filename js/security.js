@@ -198,12 +198,53 @@ var KTSecurity = (function(){
         });
     }
 
-    function verifyWith(factorId){
+    // Local TOTP check, used ONLY to explain why a code was rejected.
+    function b32decode(str){
+        var A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var bits = "", out = [];
+        str = String(str || "").toUpperCase().replace(/[^A-Z2-7]/g, "");
+        for(var i = 0; i < str.length; i++){
+            bits += ("00000" + A.indexOf(str[i]).toString(2)).slice(-5);
+        }
+        for(var j = 0; j + 8 <= bits.length; j += 8){ out.push(parseInt(bits.substr(j, 8), 2)); }
+        return new Uint8Array(out);
+    }
+
+    async function totpAt(secret, counter){
+        var key = await crypto.subtle.importKey("raw", b32decode(secret), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+        var buf = new ArrayBuffer(8), dv = new DataView(buf);
+        dv.setUint32(0, Math.floor(counter / 4294967296));
+        dv.setUint32(4, counter >>> 0);
+        var h = new Uint8Array(await crypto.subtle.sign("HMAC", key, buf));
+        var o = h[19] & 15;
+        var n = ((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
+        return ("000000" + (n % 1000000)).slice(-6);
+    }
+
+    // true if the code matches the key at this phone's time (+/- one step)
+    async function matchesLocally(secret, code){
+        try{
+            var c = Math.floor(Date.now() / 30000);
+            for(var d = -1; d <= 1; d++){
+                if(await totpAt(secret, c + d) === code) return true;
+            }
+        }catch(e){}
+        return false;
+    }
+
+    function verifyWith(factorId, secret){
         return function(code){
             return sb.auth.mfa.challengeAndVerify({ factorId: factorId, code: code }).then(function(r){
                 if(!r.error) return { ok: true };
                 var m = String(r.error.message || "");
                 if(/invalid|incorrect|expired/i.test(m)){
+                    if(secret){
+                        return matchesLocally(secret, code).then(function(same){
+                            return { ok: false, message: same
+                                ? "Your phone's clock is different from the server's. Set Date & time to automatic, then try again."
+                                : "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
+                        });
+                    }
                     return { ok: false, message: "That code is not correct. Wait for the next one and try again." };
                 }
                 return { ok: false, message: "Could not verify: " + m };
@@ -271,7 +312,7 @@ var KTSecurity = (function(){
                 uri: pending.uri,
                 secret: pending.secret,
                 okText: "Turn on",
-                verify: verifyWith(pending.factorId)
+                verify: verifyWith(pending.factorId, pending.secret)
             });
             if(okn) clearPending();
             return okn;
