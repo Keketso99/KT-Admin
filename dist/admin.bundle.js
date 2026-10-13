@@ -954,6 +954,25 @@ var KTSecurity = (function(){
         return false;
     }
 
+    // How far the phone's clock is from the server's, using the time stamped
+    // inside a freshly issued sign-in token (that is the server's clock).
+    async function clockOffsetText(){
+        try{
+            var r = await sb.auth.refreshSession();
+            var tok = r && r.data && r.data.session && r.data.session.access_token;
+            if(!tok) return "";
+            var b64 = tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+            var iat = JSON.parse(atob(b64 + "===".slice((b64.length + 3) % 4))).iat;
+            var diff = Math.round(Date.now() / 1000 - iat);          // + = phone ahead
+            var a = Math.abs(diff);
+            if(a < 20) return "";
+            var amount = a < 90 ? a + " seconds"
+                : a < 5400 ? Math.round(a / 60) + " minutes"
+                : (Math.floor(a / 3600) + " h " + Math.round((a % 3600) / 60) + " min");
+            return "Your phone's clock is about " + amount + (diff > 0 ? " ahead of" : " behind") + " the server. ";
+        }catch(e){ return ""; }
+    }
+
     function verifyWith(factorId, secret){
         return function(code){
             return sb.auth.mfa.challengeAndVerify({ factorId: factorId, code: code }).then(function(r){
@@ -961,10 +980,12 @@ var KTSecurity = (function(){
                 var m = String(r.error.message || "");
                 if(/invalid|incorrect|expired/i.test(m)){
                     if(secret){
-                        return matchesLocally(secret, code).then(function(same){
-                            return { ok: false, message: same
-                                ? "Your phone's clock is different from the server's. Set Date & time to automatic, then try again."
-                                : "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
+                        return matchesLocally(secret, code).then(async function(same){
+                            if(!same){
+                                return { ok: false, message: "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
+                            }
+                            var how = await clockOffsetText();
+                            return { ok: false, message: how + "In Google Authenticator open the menu, then Settings, then Time correction for codes, then Sync now. This fixes the app only, not your phone's settings. Then enter the next code." };
                         });
                     }
                     return { ok: false, message: "That code is not correct. Wait for the next one and try again." };

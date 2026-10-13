@@ -2,7 +2,7 @@
 // Network-only for pages (this app must always reflect live server data),
 // plus Web Push so admins are alerted even when the app is closed.
 
-const SW_VERSION = "kt-admin-v20";
+const SW_VERSION = "kt-admin-v21";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
