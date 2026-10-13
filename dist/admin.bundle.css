@@ -776,25 +776,22 @@ html, body { height: 100%; }
 
 
 /* ===== Two-step sign-in screen ===== */
-.kt-mfa-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:10001;background:#f3f4f6;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
-.kt-mfa-card{background:#fff;width:100%;max-width:360px;border-radius:16px;padding:24px 20px;box-shadow:0 10px 40px rgba(0,0,0,.12);text-align:center}
-.kt-mfa-icon{font-size:34px;color:#1b8ef2;margin-bottom:8px}
-.kt-mfa-card h2{font-size:20px;color:#111827;margin-bottom:8px}
-.kt-mfa-text{font-size:14px;color:#4b5563;line-height:1.5;margin-bottom:12px}
-.kt-mfa-qr{width:200px;height:200px;max-width:100%;margin:4px auto 8px;display:block}
-.kt-mfa-small{font-size:12px;color:#6b7280}
-.kt-mfa-secret{font-family:monospace;font-size:13px;word-break:break-all;background:#f3f4f6;border-radius:8px;padding:8px;margin:6px 0 12px;user-select:text;-webkit-user-select:text}
-.kt-mfa-input{width:100%;text-align:center;letter-spacing:6px;font-size:22px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;outline:none;user-select:text;-webkit-user-select:text}
+.kt-mfa-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:10001;background:#f3f4f6;display:flex;align-items:center;justify-content:center;padding:12px;overflow-y:auto}
+.kt-mfa-card{background:#fff;width:100%;max-width:340px;border-radius:16px;padding:18px 16px 10px;box-shadow:0 10px 40px rgba(0,0,0,.12);text-align:center;margin:auto}
+.kt-mfa-icon{font-size:28px;color:#1b8ef2;margin-bottom:4px}
+.kt-mfa-card h2{font-size:18px;color:#111827;margin:0 0 6px}
+.kt-mfa-text{font-size:13px;color:#4b5563;line-height:1.4;margin:0 0 10px}
+.kt-mfa-qr{width:150px;height:150px;max-width:100%;margin:0 auto 8px;display:block}
+.kt-mfa-open{display:block;border:1px solid #1b8ef2;color:#1b8ef2;border-radius:10px;padding:9px;font-size:14px;text-decoration:none;margin-bottom:8px}
+.kt-mfa-keyrow{display:flex;align-items:stretch;gap:6px;margin-bottom:10px}
+.kt-mfa-secret{flex:1;font-family:monospace;font-size:12px;line-height:1.35;word-break:break-all;background:#f3f4f6;border-radius:8px;padding:6px 8px;user-select:text;-webkit-user-select:text;text-align:left}
+.kt-mfa-copy{border:none;background:#1b8ef2;color:#fff;border-radius:8px;width:40px;font-size:15px;cursor:pointer}
+.kt-mfa-input{width:100%;text-align:center;letter-spacing:6px;font-size:20px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;outline:none;user-select:text;-webkit-user-select:text}
 .kt-mfa-input:focus{border-color:#1b8ef2}
-.kt-mfa-error{min-height:20px;color:#b91c1c;font-size:13px;margin:6px 0}
-.kt-mfa-btn{width:100%;border:none;background:#1b8ef2;color:#fff;border-radius:10px;padding:13px;font-size:16px;cursor:pointer}
+.kt-mfa-error{min-height:18px;color:#b91c1c;font-size:12px;margin:4px 0}
+.kt-mfa-btn{width:100%;border:none;background:#1b8ef2;color:#fff;border-radius:10px;padding:12px;font-size:15px;cursor:pointer}
 .kt-mfa-btn:disabled{opacity:.7}
-.kt-mfa-link{display:block;width:100%;background:none;border:none;color:#6b7280;font-size:14px;padding:10px;cursor:pointer}
-
-.kt-mfa-keyrow{display:flex;align-items:stretch;gap:8px;margin:6px 0 12px}
-.kt-mfa-keyrow .kt-mfa-secret{flex:1;margin:0}
-.kt-mfa-copy{border:none;background:#1b8ef2;color:#fff;border-radius:8px;width:44px;font-size:16px;cursor:pointer}
-.kt-mfa-card .kt-mfa-small{margin:4px 0 8px;line-height:1.4}
+.kt-mfa-link{display:block;width:100%;background:none;border:none;color:#6b7280;font-size:14px;padding:9px;cursor:pointer}
 
 
 /* ===== css/dashboard.css ===== */

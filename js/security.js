@@ -60,6 +60,8 @@ var KTSecurity = (function(){
     // ------------------------------------------------------------------
     // Two-step sign-in
     // ------------------------------------------------------------------
+    var PENDING_KEY = "kt_mfa_pending";
+
     function el(tag, cls, text){
         var n = document.createElement(tag);
         if(cls) n.className = cls;
@@ -87,7 +89,20 @@ var KTSecurity = (function(){
         });
     }
 
-    // Shows the code screen. Resolves true when verified, false if cancelled.
+    // A half-finished set-up is remembered, so leaving the app to open the
+    // authenticator and coming back shows the SAME key (not a new one).
+    function loadPending(uid){
+        try{
+            var p = JSON.parse(localStorage.getItem(PENDING_KEY) || "null");
+            if(p && p.uid === uid && Date.now() - p.t < 24 * 3600 * 1000) return p;
+        }catch(e){}
+        return null;
+    }
+    function savePending(p){ try{ localStorage.setItem(PENDING_KEY, JSON.stringify(p)); }catch(e){} }
+    function clearPending(){ try{ localStorage.removeItem(PENDING_KEY); }catch(e){} }
+
+    // opts.verify(code) -> Promise<{ok:boolean, message?:string}>
+    // Resolves true when verified, false if cancelled.
     function codeScreen(opts){
         return new Promise(function(resolve){
             var wrap = el("div", "kt-mfa-overlay");
@@ -101,9 +116,15 @@ var KTSecurity = (function(){
                 img.alt = "QR code";
                 img.src = opts.qr;
                 card.appendChild(img);
-                card.appendChild(el("p", "kt-mfa-small", "Can't scan? Copy this key and paste it into your app (choose \"Enter a setup key\"):"));
+
+                if(opts.uri){
+                    var open = el("a", "kt-mfa-open", "Open in authenticator app");
+                    open.href = opts.uri;
+                    card.appendChild(open);
+                }
+
                 var row = el("div", "kt-mfa-keyrow");
-                var secretBox = el("div", "kt-mfa-secret", (opts.secret || "").replace(/(.{4})/g, "$1 ").trim());
+                row.appendChild(el("div", "kt-mfa-secret", (opts.secret || "").replace(/(.{4})/g, "$1 ").trim()));
                 var copyBtn = el("button", "kt-mfa-copy");
                 copyBtn.type = "button";
                 copyBtn.title = "Copy key";
@@ -111,16 +132,14 @@ var KTSecurity = (function(){
                 copyBtn.onclick = function(){
                     copyText(opts.secret || "").then(function(){
                         copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
-                        setTimeout(function(){ copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1800);
                     }).catch(function(){
                         copyBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                        setTimeout(function(){ copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1800);
+                    }).then(function(){
+                        setTimeout(function(){ copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1500);
                     });
                 };
-                row.appendChild(secretBox);
                 row.appendChild(copyBtn);
                 card.appendChild(row);
-                card.appendChild(el("p", "kt-mfa-small", "Tried before? Delete the old \"KT Admin\" entry in your authenticator app first. Every time this screen opens it makes a NEW key, and codes from an older entry will always be wrong."));
             }
 
             var input = el("input", "kt-mfa-input");
@@ -133,26 +152,19 @@ var KTSecurity = (function(){
 
             var err = el("p", "kt-mfa-error");
             card.appendChild(err);
-            card.appendChild(el("p", "kt-mfa-small", "Codes change every 30 seconds. If a code is rejected, type the next one, and make sure your phone's date and time are set to automatic."));
 
             var ok = el("button", "kt-mfa-btn", opts.okText || "Verify");
             ok.type = "button";
             card.appendChild(ok);
 
-            if(opts.skipText){
-                var skip = el("button", "kt-mfa-link", opts.skipText);
-                skip.type = "button";
-                skip.onclick = function(){ close(true); };
-                card.appendChild(skip);
-            }
-            var cancel = el("button", "kt-mfa-link", "Cancel and sign out");
+            var cancel = el("button", "kt-mfa-link", "Cancel");
             cancel.type = "button";
             cancel.onclick = function(){ close(false); };
             card.appendChild(cancel);
 
             wrap.appendChild(card);
             document.body.appendChild(wrap);
-            setTimeout(function(){ try{ input.focus(); }catch(e){} }, 50);
+            if(!opts.qr){ setTimeout(function(){ try{ input.focus(); }catch(e){} }, 50); }
 
             function close(result){
                 if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -172,10 +184,12 @@ var KTSecurity = (function(){
                 var code = input.value.trim();
                 if(code.length !== 6){ err.textContent = "Enter the 6-digit code."; return; }
                 var done = KTUI.busy(ok, "Checking...");
-                Promise.resolve(opts.verify(code)).then(function(good){
+                Promise.resolve(opts.verify(code)).then(function(r){
                     done();
-                    if(good){ close(true); }
-                    else { err.textContent = "That code is not correct. Try again."; input.value = ""; input.focus(); }
+                    if(r && r.ok){ close(true); return; }
+                    err.textContent = (r && r.message) || "That code is not correct. Try again.";
+                    input.value = "";
+                    input.focus();
                 }).catch(function(){
                     done();
                     err.textContent = "Could not check the code. Try again.";
@@ -184,15 +198,30 @@ var KTSecurity = (function(){
         });
     }
 
+    function verifyWith(factorId){
+        return function(code){
+            return sb.auth.mfa.challengeAndVerify({ factorId: factorId, code: code }).then(function(r){
+                if(!r.error) return { ok: true };
+                var m = String(r.error.message || "");
+                if(/invalid|incorrect|expired/i.test(m)){
+                    return { ok: false, message: "That code is not correct. Wait for the next one and try again." };
+                }
+                return { ok: false, message: "Could not verify: " + m };
+            });
+        };
+    }
+
     // Returns true when the admin may continue, false when they backed out.
     async function mfaGate(){
         try{
             var aal = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
             if(aal.error) throw aal.error;
-            if(aal.data.currentLevel === "aal2") return true;
+            if(aal.data.currentLevel === "aal2"){ clearPending(); return true; }
 
             if(typeof ktHideSplash === "function") ktHideSplash();
 
+            var sess = await sb.auth.getSession();
+            var uid = sess && sess.data && sess.data.session ? sess.data.session.user.id : null;
 
             var list = await sb.auth.mfa.listFactors();
             if(list.error) throw list.error;
@@ -200,38 +229,52 @@ var KTSecurity = (function(){
 
             // Already set up: ask for the code.
             if(verified){
-                return await codeScreen({
-                    intro: "Open your authenticator app and enter the 6-digit code for KT Admin.",
-                    verify: function(code){
-                        return sb.auth.mfa.challengeAndVerify({ factorId: verified.id, code: code })
-                            .then(function(r){ return !r.error; });
-                    }
+                var okv = await codeScreen({
+                    intro: "Enter the 6-digit code from your authenticator app.",
+                    verify: verifyWith(verified.id)
                 });
+                if(okv) clearPending();
+                return okv;
             }
 
-            // First time: remove any half-finished set-up, then enroll.
+            // First time. Reuse the half-finished set-up if there is one.
             var all = (list.data.all || []);
+            var pending = loadPending(uid);
+            if(pending && !all.some(function(f){ return f.id === pending.factorId && f.status !== "verified"; })){
+                pending = null;
+            }
             for(var i = 0; i < all.length; i++){
-                if(all[i].status !== "verified"){
+                if(all[i].status !== "verified" && (!pending || all[i].id !== pending.factorId)){
                     try{ await sb.auth.mfa.unenroll({ factorId: all[i].id }); }catch(e){}
                 }
             }
-            var enr = await sb.auth.mfa.enroll({
-                factorType: "totp",
-                friendlyName: "KT Admin " + new Date().toISOString().slice(0, 10)
-            });
-            if(enr.error) throw enr.error;
+            if(!pending){
+                var enr = await sb.auth.mfa.enroll({
+                    factorType: "totp",
+                    friendlyName: "KT Admin " + new Date().toISOString().slice(0, 19).replace("T", " ")
+                });
+                if(enr.error) throw enr.error;
+                pending = {
+                    uid: uid,
+                    t: Date.now(),
+                    factorId: enr.data.id,
+                    qr: enr.data.totp.qr_code,
+                    secret: enr.data.totp.secret,
+                    uri: enr.data.totp.uri
+                };
+                savePending(pending);
+            }
 
-            return await codeScreen({
-                intro: "For extra safety, set up two-step sign-in. Scan this QR code with Google Authenticator, Microsoft Authenticator or Authy, then enter the 6-digit code it shows.",
-                qr: enr.data.totp.qr_code,
-                secret: enr.data.totp.secret,
+            var okn = await codeScreen({
+                intro: "Scan the QR code with your authenticator app, then enter the code it shows.",
+                qr: pending.qr,
+                uri: pending.uri,
+                secret: pending.secret,
                 okText: "Turn on",
-                verify: function(code){
-                    return sb.auth.mfa.challengeAndVerify({ factorId: enr.data.id, code: code })
-                        .then(function(r){ return !r.error; });
-                }
+                verify: verifyWith(pending.factorId)
             });
+            if(okn) clearPending();
+            return okn;
         }catch(e){
             console.warn("[KTSecurity] two-step sign-in unavailable:", e);
             // Could not start two-step sign-in (for example it is switched off
