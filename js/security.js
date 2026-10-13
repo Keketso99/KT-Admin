@@ -67,6 +67,26 @@ var KTSecurity = (function(){
         return n;
     }
 
+    function copyText(text){
+        if(navigator.clipboard && navigator.clipboard.writeText){
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject){
+            try{
+                var ta = document.createElement("textarea");
+                ta.value = text;
+                ta.setAttribute("readonly", "");
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.select();
+                var ok = document.execCommand("copy");
+                document.body.removeChild(ta);
+                ok ? resolve() : reject();
+            }catch(e){ reject(e); }
+        });
+    }
+
     // Shows the code screen. Resolves true when verified, false if cancelled.
     function codeScreen(opts){
         return new Promise(function(resolve){
@@ -81,8 +101,26 @@ var KTSecurity = (function(){
                 img.alt = "QR code";
                 img.src = opts.qr;
                 card.appendChild(img);
-                card.appendChild(el("p", "kt-mfa-small", "Can't scan? Enter this key in your app:"));
-                card.appendChild(el("div", "kt-mfa-secret", opts.secret || ""));
+                card.appendChild(el("p", "kt-mfa-small", "Can't scan? Copy this key and paste it into your app (choose \"Enter a setup key\"):"));
+                var row = el("div", "kt-mfa-keyrow");
+                var secretBox = el("div", "kt-mfa-secret", (opts.secret || "").replace(/(.{4})/g, "$1 ").trim());
+                var copyBtn = el("button", "kt-mfa-copy");
+                copyBtn.type = "button";
+                copyBtn.title = "Copy key";
+                copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+                copyBtn.onclick = function(){
+                    copyText(opts.secret || "").then(function(){
+                        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        setTimeout(function(){ copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1800);
+                    }).catch(function(){
+                        copyBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                        setTimeout(function(){ copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1800);
+                    });
+                };
+                row.appendChild(secretBox);
+                row.appendChild(copyBtn);
+                card.appendChild(row);
+                card.appendChild(el("p", "kt-mfa-small", "Tried before? Delete the old \"KT Admin\" entry in your authenticator app first. Every time this screen opens it makes a NEW key, and codes from an older entry will always be wrong."));
             }
 
             var input = el("input", "kt-mfa-input");
@@ -95,6 +133,7 @@ var KTSecurity = (function(){
 
             var err = el("p", "kt-mfa-error");
             card.appendChild(err);
+            card.appendChild(el("p", "kt-mfa-small", "Codes change every 30 seconds. If a code is rejected, type the next one, and make sure your phone's date and time are set to automatic."));
 
             var ok = el("button", "kt-mfa-btn", opts.okText || "Verify");
             ok.type = "button";
@@ -153,6 +192,7 @@ var KTSecurity = (function(){
             if(aal.data.currentLevel === "aal2") return true;
 
             if(typeof ktHideSplash === "function") ktHideSplash();
+
 
             var list = await sb.auth.mfa.listFactors();
             if(list.error) throw list.error;

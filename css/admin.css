@@ -789,3 +789,8 @@ html, body { height: 100%; }
 .kt-mfa-btn{width:100%;border:none;background:#1b8ef2;color:#fff;border-radius:10px;padding:13px;font-size:16px;cursor:pointer}
 .kt-mfa-btn:disabled{opacity:.7}
 .kt-mfa-link{display:block;width:100%;background:none;border:none;color:#6b7280;font-size:14px;padding:10px;cursor:pointer}
+
+.kt-mfa-keyrow{display:flex;align-items:stretch;gap:8px;margin:6px 0 12px}
+.kt-mfa-keyrow .kt-mfa-secret{flex:1;margin:0}
+.kt-mfa-copy{border:none;background:#1b8ef2;color:#fff;border-radius:8px;width:44px;font-size:16px;cursor:pointer}
+.kt-mfa-card .kt-mfa-small{margin:4px 0 8px;line-height:1.4}
