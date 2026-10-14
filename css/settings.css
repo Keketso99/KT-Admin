@@ -134,3 +134,8 @@
 .kt-set-person .kt-set-mini + .kt-set-mini{ margin-left:6px; }
 .kt-set-rename{ margin-top:8px; align-self:flex-start; }
 .kt-set-person-info{ display:flex; flex-direction:column; }
+
+/* Trusted devices */
+.kt-set-cat[hidden]{ display:none; }
+#setDevices .kt-set-person{ flex-wrap:wrap; }
+#setDevices .kt-set-actions{ width:100%; justify-content:flex-end; }

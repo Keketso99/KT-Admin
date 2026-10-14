@@ -13496,6 +13496,11 @@ body.activity-modal-open{
 .kt-set-rename{ margin-top:8px; align-self:flex-start; }
 .kt-set-person-info{ display:flex; flex-direction:column; }
 
+/* Trusted devices */
+.kt-set-cat[hidden]{ display:none; }
+#setDevices .kt-set-person{ flex-wrap:wrap; }
+#setDevices .kt-set-actions{ width:100%; justify-content:flex-end; }
+
 
 /* ===== css/manual.css ===== */
 .kt-man{padding:5px;display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:420px}

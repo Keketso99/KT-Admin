@@ -1085,6 +1085,246 @@ var KTSecurity = (function(){
 })();
 
 
+/* ===== js/devices.js ===== */
+// =========================================================
+// KT ADMIN — APPROVED-DEVICE CHECK
+//
+// After password + authenticator code, the database is asked whether this
+// browser/app is an approved device. Unknown devices are saved as "pending"
+// and wait for the MAIN ADMIN (Settings > Trusted Devices).
+//
+// The device secret is a long random value kept on this device only; the
+// database stores just its fingerprint. The real enforcement is in the
+// database (has_role), this file only shows the right screen.
+// =========================================================
+
+(function(){
+
+    var KEY = "kt_admin_device_secret";
+    var memorySecret = null;
+    var watchTimer = null;
+
+    function randomSecret(){
+        var bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        var out = "";
+        for(var i = 0; i < bytes.length; i++){
+            out += ("0" + bytes[i].toString(16)).slice(-2);
+        }
+        return out;
+    }
+
+    function getSecret(){
+        try{
+            var s = localStorage.getItem(KEY);
+            if(s && s.length >= 32) return s;
+            s = randomSecret();
+            localStorage.setItem(KEY, s);
+            return s;
+        }catch(e){
+            if(!memorySecret) memorySecret = randomSecret();
+            return memorySecret;
+        }
+    }
+
+    function resetSecret(){
+        var s = randomSecret();
+        try{ localStorage.setItem(KEY, s); }catch(e){ memorySecret = s; }
+        return s;
+    }
+
+    function browserName(){
+        var ua = navigator.userAgent || "";
+        if(/SamsungBrowser/i.test(ua)) return "Samsung Internet";
+        if(/Edg\//i.test(ua)) return "Edge";
+        if(/OPR\//i.test(ua)) return "Opera";
+        if(/Firefox\//i.test(ua)) return "Firefox";
+        if(/; wv\)/i.test(ua)) return "App browser";
+        if(/Chrome\//i.test(ua)) return "Chrome";
+        if(/Safari\//i.test(ua)) return "Safari";
+        return "Browser";
+    }
+
+    function callCheck(secret){
+        var info = (typeof getAdminClientInfo === "function") ? getAdminClientInfo() : {};
+        return sb.rpc("admin_device_check", {
+            p_secret: secret,
+            p_device_name: info.deviceName || null,
+            p_os: info.osName ? (info.osName + (info.osVersion && info.osVersion !== "Unknown" ? " " + info.osVersion : "")) : null,
+            p_browser: browserName()
+        });
+    }
+
+    // -> { status: "approved" | "pending" | "missing" | "error", message? }
+    function check(){
+        return callCheck(getSecret()).then(function(res){
+            if(res.error) return res;
+            if(res.data && res.data.status === "rotate"){
+                return callCheck(resetSecret());
+            }
+            return res;
+        }).then(function(res){
+            if(res.error){
+                var msg = String(res.error.message || "");
+                if(res.error.code === "PGRST202" || /could not find the function|does not exist/i.test(msg)){
+                    return { status: "missing" };
+                }
+                return { status: "error", message: msg };
+            }
+            var st = res.data && res.data.status;
+            return { status: st === "approved" ? "approved" : "pending" };
+        }).catch(function(e){
+            return { status: "error", message: (e && e.message) || "Network problem" };
+        });
+    }
+
+    function el(tag, cls, text){
+        var n = document.createElement(tag);
+        if(cls) n.className = cls;
+        if(text) n.textContent = text;
+        return n;
+    }
+
+    // Blocking screen for devices that are not approved (yet).
+    function waitScreen(first){
+        return new Promise(function(resolve){
+            var wrap = el("div", "kt-mfa-overlay");
+            var card = el("div", "kt-mfa-card");
+            card.appendChild(el("i", "fa-solid fa-mobile-screen-button kt-mfa-icon"));
+            card.appendChild(el("h2", "", "Device not approved"));
+            card.appendChild(el("p", "kt-mfa-text",
+                "This device is waiting for approval by the main admin. " +
+                "You will be let in automatically once it is approved."));
+            var status = el("p", "kt-mfa-error");
+            status.style.color = "#4b5563";
+            status.textContent = "Waiting for approval...";
+            card.appendChild(status);
+
+            var again = el("button", "kt-mfa-btn", "Check again");
+            again.type = "button";
+            card.appendChild(again);
+
+            var out = el("button", "kt-mfa-link", "Sign out");
+            out.type = "button";
+            card.appendChild(out);
+
+            wrap.appendChild(card);
+            document.body.appendChild(wrap);
+
+            var done = false;
+            var timer = null;
+
+            function finish(ok){
+                if(done) return;
+                done = true;
+                clearInterval(timer);
+                if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                resolve(ok);
+            }
+
+            function poll(manual){
+                if(done) return;
+                if(manual){ again.disabled = true; }
+                check().then(function(r){
+                    if(done) return;
+                    again.disabled = false;
+                    if(r.status === "approved" || r.status === "missing"){
+                        finish(true);
+                    }else if(r.status === "error"){
+                        status.textContent = "Could not check: " + r.message;
+                    }else{
+                        status.textContent = manual
+                            ? "Still waiting for approval."
+                            : "Waiting for approval...";
+                    }
+                });
+            }
+
+            again.onclick = function(){ poll(true); };
+            out.onclick = function(){ finish(false); };
+            timer = setInterval(function(){ poll(false); }, 6000);
+        });
+    }
+
+    // Called by the sign-in flow. true = continue into the app.
+    function gate(){
+        return check().then(function(r){
+            if(r.status === "approved" || r.status === "missing") return true;
+            if(r.status === "error"){
+                return waitScreenError(r.message);
+            }
+            return waitScreen();
+        });
+    }
+
+    // network/other problem while asking: let the admin retry or sign out
+    function waitScreenError(message){
+        return new Promise(function(resolve){
+            var wrap = el("div", "kt-mfa-overlay");
+            var card = el("div", "kt-mfa-card");
+            card.appendChild(el("i", "fa-solid fa-triangle-exclamation kt-mfa-icon"));
+            card.appendChild(el("h2", "", "Could not check this device"));
+            card.appendChild(el("p", "kt-mfa-text", message || "Please check your connection and try again."));
+            var retry = el("button", "kt-mfa-btn", "Try again");
+            retry.type = "button";
+            var out = el("button", "kt-mfa-link", "Sign out");
+            out.type = "button";
+            card.appendChild(retry);
+            card.appendChild(out);
+            wrap.appendChild(card);
+            document.body.appendChild(wrap);
+
+            function close(v){
+                if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                resolve(v);
+            }
+            retry.onclick = function(){
+                retry.disabled = true;
+                check().then(function(r){
+                    if(r.status === "approved" || r.status === "missing"){ close(true); return; }
+                    if(r.status === "pending"){
+                        if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                        waitScreen().then(resolve);
+                        return;
+                    }
+                    retry.disabled = false;
+                    card.querySelector(".kt-mfa-text").textContent = r.message || "Still not working.";
+                });
+            };
+            out.onclick = function(){ close(false); };
+        });
+    }
+
+    // While signed in: if the device is removed, go back to the sign-in flow.
+    function startWatch(){
+        stopWatch();
+        function run(){
+            check().then(function(r){
+                if(r.status === "pending"){ location.reload(); }
+            });
+        }
+        watchTimer = setInterval(run, 60000);
+        document.addEventListener("visibilitychange", onVisible);
+    }
+
+    function onVisible(){
+        if(document.visibilityState === "visible" && watchTimer){
+            check().then(function(r){
+                if(r.status === "pending"){ location.reload(); }
+            });
+        }
+    }
+
+    function stopWatch(){
+        if(watchTimer){ clearInterval(watchTimer); watchTimer = null; }
+        document.removeEventListener("visibilitychange", onVisible);
+    }
+
+    window.KTDevices = { gate: gate, check: check, startWatch: startWatch, stopWatch: stopWatch };
+
+})();
+
+
 /* ===== js/sound.js ===== */
 // =========================================================
 // KT ADMIN — NOTIFICATION SOUND & ALERT PREFERENCES
@@ -2705,8 +2945,28 @@ async function handleAuthedSession(session){
     const isAdmin = await checkIsAdmin(session.user.id);
 
     if(isAdmin){
+        // Two-step sign-in: the password alone is not enough.
+        if(window.KTSecurity){
+            const mfaOk = await KTSecurity.mfaGate();
+            if(!mfaOk){
+                await sb.auth.signOut();
+                showLoginOverlay("Sign-in cancelled.");
+                return;
+            }
+        }
+
+        // Approved-device check: a new device waits for the main admin.
+        if(window.KTDevices){
+            const deviceOk = await KTDevices.gate();
+            if(!deviceOk){
+                await sb.auth.signOut();
+                showLoginOverlay("Signed out. This device is not approved yet.");
+                return;
+            }
+        }
+
         // Only an account that has the admin role is allowed to create
-        // a successful ADMIN APP login audit record.
+        // a successful ADMIN APP login audit record (recorded after all checks).
         sb.rpc("admin_record_successful_login", {
             p_device_id: clientInfo.deviceId,
             p_device_name: clientInfo.deviceName,
@@ -2720,16 +2980,8 @@ async function handleAuthedSession(session){
             }
         });
 
-        // Two-step sign-in: the password alone is not enough.
-        if(window.KTSecurity){
-            const mfaOk = await KTSecurity.mfaGate();
-            if(!mfaOk){
-                await sb.auth.signOut();
-                showLoginOverlay("Sign-in cancelled.");
-                return;
-            }
-            KTSecurity.startIdle();
-        }
+        if(window.KTSecurity){ KTSecurity.startIdle(); }
+        if(window.KTDevices){ KTDevices.startWatch(); }
 
         hideLoginOverlay();
 
@@ -2916,6 +3168,7 @@ async function confirmAdminLogout(){
     }
 
     if(window.KTSecurity){ KTSecurity.stopIdle(); }
+    if(window.KTDevices){ KTDevices.stopWatch(); }
     resetLogoutButtonState();
     closeLogoutModal();
     showLoginOverlay();
@@ -17795,7 +18048,7 @@ document.addEventListener("click", function(event) {
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices"];
 
     var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
@@ -17883,7 +18136,7 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -17919,7 +18172,7 @@ document.addEventListener("click", function(event) {
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -17944,6 +18197,7 @@ document.addEventListener("click", function(event) {
         if(cat === "sound") renderSound();
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
+        else if(cat === "devices") renderDevices();
         else if(cat === "safety") renderSafety();
         show(cat);
     }
@@ -18324,6 +18578,105 @@ document.addEventListener("click", function(event) {
                 var box = $("adminSearch"); if(box) box.value = "";
                 var out = $("adminResults"); if(out) out.innerHTML = "";
                 loadAdmins();
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // TRUSTED DEVICES (main admin only; the database checks this too)
+    // ---------------------------------------------------------
+    function renderDevices(){
+        $("setDevicesBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-hourglass-half"></i> Unauthorized devices</h3>' +
+                '<p class="kt-set-hint">These devices signed in with the correct password and code but are waiting for your decision.</p>' +
+                '<div id="devPending"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-circle-check"></i> Authorized devices</h3>' +
+                '<div id="devApproved"></div>' +
+            '</div>' +
+            '<p class="kt-set-hint">Removing a device signs it out. If that admin signs in from it again, it returns to Unauthorized and waits for you.</p>';
+        loadDevices();
+    }
+
+    function deviceRow(d, pending){
+        var title = (d.device_name || "Unknown device") + (d.is_current ? ' <span class="kt-set-tag">This device</span>' : '');
+        var meta = [d.os_name, d.browser].filter(Boolean).join(" · ");
+        var buttons = '';
+        if(pending){
+            buttons += '<button class="kt-set-mini primary" data-act="dev-approve" data-id="' + esc(d.id) + '">Approve</button>';
+        }
+        if(!d.is_current){
+            buttons += '<button class="kt-set-mini danger" data-act="dev-remove" data-id="' + esc(d.id) + '" data-name="' + esc(d.device_name || "this device") + '" data-admin="' + esc(d.admin_name) + '">Remove</button>';
+        }
+        return '<div class="kt-set-person">' +
+            '<div class="kt-set-avatar"><i class="fa-solid fa-mobile-screen-button"></i></div>' +
+            '<div class="kt-set-person-info"><b>' + title + '</b>' +
+            '<small>Admin: ' + esc(d.admin_name) + (d.admin_email ? ' (' + esc(d.admin_email) + ')' : '') + '</small>' +
+            (meta ? '<small>' + esc(meta) + '</small>' : '') +
+            (d.ip ? '<small>IP address: ' + esc(d.ip) + '</small>' : '') +
+            '<small>First seen ' + esc(dt(d.first_seen)) + ' · Last seen ' + esc(dt(d.last_seen)) + '</small>' +
+            (!pending && d.approved_at ? '<small>Approved ' + esc(dt(d.approved_at)) + '</small>' : '') +
+            '</div>' +
+            '<div class="kt-set-actions">' + buttons + '</div>' +
+        '</div>';
+    }
+
+    function loadDevices(){
+        rpc("admin_devices_list").then(function(rows){
+            rows = rows || [];
+            var pend = rows.filter(function(r){ return r.status === "pending"; });
+            var appr = rows.filter(function(r){ return r.status === "approved"; });
+            var p = $("devPending"), a = $("devApproved");
+            if(!p || !a) return;
+            p.innerHTML = pend.length ? pend.map(function(d){ return deviceRow(d, true); }).join("")
+                : '<p class="kt-set-hint">No devices are waiting.</p>';
+            a.innerHTML = appr.length ? appr.map(function(d){ return deviceRow(d, false); }).join("")
+                : '<p class="kt-set-hint">No authorized devices yet.</p>';
+        }).catch(function(e){
+            var p = $("devPending");
+            if(p) p.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function onDevicesClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+        var id = t.getAttribute("data-id");
+
+        if(act === "dev-approve"){
+            KTUI.confirm("Approve this device? That admin will be able to use the admin app from it.", {
+                title: "Approve device", confirmText: "Approve", busyText: "Approving...",
+                run: function(){
+                    return rpc("admin_device_approve", { p_id: id }).then(function(d){
+                        return d && d.ok ? null : "Device not found.";
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success("Device approved.");
+                loadDevices();
+            });
+            return;
+        }
+
+        if(act === "dev-remove"){
+            var name = t.getAttribute("data-name");
+            var admin = t.getAttribute("data-admin");
+            KTUI.confirm("Remove " + name + " (" + admin + ")? It is signed out and loses access. It only returns to the Unauthorized list if that admin signs in from it again.", {
+                title: "Remove device", danger: true, confirmText: "Remove", busyText: "Removing...",
+                run: function(){
+                    return rpc("admin_device_remove", { p_id: id }).then(function(d){
+                        if(d && d.ok) return null;
+                        return d && d.error === "current_device" ? "You cannot remove the device you are using now." : "Device not found.";
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success("Device removed.");
+                loadDevices();
             });
         }
     }
@@ -18733,6 +19086,7 @@ document.addEventListener("click", function(event) {
             if(S.view === "sound") onSoundClick(e);
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
+            else if(S.view === "devices") onDevicesClick(e);
         });
 
         root.addEventListener("change", function(e){
@@ -18766,6 +19120,8 @@ document.addEventListener("click", function(event) {
             var u = r && r.data && r.data.user;
             if(u) S.adminName = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email || "Admin";
         }).catch(function(){});
+
+        var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
 
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){

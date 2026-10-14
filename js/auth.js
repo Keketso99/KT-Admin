@@ -160,8 +160,28 @@ async function handleAuthedSession(session){
     const isAdmin = await checkIsAdmin(session.user.id);
 
     if(isAdmin){
+        // Two-step sign-in: the password alone is not enough.
+        if(window.KTSecurity){
+            const mfaOk = await KTSecurity.mfaGate();
+            if(!mfaOk){
+                await sb.auth.signOut();
+                showLoginOverlay("Sign-in cancelled.");
+                return;
+            }
+        }
+
+        // Approved-device check: a new device waits for the main admin.
+        if(window.KTDevices){
+            const deviceOk = await KTDevices.gate();
+            if(!deviceOk){
+                await sb.auth.signOut();
+                showLoginOverlay("Signed out. This device is not approved yet.");
+                return;
+            }
+        }
+
         // Only an account that has the admin role is allowed to create
-        // a successful ADMIN APP login audit record.
+        // a successful ADMIN APP login audit record (recorded after all checks).
         sb.rpc("admin_record_successful_login", {
             p_device_id: clientInfo.deviceId,
             p_device_name: clientInfo.deviceName,
@@ -175,16 +195,8 @@ async function handleAuthedSession(session){
             }
         });
 
-        // Two-step sign-in: the password alone is not enough.
-        if(window.KTSecurity){
-            const mfaOk = await KTSecurity.mfaGate();
-            if(!mfaOk){
-                await sb.auth.signOut();
-                showLoginOverlay("Sign-in cancelled.");
-                return;
-            }
-            KTSecurity.startIdle();
-        }
+        if(window.KTSecurity){ KTSecurity.startIdle(); }
+        if(window.KTDevices){ KTDevices.startWatch(); }
 
         hideLoginOverlay();
 
@@ -371,6 +383,7 @@ async function confirmAdminLogout(){
     }
 
     if(window.KTSecurity){ KTSecurity.stopIdle(); }
+    if(window.KTDevices){ KTDevices.stopWatch(); }
     resetLogoutButtonState();
     closeLogoutModal();
     showLoginOverlay();

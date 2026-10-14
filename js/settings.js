@@ -10,7 +10,7 @@
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices"];
 
     var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
@@ -98,7 +98,7 @@
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -134,7 +134,7 @@
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -159,6 +159,7 @@
         if(cat === "sound") renderSound();
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
+        else if(cat === "devices") renderDevices();
         else if(cat === "safety") renderSafety();
         show(cat);
     }
@@ -539,6 +540,105 @@
                 var box = $("adminSearch"); if(box) box.value = "";
                 var out = $("adminResults"); if(out) out.innerHTML = "";
                 loadAdmins();
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // TRUSTED DEVICES (main admin only; the database checks this too)
+    // ---------------------------------------------------------
+    function renderDevices(){
+        $("setDevicesBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-hourglass-half"></i> Unauthorized devices</h3>' +
+                '<p class="kt-set-hint">These devices signed in with the correct password and code but are waiting for your decision.</p>' +
+                '<div id="devPending"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-circle-check"></i> Authorized devices</h3>' +
+                '<div id="devApproved"></div>' +
+            '</div>' +
+            '<p class="kt-set-hint">Removing a device signs it out. If that admin signs in from it again, it returns to Unauthorized and waits for you.</p>';
+        loadDevices();
+    }
+
+    function deviceRow(d, pending){
+        var title = (d.device_name || "Unknown device") + (d.is_current ? ' <span class="kt-set-tag">This device</span>' : '');
+        var meta = [d.os_name, d.browser].filter(Boolean).join(" · ");
+        var buttons = '';
+        if(pending){
+            buttons += '<button class="kt-set-mini primary" data-act="dev-approve" data-id="' + esc(d.id) + '">Approve</button>';
+        }
+        if(!d.is_current){
+            buttons += '<button class="kt-set-mini danger" data-act="dev-remove" data-id="' + esc(d.id) + '" data-name="' + esc(d.device_name || "this device") + '" data-admin="' + esc(d.admin_name) + '">Remove</button>';
+        }
+        return '<div class="kt-set-person">' +
+            '<div class="kt-set-avatar"><i class="fa-solid fa-mobile-screen-button"></i></div>' +
+            '<div class="kt-set-person-info"><b>' + title + '</b>' +
+            '<small>Admin: ' + esc(d.admin_name) + (d.admin_email ? ' (' + esc(d.admin_email) + ')' : '') + '</small>' +
+            (meta ? '<small>' + esc(meta) + '</small>' : '') +
+            (d.ip ? '<small>IP address: ' + esc(d.ip) + '</small>' : '') +
+            '<small>First seen ' + esc(dt(d.first_seen)) + ' · Last seen ' + esc(dt(d.last_seen)) + '</small>' +
+            (!pending && d.approved_at ? '<small>Approved ' + esc(dt(d.approved_at)) + '</small>' : '') +
+            '</div>' +
+            '<div class="kt-set-actions">' + buttons + '</div>' +
+        '</div>';
+    }
+
+    function loadDevices(){
+        rpc("admin_devices_list").then(function(rows){
+            rows = rows || [];
+            var pend = rows.filter(function(r){ return r.status === "pending"; });
+            var appr = rows.filter(function(r){ return r.status === "approved"; });
+            var p = $("devPending"), a = $("devApproved");
+            if(!p || !a) return;
+            p.innerHTML = pend.length ? pend.map(function(d){ return deviceRow(d, true); }).join("")
+                : '<p class="kt-set-hint">No devices are waiting.</p>';
+            a.innerHTML = appr.length ? appr.map(function(d){ return deviceRow(d, false); }).join("")
+                : '<p class="kt-set-hint">No authorized devices yet.</p>';
+        }).catch(function(e){
+            var p = $("devPending");
+            if(p) p.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function onDevicesClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+        var id = t.getAttribute("data-id");
+
+        if(act === "dev-approve"){
+            KTUI.confirm("Approve this device? That admin will be able to use the admin app from it.", {
+                title: "Approve device", confirmText: "Approve", busyText: "Approving...",
+                run: function(){
+                    return rpc("admin_device_approve", { p_id: id }).then(function(d){
+                        return d && d.ok ? null : "Device not found.";
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success("Device approved.");
+                loadDevices();
+            });
+            return;
+        }
+
+        if(act === "dev-remove"){
+            var name = t.getAttribute("data-name");
+            var admin = t.getAttribute("data-admin");
+            KTUI.confirm("Remove " + name + " (" + admin + ")? It is signed out and loses access. It only returns to the Unauthorized list if that admin signs in from it again.", {
+                title: "Remove device", danger: true, confirmText: "Remove", busyText: "Removing...",
+                run: function(){
+                    return rpc("admin_device_remove", { p_id: id }).then(function(d){
+                        if(d && d.ok) return null;
+                        return d && d.error === "current_device" ? "You cannot remove the device you are using now." : "Device not found.";
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success("Device removed.");
+                loadDevices();
             });
         }
     }
@@ -948,6 +1048,7 @@
             if(S.view === "sound") onSoundClick(e);
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
+            else if(S.view === "devices") onDevicesClick(e);
         });
 
         root.addEventListener("change", function(e){
@@ -981,6 +1082,8 @@
             var u = r && r.data && r.data.user;
             if(u) S.adminName = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email || "Admin";
         }).catch(function(){});
+
+        var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
 
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){
