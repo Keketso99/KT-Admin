@@ -497,9 +497,14 @@ if (verificationSearch) {
                                 reviewPhone.textContent = entry.phone || "—";
  reviewCountry.textContent = entry.country || "—";
 
-                reviewIdFront.src = entry.idFront;
-                reviewIdBack.src = entry.idBack;
-                reviewSelfie.src = entry.selfie;
+                reviewIdFront.removeAttribute("src");
+                reviewIdBack.removeAttribute("src");
+                reviewSelfie.removeAttribute("src");
+                (function(e){
+                    ktSignedUrl(e.idFront).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdFront.src = u; });
+                    ktSignedUrl(e.idBack).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdBack.src = u; });
+                    ktSignedUrl(e.selfie).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewSelfie.src = u; });
+                })(entry);
 
                 document.getElementById("adminNoteInput").value = "";
 

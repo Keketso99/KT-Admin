@@ -9,6 +9,21 @@ window.sb = supabase.createClient(
     "sb_publishable_jB4BmxofDzNDTdX_n44NcQ_zRDyydgq"
 );
 
+// Private files (ID documents, deposit proofs) are opened with a short-lived
+// signed link instead of a public link. Old records store the former public
+// address; this turns it into a signed one (10 minutes). Other addresses are
+// returned unchanged.
+window.ktSignedUrl = function(url){
+    if(!url) return Promise.resolve("");
+    var m = String(url).match(/\/storage\/v1\/object\/(?:public|sign)\/(kyc-documents|deposit-proofs)\/([^?]+)/);
+    if(!m) return Promise.resolve(url);
+    var path;
+    try{ path = decodeURIComponent(m[2]); }catch(e){ path = m[2]; }
+    return window.sb.storage.from(m[1]).createSignedUrl(path, 600).then(function(res){
+        return (res && res.data && res.data.signedUrl) ? res.data.signedUrl : "";
+    }).catch(function(){ return ""; });
+};
+
 
 /* ===== js/dialogs.js ===== */
 // =========================================================
@@ -5674,8 +5689,10 @@ function openDepositReview(id){
 
     if(image){
 
-        image.src =
-            deposit.proof || "";
+        image.removeAttribute("src");
+        ktSignedUrl(deposit.proof || "").then(function(u){
+            if(u) image.src = u;
+        });
 
     }
 
@@ -10177,9 +10194,14 @@ if (verificationSearch) {
                                 reviewPhone.textContent = entry.phone || "—";
  reviewCountry.textContent = entry.country || "—";
 
-                reviewIdFront.src = entry.idFront;
-                reviewIdBack.src = entry.idBack;
-                reviewSelfie.src = entry.selfie;
+                reviewIdFront.removeAttribute("src");
+                reviewIdBack.removeAttribute("src");
+                reviewSelfie.removeAttribute("src");
+                (function(e){
+                    ktSignedUrl(e.idFront).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdFront.src = u; });
+                    ktSignedUrl(e.idBack).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdBack.src = u; });
+                    ktSignedUrl(e.selfie).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewSelfie.src = u; });
+                })(entry);
 
                 document.getElementById("adminNoteInput").value = "";
 
