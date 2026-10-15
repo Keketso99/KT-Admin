@@ -1214,7 +1214,7 @@ function createMessageElement(message) {
         const audio = document.createElement("audio");
         audio.className = "message-voice-player";
         audio.controls = true;
-        audio.src = message.fileUrl;
+        ktApplySigned(audio, "src", message.fileUrl);
 
         content.appendChild(audio);
 
@@ -1225,14 +1225,14 @@ function createMessageElement(message) {
         if (isImage) {
 
             const link = document.createElement("a");
-            link.href = message.fileUrl;
+            ktApplySigned(link, "href", message.fileUrl);
             link.target = "_blank";
             link.rel = "noopener";
             link.className = "message-attachment-image-link";
 
             const img = document.createElement("img");
             img.className = "message-attachment-image";
-            img.src = message.fileUrl;
+            ktApplySigned(img, "src", message.fileUrl);
             img.alt = message.fileName || "Image";
 
             link.appendChild(img);
@@ -1241,7 +1241,7 @@ function createMessageElement(message) {
         } else {
 
             const fileCard = document.createElement("a");
-            fileCard.href = message.fileUrl;
+            ktApplySigned(fileCard, "href", message.fileUrl);
             fileCard.target = "_blank";
             fileCard.rel = "noopener";
             fileCard.className = "message-attachment-file";

@@ -9,20 +9,44 @@ window.sb = supabase.createClient(
     "sb_publishable_jB4BmxofDzNDTdX_n44NcQ_zRDyydgq"
 );
 
-// Private files (ID documents, deposit proofs) are opened with a short-lived
-// signed link instead of a public link. Old records store the former public
-// address; this turns it into a signed one (10 minutes). Other addresses are
-// returned unchanged.
-window.ktSignedUrl = function(url){
-    if(!url) return Promise.resolve("");
-    var m = String(url).match(/\/storage\/v1\/object\/(?:public|sign)\/(kyc-documents|deposit-proofs)\/([^?]+)/);
-    if(!m) return Promise.resolve(url);
-    var path;
-    try{ path = decodeURIComponent(m[2]); }catch(e){ path = m[2]; }
-    return window.sb.storage.from(m[1]).createSignedUrl(path, 600).then(function(res){
-        return (res && res.data && res.data.signedUrl) ? res.data.signedUrl : "";
-    }).catch(function(){ return ""; });
-};
+// Private files (ID documents, deposit proofs, support-chat files) are opened
+// with a short-lived signed link instead of a public link. Old records store the
+// former public address; this turns it into a signed one (10 minutes, kept for
+// 8). Other addresses are returned unchanged.
+(function(){
+    var RE = /\/storage\/v1\/object\/(?:public|sign)\/(kyc-documents|deposit-proofs|support-chat)\/([^?]+)/;
+    var cache = {};
+
+    // already-signed link, or null (lets a page draw immediately when it can)
+    window.ktSignedUrlCached = function(url){
+        if(!url) return "";
+        if(!RE.test(String(url))) return url;
+        var hit = cache[url];
+        return hit && hit.expires > Date.now() ? hit.url : null;
+    };
+
+    window.ktSignedUrl = function(url){
+        if(!url) return Promise.resolve("");
+        var m = String(url).match(RE);
+        if(!m) return Promise.resolve(url);
+        var hit = cache[url];
+        if(hit && hit.expires > Date.now()) return Promise.resolve(hit.url);
+        var path;
+        try{ path = decodeURIComponent(m[2]); }catch(e){ path = m[2]; }
+        return window.sb.storage.from(m[1]).createSignedUrl(path, 600).then(function(res){
+            var u = (res && res.data && res.data.signedUrl) ? res.data.signedUrl : "";
+            if(u) cache[url] = { url: u, expires: Date.now() + 8 * 60 * 1000 };
+            return u;
+        }).catch(function(){ return ""; });
+    };
+
+    // set an element attribute now if possible, otherwise as soon as the link is ready
+    window.ktApplySigned = function(el, attr, url){
+        var now = window.ktSignedUrlCached(url);
+        if(now !== null){ el.setAttribute(attr, now); return; }
+        window.ktSignedUrl(url).then(function(u){ if(u) el.setAttribute(attr, u); });
+    };
+})();
 
 
 /* ===== js/dialogs.js ===== */
@@ -14798,7 +14822,7 @@ function createMessageElement(message) {
         const audio = document.createElement("audio");
         audio.className = "message-voice-player";
         audio.controls = true;
-        audio.src = message.fileUrl;
+        ktApplySigned(audio, "src", message.fileUrl);
 
         content.appendChild(audio);
 
@@ -14809,14 +14833,14 @@ function createMessageElement(message) {
         if (isImage) {
 
             const link = document.createElement("a");
-            link.href = message.fileUrl;
+            ktApplySigned(link, "href", message.fileUrl);
             link.target = "_blank";
             link.rel = "noopener";
             link.className = "message-attachment-image-link";
 
             const img = document.createElement("img");
             img.className = "message-attachment-image";
-            img.src = message.fileUrl;
+            ktApplySigned(img, "src", message.fileUrl);
             img.alt = message.fileName || "Image";
 
             link.appendChild(img);
@@ -14825,7 +14849,7 @@ function createMessageElement(message) {
         } else {
 
             const fileCard = document.createElement("a");
-            fileCard.href = message.fileUrl;
+            ktApplySigned(fileCard, "href", message.fileUrl);
             fileCard.target = "_blank";
             fileCard.rel = "noopener";
             fileCard.className = "message-attachment-file";
