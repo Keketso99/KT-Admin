@@ -160,7 +160,10 @@
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
         else if(cat === "devices") renderDevices();
-        else if(cat === "seclog") renderSeclog();
+        else if(cat === "seclog"){
+            try{ localStorage.setItem("kt_seclog_seen", String(Date.now())); }catch(e){}
+            renderSeclog();
+        }
         else if(cat === "safety") renderSafety();
         show(cat);
     }

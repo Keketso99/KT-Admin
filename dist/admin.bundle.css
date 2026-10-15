@@ -803,6 +803,11 @@ html, body { height: 100%; }
 .kt-pw-hint{font-size:13px;margin:0 0 6px;min-height:18px}
 .kt-pw-show{background:none;border:none;color:#1b8ef2;font-size:13px;cursor:pointer;margin-bottom:6px}
 
+.kt-sec-banner{position:fixed;left:12px;right:12px;bottom:14px;z-index:9000;display:flex;align-items:center;gap:10px;background:#7f1d1d;color:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:13px;max-width:560px;margin:0 auto}
+.kt-sec-banner-text{flex:1;line-height:1.35}
+.kt-sec-banner-go{background:#fff;color:#7f1d1d;border:none;border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;cursor:pointer}
+.kt-sec-banner-x{background:none;border:none;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
+
 
 /* ===== css/dashboard.css ===== */
 /* ==========================

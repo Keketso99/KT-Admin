@@ -1431,25 +1431,99 @@ var KTSecurity = (function(){
     function stopWatch(){
         if(watchTimer){ clearInterval(watchTimer); watchTimer = null; }
         document.removeEventListener("visibilitychange", onVisible);
+        hideBanner();
+        lastPending = null;
+        dismissedKey = "";
     }
 
-    // Main admin: small badge on the sidebar Settings item when a device is
-    // waiting for approval or an admin account is locked.
+    // Main admin: red badge on the sidebar Settings item, a banner, and an alert
+    // when a device is waiting for approval, an admin is locked, or the Security
+    // log has not been looked at for a week.
+    var lastPending = null;
+    var dismissedKey = "";
+    var WEEK = 7 * 24 * 3600 * 1000;
+
+    function seclogStale(){
+        try{
+            var seen = Number(localStorage.getItem("kt_seclog_seen"));
+            if(!seen){
+                // first time on this browser: start the clock now instead of nagging at once
+                localStorage.setItem("kt_seclog_seen", String(Date.now()));
+                return false;
+            }
+            return Date.now() - seen > WEEK;
+        }catch(e){ return false; }
+    }
+
+    function hideBanner(){
+        var b = document.getElementById("ktSecBanner");
+        if(b) b.remove();
+    }
+
+    function showBanner(lines, key){
+        if(dismissedKey === key){ hideBanner(); return; }
+        var b = document.getElementById("ktSecBanner");
+        if(!b){
+            b = el("div", "kt-sec-banner");
+            b.id = "ktSecBanner";
+            document.body.appendChild(b);
+        }
+        b.innerHTML = "";
+        var icon = el("i", "fa-solid fa-shield-halved");
+        var txt = el("span", "kt-sec-banner-text", lines.join(" · "));
+        var go = el("button", "kt-sec-banner-go", "Review");
+        go.type = "button";
+        go.onclick = function(){
+            if(typeof loadAdminPage === "function") loadAdminPage("settings");
+            dismissedKey = key;
+            hideBanner();
+        };
+        var x = el("button", "kt-sec-banner-x", "\u00d7");
+        x.type = "button";
+        x.setAttribute("aria-label", "Dismiss");
+        x.onclick = function(){ dismissedKey = key; hideBanner(); };
+        b.appendChild(icon);
+        b.appendChild(txt);
+        b.appendChild(go);
+        b.appendChild(x);
+    }
+
     function refreshBadge(){
         if(!window.KTPerm || !KTPerm.isSuper) return;
         sb.rpc("admin_security_summary").then(function(res){
             if(res.error || !res.data) return;
-            var n = (Number(res.data.pending_devices) || 0) + ((res.data.locked || []).length);
+            var pending = Number(res.data.pending_devices) || 0;
+            var locked = (res.data.locked || []).length;
+            var stale = seclogStale();
+            var n = pending + locked + (stale ? 1 : 0);
+
             var item = document.getElementById("sideSettingsItem");
-            if(!item) return;
-            var dot = item.querySelector(".kt-side-dot");
-            if(!n){ if(dot) dot.remove(); return; }
-            if(!dot){
-                dot = document.createElement("span");
-                dot.className = "kt-side-dot";
-                item.appendChild(dot);
+            if(item){
+                var dot = item.querySelector(".kt-side-dot");
+                if(!n){ if(dot) dot.remove(); }
+                else{
+                    if(!dot){
+                        dot = document.createElement("span");
+                        dot.className = "kt-side-dot";
+                        item.appendChild(dot);
+                    }
+                    dot.textContent = n > 9 ? "9+" : String(n);
+                }
             }
-            dot.textContent = n > 9 ? "9+" : String(n);
+
+            var lines = [];
+            if(pending) lines.push(pending + (pending === 1 ? " device is" : " devices are") + " waiting for approval");
+            if(locked) lines.push(locked + (locked === 1 ? " admin is" : " admins are") + " locked");
+            if(stale) lines.push("Security log not reviewed for 7 days");
+            if(lines.length) showBanner(lines, pending + "|" + locked + "|" + (stale ? 1 : 0));
+            else hideBanner();
+
+            // alert (sound + message) when a NEW device shows up
+            if(pending > 0 && (lastPending === null || pending > lastPending)){
+                if(window.KTUI) KTUI.warning("A new device is waiting for your approval (Settings > Trusted Devices).", 8000);
+                if(window.KTSound && KTSound.playAlert) KTSound.playAlert();
+            }
+            lastPending = pending;
         });
     }
 
@@ -18603,7 +18677,10 @@ document.addEventListener("click", function(event) {
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
         else if(cat === "devices") renderDevices();
-        else if(cat === "seclog") renderSeclog();
+        else if(cat === "seclog"){
+            try{ localStorage.setItem("kt_seclog_seen", String(Date.now())); }catch(e){}
+            renderSeclog();
+        }
         else if(cat === "safety") renderSafety();
         show(cat);
     }
