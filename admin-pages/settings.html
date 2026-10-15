@@ -59,6 +59,12 @@
                 <i class="fa-solid fa-lock kt-set-cat-lock"></i>
             </button>
 
+            <button class="kt-set-cat" data-cat="seclog" id="setSeclogCard" hidden>
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                <span class="kt-set-cat-text"><b>Security log</b><small>Sign-ins, wrong codes, new devices, locked admins, sign out everywhere</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
             <button class="kt-set-cat" data-cat="safety">
                 <span class="kt-set-cat-icon"><i class="fa-solid fa-key"></i></span>
                 <span class="kt-set-cat-text"><b>Safety</b><small>Change your settings password</small></span>
@@ -101,6 +107,15 @@
             <h2>Trusted Devices</h2>
         </div>
         <div id="setDevicesBody"></div>
+    </section>
+
+    <!-- Security log (main admin only) -->
+    <section class="kt-set-view" id="setSeclog" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Security log</h2>
+        </div>
+        <div id="setSeclogBody"></div>
     </section>
 
     <!-- Safety -->

@@ -793,6 +793,10 @@ html, body { height: 100%; }
 .kt-mfa-btn:disabled{opacity:.7}
 .kt-mfa-link{display:block;width:100%;background:none;border:none;color:#6b7280;font-size:14px;padding:9px;cursor:pointer}
 
+/* sidebar attention badge (main admin) */
+.side-item{ position:relative; }
+.kt-side-dot{ float:right; margin-top:1px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#dc2626; color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
+
 
 /* ===== css/dashboard.css ===== */
 /* ==========================
@@ -13500,6 +13504,23 @@ body.activity-modal-open{
 .kt-set-cat[hidden]{ display:none; }
 #setDevices .kt-set-person{ flex-wrap:wrap; }
 #setDevices .kt-set-actions{ width:100%; justify-content:flex-end; }
+
+/* Security log */
+.kt-sec-tiles{ display:flex; gap:8px; }
+.kt-sec-tile{ flex:1 1 0; min-width:0; background:#f3f6fb; border-radius:12px; padding:10px 6px; text-align:center; }
+.kt-sec-tile b{ display:block; font-size:22px; color:#0f2a55; }
+.kt-sec-tile span{ display:block; font-size:10.5px; color:#6b7280; line-height:1.25; }
+.kt-sec-tile.warn{ background:#fff7e6; } .kt-sec-tile.warn b{ color:#b45309; }
+.kt-sec-tile.bad{ background:#fef2f2; } .kt-sec-tile.bad b{ color:#dc2626; }
+.kt-sec-sub{ margin:14px 0 4px; font-size:13px; color:#0f2a55; }
+.kt-sec-row{ display:flex; gap:10px; padding:9px 0; border-bottom:1px solid #f1f5f9; }
+.kt-sec-row:last-child{ border-bottom:0; }
+.kt-sec-row > i{ margin-top:3px; color:#94a3b8; }
+.kt-sec-row.warning > i{ color:#d97706; } .kt-sec-row.alert > i{ color:#dc2626; }
+.kt-sec-row b{ display:block; font-size:13.5px; color:#111827; }
+.kt-sec-row small{ display:block; font-size:11.5px; color:#6b7280; word-break:break-word; }
+.kt-set-btn.danger{ background:#dc2626; color:#fff; }
+#secMore{ margin-top:10px; }
 
 
 /* ===== css/manual.css ===== */

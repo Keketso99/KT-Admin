@@ -948,6 +948,13 @@ var KTSecurity = (function(){
                 Promise.resolve(opts.verify(code)).then(function(r){
                     done();
                     if(r && r.ok){ close(true); return; }
+                    if(r && r.locked){
+                        err.textContent = r.message;
+                        input.disabled = true;
+                        ok.disabled = true;
+                        setTimeout(function(){ close(false); }, 4000);
+                        return;
+                    }
                     err.textContent = (r && r.message) || "That code is not correct. Try again.";
                     input.value = "";
                     input.focus();
@@ -1012,7 +1019,7 @@ var KTSecurity = (function(){
         }catch(e){ return ""; }
     }
 
-    function verifyWith(factorId, secret){
+    function verifyWithRaw(factorId, secret){
         return function(code){
             return sb.auth.mfa.challengeAndVerify({ factorId: factorId, code: code }).then(function(r){
                 if(!r.error) return { ok: true };
@@ -1021,15 +1028,37 @@ var KTSecurity = (function(){
                     if(secret){
                         return matchesLocally(secret, code).then(async function(same){
                             if(!same){
-                                return { ok: false, message: "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
+                                return { invalid: true, ok: false, message: "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
                             }
                             var how = await clockOffsetText();
-                            return { ok: false, message: how + "In Google Authenticator open the menu, then Settings, then Time correction for codes, then Sync now. This fixes the app only, not your phone's settings. Then enter the next code." };
+                            return { invalid: true, ok: false, message: how + "In Google Authenticator open the menu, then Settings, then Time correction for codes, then Sync now. This fixes the app only, not your phone's settings. Then enter the next code." };
                         });
                     }
-                    return { ok: false, message: "That code is not correct. Wait for the next one and try again." };
+                    return { invalid: true, ok: false, message: "That code is not correct. Wait for the next one and try again." };
                 }
                 return { ok: false, message: "Could not verify: " + m };
+            });
+        };
+    }
+
+    // Wrong codes at SIGN-IN are reported to the security log; 5 within 15
+    // minutes lock that admin for a while. (Not counted during first set-up.)
+    function untilText(iso){
+        try{ return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }catch(e){ return "later"; }
+    }
+
+    function verifyWith(factorId, secret){
+        var inner = verifyWithRaw(factorId, secret);
+        return function(code){
+            return inner(code).then(function(r){
+                if(!r || r.ok || !r.invalid || secret){ return r; }
+                return sb.rpc("admin_security_event", { p_type: "code_failed" }).then(function(res){
+                    var d = res && res.data;
+                    if(d && d.locked){
+                        return { ok: false, locked: true, message: "Too many wrong codes. This account is locked until " + untilText(d.until) + "." };
+                    }
+                    return r;
+                }, function(){ return r; });
             });
         };
     }
@@ -1211,6 +1240,7 @@ var KTSecurity = (function(){
                 return { status: "error", message: msg };
             }
             var st = res.data && res.data.status;
+            if(st === "locked"){ return { status: "locked", until: res.data.until }; }
             return { status: st === "approved" ? "approved" : "pending" };
         }).catch(function(e){
             return { status: "error", message: (e && e.message) || "Network problem" };
@@ -1292,7 +1322,51 @@ var KTSecurity = (function(){
             if(r.status === "error"){
                 return waitScreenError(r.message);
             }
+            if(r.status === "locked"){
+                return lockedScreen(r.until);
+            }
             return waitScreen();
+        });
+    }
+
+    // Account locked after too many wrong codes
+    function lockedScreen(until){
+        return new Promise(function(resolve){
+            var when = "";
+            try{ when = new Date(until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }catch(e){}
+            var wrap = el("div", "kt-mfa-overlay");
+            var card = el("div", "kt-mfa-card");
+            card.appendChild(el("i", "fa-solid fa-lock kt-mfa-icon"));
+            card.appendChild(el("h2", "", "Account locked"));
+            card.appendChild(el("p", "kt-mfa-text",
+                "Too many wrong codes were entered for this account. It is locked" +
+                (when ? " until " + when : " for a while") + ". The main admin can unlock it sooner."));
+            var again = el("button", "kt-mfa-btn", "Try again");
+            again.type = "button";
+            var out = el("button", "kt-mfa-link", "Sign out");
+            out.type = "button";
+            card.appendChild(again);
+            card.appendChild(out);
+            wrap.appendChild(card);
+            document.body.appendChild(wrap);
+
+            function close(v){
+                if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                resolve(v);
+            }
+            again.onclick = function(){
+                again.disabled = true;
+                check().then(function(r){
+                    if(r.status === "approved" || r.status === "missing"){ close(true); return; }
+                    if(r.status === "pending"){
+                        if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                        waitScreen().then(resolve);
+                        return;
+                    }
+                    again.disabled = false;
+                });
+            };
+            out.onclick = function(){ close(false); };
         });
     }
 
@@ -1342,7 +1416,7 @@ var KTSecurity = (function(){
                 if(r.status === "pending"){ location.reload(); }
             });
         }
-        watchTimer = setInterval(run, 60000);
+        watchTimer = setInterval(function(){ run(); refreshBadge(); }, 60000);
         document.addEventListener("visibilitychange", onVisible);
     }
 
@@ -1359,7 +1433,27 @@ var KTSecurity = (function(){
         document.removeEventListener("visibilitychange", onVisible);
     }
 
-    window.KTDevices = { gate: gate, check: check, startWatch: startWatch, stopWatch: stopWatch };
+    // Main admin: small badge on the sidebar Settings item when a device is
+    // waiting for approval or an admin account is locked.
+    function refreshBadge(){
+        if(!window.KTPerm || !KTPerm.isSuper) return;
+        sb.rpc("admin_security_summary").then(function(res){
+            if(res.error || !res.data) return;
+            var n = (Number(res.data.pending_devices) || 0) + ((res.data.locked || []).length);
+            var item = document.getElementById("sideSettingsItem");
+            if(!item) return;
+            var dot = item.querySelector(".kt-side-dot");
+            if(!n){ if(dot) dot.remove(); return; }
+            if(!dot){
+                dot = document.createElement("span");
+                dot.className = "kt-side-dot";
+                item.appendChild(dot);
+            }
+            dot.textContent = n > 9 ? "9+" : String(n);
+        });
+    }
+
+    window.KTDevices = { gate: gate, check: check, startWatch: startWatch, stopWatch: stopWatch, refreshBadge: refreshBadge };
 
 })();
 
@@ -3019,6 +3113,8 @@ async function handleAuthedSession(session){
             }
         });
 
+        sb.rpc("admin_security_event", { p_type: "signin_ok" }).then(function(){}, function(){});
+
         if(window.KTSecurity){ KTSecurity.startIdle(); }
         if(window.KTDevices){ KTDevices.startWatch(); }
 
@@ -3027,6 +3123,7 @@ async function handleAuthedSession(session){
 await loadAdminSidebarProfile(session.user.id);
 
 if(window.KTPerm){ await KTPerm.load(); }
+if(window.KTDevices){ KTDevices.refreshBadge(); }
 
 if(typeof loadAdminPage === "function"){
     // A tapped push notification opens the app on the relevant page.
@@ -18094,7 +18191,7 @@ document.addEventListener("click", function(event) {
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices", "seclog"];
 
     var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
@@ -18182,7 +18279,7 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -18218,7 +18315,7 @@ document.addEventListener("click", function(event) {
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -18244,6 +18341,7 @@ document.addEventListener("click", function(event) {
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
         else if(cat === "devices") renderDevices();
+        else if(cat === "seclog") renderSeclog();
         else if(cat === "safety") renderSafety();
         show(cat);
     }
@@ -18728,6 +18826,155 @@ document.addEventListener("click", function(event) {
     }
 
     // ---------------------------------------------------------
+    // SECURITY LOG (main admin only; the database checks this too)
+    // ---------------------------------------------------------
+    var SEC = { rows: [], filter: "", last: null, done: false };
+
+    var EVENT_TEXT = {
+        signin_ok: "Signed in",
+        signout: "Signed out",
+        failed_signin: "Wrong password",
+        code_failed: "Wrong authenticator code",
+        non_admin_signin: "Non-admin account tried the admin app",
+        device_new: "New unknown device signed in - waiting for approval",
+        device_first_approved: "First device registered",
+        device_approved: "Device approved",
+        device_removed: "Device removed",
+        account_locked: "Account locked (too many wrong codes)",
+        account_unlocked: "Account unlocked",
+        sessions_revoked: "Sessions revoked"
+    };
+    var EVENT_ICON = { alert: "fa-triangle-exclamation", warning: "fa-circle-exclamation", info: "fa-circle-info" };
+
+    function renderSeclog(){
+        SEC.rows = []; SEC.last = null; SEC.done = false;
+        $("setSeclogBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-gauge-high"></i> Last 24 hours</h3>' +
+                '<div id="secSummary"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-right-from-bracket"></i> Sign out everywhere</h3>' +
+                '<p class="kt-set-hint">Signs every other admin out of every device right away. They can sign in again with their password and code. This device stays signed in.</p>' +
+                '<button class="kt-set-btn danger" data-act="sec-revoke-all">Revoke all other sessions</button>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-list"></i> Events</h3>' +
+                '<select class="kt-set-input" id="secFilter">' +
+                    '<option value="">All events</option>' +
+                    '<option value="alert">Alerts only</option>' +
+                    '<option value="warning">Warnings only</option>' +
+                    '<option value="info">Normal only</option>' +
+                '</select>' +
+                '<div id="secList"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+                '<button class="kt-set-btn light" id="secMore" data-act="sec-more" hidden>Load more</button>' +
+            '</div>';
+        var f = $("secFilter");
+        if(f) f.addEventListener("change", function(){
+            SEC.filter = f.value; SEC.rows = []; SEC.last = null; SEC.done = false;
+            $("secList").innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+            loadSeclog(false);
+        });
+        SEC.filter = "";
+        loadSummary();
+        loadSeclog(false);
+    }
+
+    function loadSummary(){
+        rpc("admin_security_summary").then(function(d){
+            var box = $("secSummary");
+            if(!box) return;
+            var locked = d.locked || [];
+            var html = '<div class="kt-sec-tiles">' +
+                '<div class="kt-sec-tile' + (d.pending_devices ? ' warn' : '') + '"><b>' + (d.pending_devices || 0) + '</b><span>Devices waiting</span></div>' +
+                '<div class="kt-sec-tile' + (d.failed_signins_24h ? ' warn' : '') + '"><b>' + (d.failed_signins_24h || 0) + '</b><span>Wrong passwords / codes</span></div>' +
+                '<div class="kt-sec-tile' + (d.alerts_24h ? ' bad' : '') + '"><b>' + (d.alerts_24h || 0) + '</b><span>Alerts</span></div>' +
+            '</div>';
+            if(locked.length){
+                html += '<h4 class="kt-sec-sub">Locked admins</h4>' + locked.map(function(l){
+                    return '<div class="kt-set-person"><div class="kt-set-avatar"><i class="fa-solid fa-lock"></i></div>' +
+                        '<div class="kt-set-person-info"><b>' + esc(l.name || "Admin") + '</b><small>Locked until ' + esc(dt(l.until)) + '</small></div>' +
+                        '<div class="kt-set-actions"><button class="kt-set-mini primary" data-act="sec-unlock" data-id="' + esc(l.user_id) + '" data-name="' + esc(l.name || "this admin") + '">Unlock</button></div></div>';
+                }).join("");
+            }
+            box.innerHTML = html;
+            if(window.KTDevices) KTDevices.refreshBadge();
+        }).catch(function(e){
+            var box = $("secSummary");
+            if(box) box.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function eventRow(r){
+        var text = EVENT_TEXT[r.event_type] || r.event_type;
+        var meta = [r.device_name, r.os_name, r.browser].filter(Boolean).join(" · ");
+        return '<div class="kt-sec-row ' + esc(r.severity) + '">' +
+            '<i class="fa-solid ' + (EVENT_ICON[r.severity] || "fa-circle-info") + '"></i>' +
+            '<div><b>' + esc(text) + '</b>' +
+            '<small>' + esc(r.admin_name || "Unknown") + (r.ip ? ' · IP ' + esc(r.ip) : '') + '</small>' +
+            (meta ? '<small>' + esc(meta) + '</small>' : '') +
+            '<small>' + esc(dt(r.created_at)) + '</small></div></div>';
+    }
+
+    function loadSeclog(more){
+        rpc("admin_security_log_list", { p_limit: 50, p_before: more ? SEC.last : null, p_severity: SEC.filter || null }).then(function(rows){
+            rows = rows || [];
+            SEC.rows = SEC.rows.concat(rows);
+            if(rows.length) SEC.last = rows[rows.length - 1].id;
+            SEC.done = rows.length < 50;
+            var list = $("secList"), btn = $("secMore");
+            if(!list) return;
+            list.innerHTML = SEC.rows.length ? SEC.rows.map(eventRow).join("") : '<p class="kt-set-hint">Nothing logged yet.</p>';
+            if(btn) btn.hidden = SEC.done;
+        }).catch(function(e){
+            var list = $("secList");
+            if(list) list.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function onSeclogClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+
+        if(act === "sec-more"){ loadSeclog(true); return; }
+
+        if(act === "sec-unlock"){
+            var id = t.getAttribute("data-id");
+            var name = t.getAttribute("data-name");
+            KTUI.confirm("Unlock " + name + "? They can sign in again straight away.", {
+                title: "Unlock admin", confirmText: "Unlock", busyText: "Unlocking...",
+                run: function(){ return rpc("admin_unlock_account", { p_user: id }).then(function(){ return null; }, function(err){ return err.message; }); }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success(name + " is unlocked.");
+                renderSeclog();
+            });
+            return;
+        }
+
+        if(act === "sec-revoke-all"){
+            KTUI.confirm("Sign every other admin out of every device now? You stay signed in here. Use this if you think a password or phone was stolen.", {
+                title: "Revoke all sessions", danger: true, confirmText: "Revoke", busyText: "Revoking...",
+                run: function(){
+                    return rpc("admin_revoke_sessions", { p_user: null }).then(function(d){
+                        S.revokeResult = d; return null;
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                var d = S.revokeResult || {};
+                if(d.signed_out_everywhere === false){
+                    KTUI.alert("Admin access was cut off at once, but the sign-ins could not be fully ended. Tell the other admins to sign out and in again.", { title: "Revoked", type: "info", okText: "Close" });
+                }else{
+                    KTUI.success("All other admin sessions were revoked.");
+                }
+                renderSeclog();
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
     // AUDIT
     // ---------------------------------------------------------
     var WALLET_TYPES = [
@@ -19133,6 +19380,7 @@ document.addEventListener("click", function(event) {
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
             else if(S.view === "devices") onDevicesClick(e);
+            else if(S.view === "seclog") onSeclogClick(e);
         });
 
         root.addEventListener("change", function(e){
@@ -19168,6 +19416,7 @@ document.addEventListener("click", function(event) {
         }).catch(function(){});
 
         var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
+        var sc = $("setSeclogCard"); if(sc) sc.hidden = !(window.KTPerm && KTPerm.isSuper);
 
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){

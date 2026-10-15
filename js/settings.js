@@ -10,7 +10,7 @@
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices", "seclog"];
 
     var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
@@ -98,7 +98,7 @@
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -134,7 +134,7 @@
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -160,6 +160,7 @@
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
         else if(cat === "devices") renderDevices();
+        else if(cat === "seclog") renderSeclog();
         else if(cat === "safety") renderSafety();
         show(cat);
     }
@@ -644,6 +645,155 @@
     }
 
     // ---------------------------------------------------------
+    // SECURITY LOG (main admin only; the database checks this too)
+    // ---------------------------------------------------------
+    var SEC = { rows: [], filter: "", last: null, done: false };
+
+    var EVENT_TEXT = {
+        signin_ok: "Signed in",
+        signout: "Signed out",
+        failed_signin: "Wrong password",
+        code_failed: "Wrong authenticator code",
+        non_admin_signin: "Non-admin account tried the admin app",
+        device_new: "New unknown device signed in - waiting for approval",
+        device_first_approved: "First device registered",
+        device_approved: "Device approved",
+        device_removed: "Device removed",
+        account_locked: "Account locked (too many wrong codes)",
+        account_unlocked: "Account unlocked",
+        sessions_revoked: "Sessions revoked"
+    };
+    var EVENT_ICON = { alert: "fa-triangle-exclamation", warning: "fa-circle-exclamation", info: "fa-circle-info" };
+
+    function renderSeclog(){
+        SEC.rows = []; SEC.last = null; SEC.done = false;
+        $("setSeclogBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-gauge-high"></i> Last 24 hours</h3>' +
+                '<div id="secSummary"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-right-from-bracket"></i> Sign out everywhere</h3>' +
+                '<p class="kt-set-hint">Signs every other admin out of every device right away. They can sign in again with their password and code. This device stays signed in.</p>' +
+                '<button class="kt-set-btn danger" data-act="sec-revoke-all">Revoke all other sessions</button>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-list"></i> Events</h3>' +
+                '<select class="kt-set-input" id="secFilter">' +
+                    '<option value="">All events</option>' +
+                    '<option value="alert">Alerts only</option>' +
+                    '<option value="warning">Warnings only</option>' +
+                    '<option value="info">Normal only</option>' +
+                '</select>' +
+                '<div id="secList"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
+                '<button class="kt-set-btn light" id="secMore" data-act="sec-more" hidden>Load more</button>' +
+            '</div>';
+        var f = $("secFilter");
+        if(f) f.addEventListener("change", function(){
+            SEC.filter = f.value; SEC.rows = []; SEC.last = null; SEC.done = false;
+            $("secList").innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+            loadSeclog(false);
+        });
+        SEC.filter = "";
+        loadSummary();
+        loadSeclog(false);
+    }
+
+    function loadSummary(){
+        rpc("admin_security_summary").then(function(d){
+            var box = $("secSummary");
+            if(!box) return;
+            var locked = d.locked || [];
+            var html = '<div class="kt-sec-tiles">' +
+                '<div class="kt-sec-tile' + (d.pending_devices ? ' warn' : '') + '"><b>' + (d.pending_devices || 0) + '</b><span>Devices waiting</span></div>' +
+                '<div class="kt-sec-tile' + (d.failed_signins_24h ? ' warn' : '') + '"><b>' + (d.failed_signins_24h || 0) + '</b><span>Wrong passwords / codes</span></div>' +
+                '<div class="kt-sec-tile' + (d.alerts_24h ? ' bad' : '') + '"><b>' + (d.alerts_24h || 0) + '</b><span>Alerts</span></div>' +
+            '</div>';
+            if(locked.length){
+                html += '<h4 class="kt-sec-sub">Locked admins</h4>' + locked.map(function(l){
+                    return '<div class="kt-set-person"><div class="kt-set-avatar"><i class="fa-solid fa-lock"></i></div>' +
+                        '<div class="kt-set-person-info"><b>' + esc(l.name || "Admin") + '</b><small>Locked until ' + esc(dt(l.until)) + '</small></div>' +
+                        '<div class="kt-set-actions"><button class="kt-set-mini primary" data-act="sec-unlock" data-id="' + esc(l.user_id) + '" data-name="' + esc(l.name || "this admin") + '">Unlock</button></div></div>';
+                }).join("");
+            }
+            box.innerHTML = html;
+            if(window.KTDevices) KTDevices.refreshBadge();
+        }).catch(function(e){
+            var box = $("secSummary");
+            if(box) box.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function eventRow(r){
+        var text = EVENT_TEXT[r.event_type] || r.event_type;
+        var meta = [r.device_name, r.os_name, r.browser].filter(Boolean).join(" · ");
+        return '<div class="kt-sec-row ' + esc(r.severity) + '">' +
+            '<i class="fa-solid ' + (EVENT_ICON[r.severity] || "fa-circle-info") + '"></i>' +
+            '<div><b>' + esc(text) + '</b>' +
+            '<small>' + esc(r.admin_name || "Unknown") + (r.ip ? ' · IP ' + esc(r.ip) : '') + '</small>' +
+            (meta ? '<small>' + esc(meta) + '</small>' : '') +
+            '<small>' + esc(dt(r.created_at)) + '</small></div></div>';
+    }
+
+    function loadSeclog(more){
+        rpc("admin_security_log_list", { p_limit: 50, p_before: more ? SEC.last : null, p_severity: SEC.filter || null }).then(function(rows){
+            rows = rows || [];
+            SEC.rows = SEC.rows.concat(rows);
+            if(rows.length) SEC.last = rows[rows.length - 1].id;
+            SEC.done = rows.length < 50;
+            var list = $("secList"), btn = $("secMore");
+            if(!list) return;
+            list.innerHTML = SEC.rows.length ? SEC.rows.map(eventRow).join("") : '<p class="kt-set-hint">Nothing logged yet.</p>';
+            if(btn) btn.hidden = SEC.done;
+        }).catch(function(e){
+            var list = $("secList");
+            if(list) list.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function onSeclogClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+
+        if(act === "sec-more"){ loadSeclog(true); return; }
+
+        if(act === "sec-unlock"){
+            var id = t.getAttribute("data-id");
+            var name = t.getAttribute("data-name");
+            KTUI.confirm("Unlock " + name + "? They can sign in again straight away.", {
+                title: "Unlock admin", confirmText: "Unlock", busyText: "Unlocking...",
+                run: function(){ return rpc("admin_unlock_account", { p_user: id }).then(function(){ return null; }, function(err){ return err.message; }); }
+            }).then(function(ok){
+                if(!ok) return;
+                KTUI.success(name + " is unlocked.");
+                renderSeclog();
+            });
+            return;
+        }
+
+        if(act === "sec-revoke-all"){
+            KTUI.confirm("Sign every other admin out of every device now? You stay signed in here. Use this if you think a password or phone was stolen.", {
+                title: "Revoke all sessions", danger: true, confirmText: "Revoke", busyText: "Revoking...",
+                run: function(){
+                    return rpc("admin_revoke_sessions", { p_user: null }).then(function(d){
+                        S.revokeResult = d; return null;
+                    }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(!ok) return;
+                var d = S.revokeResult || {};
+                if(d.signed_out_everywhere === false){
+                    KTUI.alert("Admin access was cut off at once, but the sign-ins could not be fully ended. Tell the other admins to sign out and in again.", { title: "Revoked", type: "info", okText: "Close" });
+                }else{
+                    KTUI.success("All other admin sessions were revoked.");
+                }
+                renderSeclog();
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
     // AUDIT
     // ---------------------------------------------------------
     var WALLET_TYPES = [
@@ -1049,6 +1199,7 @@
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
             else if(S.view === "devices") onDevicesClick(e);
+            else if(S.view === "seclog") onSeclogClick(e);
         });
 
         root.addEventListener("change", function(e){
@@ -1084,6 +1235,7 @@
         }).catch(function(){});
 
         var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
+        var sc = $("setSeclogCard"); if(sc) sc.hidden = !(window.KTPerm && KTPerm.isSuper);
 
         rpc("settings_password_status").then(function(st){
             if(!st || !st.has_password){

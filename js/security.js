@@ -187,6 +187,13 @@ var KTSecurity = (function(){
                 Promise.resolve(opts.verify(code)).then(function(r){
                     done();
                     if(r && r.ok){ close(true); return; }
+                    if(r && r.locked){
+                        err.textContent = r.message;
+                        input.disabled = true;
+                        ok.disabled = true;
+                        setTimeout(function(){ close(false); }, 4000);
+                        return;
+                    }
                     err.textContent = (r && r.message) || "That code is not correct. Try again.";
                     input.value = "";
                     input.focus();
@@ -251,7 +258,7 @@ var KTSecurity = (function(){
         }catch(e){ return ""; }
     }
 
-    function verifyWith(factorId, secret){
+    function verifyWithRaw(factorId, secret){
         return function(code){
             return sb.auth.mfa.challengeAndVerify({ factorId: factorId, code: code }).then(function(r){
                 if(!r.error) return { ok: true };
@@ -260,15 +267,37 @@ var KTSecurity = (function(){
                     if(secret){
                         return matchesLocally(secret, code).then(async function(same){
                             if(!same){
-                                return { ok: false, message: "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
+                                return { invalid: true, ok: false, message: "That code is from a different key. Delete the old KT Admin entries in your authenticator app and add the key shown here." };
                             }
                             var how = await clockOffsetText();
-                            return { ok: false, message: how + "In Google Authenticator open the menu, then Settings, then Time correction for codes, then Sync now. This fixes the app only, not your phone's settings. Then enter the next code." };
+                            return { invalid: true, ok: false, message: how + "In Google Authenticator open the menu, then Settings, then Time correction for codes, then Sync now. This fixes the app only, not your phone's settings. Then enter the next code." };
                         });
                     }
-                    return { ok: false, message: "That code is not correct. Wait for the next one and try again." };
+                    return { invalid: true, ok: false, message: "That code is not correct. Wait for the next one and try again." };
                 }
                 return { ok: false, message: "Could not verify: " + m };
+            });
+        };
+    }
+
+    // Wrong codes at SIGN-IN are reported to the security log; 5 within 15
+    // minutes lock that admin for a while. (Not counted during first set-up.)
+    function untilText(iso){
+        try{ return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }catch(e){ return "later"; }
+    }
+
+    function verifyWith(factorId, secret){
+        var inner = verifyWithRaw(factorId, secret);
+        return function(code){
+            return inner(code).then(function(r){
+                if(!r || r.ok || !r.invalid || secret){ return r; }
+                return sb.rpc("admin_security_event", { p_type: "code_failed" }).then(function(res){
+                    var d = res && res.data;
+                    if(d && d.locked){
+                        return { ok: false, locked: true, message: "Too many wrong codes. This account is locked until " + untilText(d.until) + "." };
+                    }
+                    return r;
+                }, function(){ return r; });
             });
         };
     }

@@ -84,6 +84,7 @@
                 return { status: "error", message: msg };
             }
             var st = res.data && res.data.status;
+            if(st === "locked"){ return { status: "locked", until: res.data.until }; }
             return { status: st === "approved" ? "approved" : "pending" };
         }).catch(function(e){
             return { status: "error", message: (e && e.message) || "Network problem" };
@@ -165,7 +166,51 @@
             if(r.status === "error"){
                 return waitScreenError(r.message);
             }
+            if(r.status === "locked"){
+                return lockedScreen(r.until);
+            }
             return waitScreen();
+        });
+    }
+
+    // Account locked after too many wrong codes
+    function lockedScreen(until){
+        return new Promise(function(resolve){
+            var when = "";
+            try{ when = new Date(until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }catch(e){}
+            var wrap = el("div", "kt-mfa-overlay");
+            var card = el("div", "kt-mfa-card");
+            card.appendChild(el("i", "fa-solid fa-lock kt-mfa-icon"));
+            card.appendChild(el("h2", "", "Account locked"));
+            card.appendChild(el("p", "kt-mfa-text",
+                "Too many wrong codes were entered for this account. It is locked" +
+                (when ? " until " + when : " for a while") + ". The main admin can unlock it sooner."));
+            var again = el("button", "kt-mfa-btn", "Try again");
+            again.type = "button";
+            var out = el("button", "kt-mfa-link", "Sign out");
+            out.type = "button";
+            card.appendChild(again);
+            card.appendChild(out);
+            wrap.appendChild(card);
+            document.body.appendChild(wrap);
+
+            function close(v){
+                if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                resolve(v);
+            }
+            again.onclick = function(){
+                again.disabled = true;
+                check().then(function(r){
+                    if(r.status === "approved" || r.status === "missing"){ close(true); return; }
+                    if(r.status === "pending"){
+                        if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                        waitScreen().then(resolve);
+                        return;
+                    }
+                    again.disabled = false;
+                });
+            };
+            out.onclick = function(){ close(false); };
         });
     }
 
@@ -215,7 +260,7 @@
                 if(r.status === "pending"){ location.reload(); }
             });
         }
-        watchTimer = setInterval(run, 60000);
+        watchTimer = setInterval(function(){ run(); refreshBadge(); }, 60000);
         document.addEventListener("visibilitychange", onVisible);
     }
 
@@ -232,6 +277,26 @@
         document.removeEventListener("visibilitychange", onVisible);
     }
 
-    window.KTDevices = { gate: gate, check: check, startWatch: startWatch, stopWatch: stopWatch };
+    // Main admin: small badge on the sidebar Settings item when a device is
+    // waiting for approval or an admin account is locked.
+    function refreshBadge(){
+        if(!window.KTPerm || !KTPerm.isSuper) return;
+        sb.rpc("admin_security_summary").then(function(res){
+            if(res.error || !res.data) return;
+            var n = (Number(res.data.pending_devices) || 0) + ((res.data.locked || []).length);
+            var item = document.getElementById("sideSettingsItem");
+            if(!item) return;
+            var dot = item.querySelector(".kt-side-dot");
+            if(!n){ if(dot) dot.remove(); return; }
+            if(!dot){
+                dot = document.createElement("span");
+                dot.className = "kt-side-dot";
+                item.appendChild(dot);
+            }
+            dot.textContent = n > 9 ? "9+" : String(n);
+        });
+    }
+
+    window.KTDevices = { gate: gate, check: check, startWatch: startWatch, stopWatch: stopWatch, refreshBadge: refreshBadge };
 
 })();

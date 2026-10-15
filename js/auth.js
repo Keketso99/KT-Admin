@@ -195,6 +195,8 @@ async function handleAuthedSession(session){
             }
         });
 
+        sb.rpc("admin_security_event", { p_type: "signin_ok" }).then(function(){}, function(){});
+
         if(window.KTSecurity){ KTSecurity.startIdle(); }
         if(window.KTDevices){ KTDevices.startWatch(); }
 
@@ -203,6 +205,7 @@ async function handleAuthedSession(session){
 await loadAdminSidebarProfile(session.user.id);
 
 if(window.KTPerm){ await KTPerm.load(); }
+if(window.KTDevices){ KTDevices.refreshBadge(); }
 
 if(typeof loadAdminPage === "function"){
     // A tapped push notification opens the app on the relevant page.
