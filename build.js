@@ -37,6 +37,7 @@ const JS_ORDER = [
     "js/permissions.js",
     "js/security.js",
     "js/devices.js",
+    "js/password.js",
     "js/sound.js",
     "js/xlsx-writer.js",
     "js/realtime.js",

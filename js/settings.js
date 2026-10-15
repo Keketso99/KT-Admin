@@ -217,6 +217,11 @@
     function renderSafety(){
         $("setSafetyBody").innerHTML =
             '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-lock"></i> Sign-in password</h3>' +
+                '<p class="kt-set-hint">The password you use to sign in to KT Admin. It is checked against known data breaches (the password itself is never sent).</p>' +
+                '<button class="kt-set-btn primary" data-act="change-login-password">Change sign-in password</button>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
                 '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 10 characters, with letters and numbers).</p>' +
                 '<label>Current password</label><div id="chgOld"></div>' +
@@ -447,7 +452,7 @@
                     '<small>Admin since ' + esc(dOnly(a.since)) + '</small>' +
                     '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small>' +
                     '<button class="kt-set-mini primary kt-set-rename" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button></div>' +
-                    (a.is_you ? '' : '<button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
+                    (a.is_you ? '' : '<button class="kt-set-mini" data-act="force-password" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Require new password</button><button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
                 '</div>';
             }).join("");
         }).catch(function(e){
@@ -507,6 +512,19 @@
                 if(v === null) return;
                 KTUI.success("Nickname saved.");
                 loadAdmins();
+            });
+            return;
+        }
+
+        if(act === "force-password"){
+            if(window.KTPerm && !KTPerm.require("require a new password")) return;
+            KTUI.confirm(name + " will have to choose a new password at their next sign-in, and cannot use the admin app until they do.", {
+                title: "Require new password", confirmText: "Require", busyText: "Saving...",
+                run: function(){
+                    return rpc("admin_force_password_change", { p_user: id }).then(function(){ return null; }, function(err){ return err.message; });
+                }
+            }).then(function(ok){
+                if(ok) KTUI.success(name + " must choose a new password at next sign-in.");
             });
             return;
         }
@@ -1200,6 +1218,13 @@
             else if(S.view === "audit") onAuditClick(e);
             else if(S.view === "devices") onDevicesClick(e);
             else if(S.view === "seclog") onSeclogClick(e);
+
+            var pw = e.target.closest("[data-act='change-login-password']");
+            if(pw && window.KTPassword){
+                KTPassword.openChange({}).then(function(ok){
+                    if(ok) KTUI.success("Sign-in password changed.");
+                });
+            }
         });
 
         root.addEventListener("change", function(e){

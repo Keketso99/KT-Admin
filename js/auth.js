@@ -182,6 +182,16 @@ async function handleAuthedSession(session){
 
         // Only an account that has the admin role is allowed to create
         // a successful ADMIN APP login audit record (recorded after all checks).
+        // Password rules: weak / breached / "main admin requires a new one".
+        if(window.KTPassword){
+            const pwOk = await KTPassword.gate();
+            if(!pwOk){
+                await sb.auth.signOut();
+                showLoginOverlay("Signed out. A new password is required to continue.");
+                return;
+            }
+        }
+
         sb.rpc("admin_record_successful_login", {
             p_device_id: clientInfo.deviceId,
             p_device_name: clientInfo.deviceName,
@@ -322,6 +332,7 @@ async function loginSubmit(event){
     }
 
     try{
+        if(window.KTPassword){ KTPassword.setLoginPassword(password); }
         await handleAuthedSession(data.session);
     }finally{
         done();
