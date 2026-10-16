@@ -1,0 +1,13 @@
+{
+  "appId": "com.ktcloudmining.admin",
+  "appName": "KT Admin",
+  "webDir": "www",
+  "server": {
+    "url": "https://keketso99.github.io/KT-Admin/",
+    "cleartext": false,
+    "allowNavigation": ["keketso99.github.io", "*.supabase.co"]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
