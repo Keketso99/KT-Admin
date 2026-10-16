@@ -110,6 +110,12 @@
                 card.appendChild(el("h2", "", "Choose a new password"));
                 card.appendChild(el("p", "kt-mfa-text", opts.intro || "Use at least 10 characters with letters and numbers. A long phrase is best."));
 
+                var cur = null;
+                if(opts.requireCurrent){
+                    cur = el("input", "kt-pw-input");
+                    cur.type = "password"; cur.placeholder = "Current password"; cur.autocomplete = "current-password";
+                    card.appendChild(cur);
+                }
                 var in1 = el("input", "kt-pw-input");
                 in1.type = "password"; in1.placeholder = "New password"; in1.autocomplete = "new-password";
                 var in2 = el("input", "kt-pw-input");
@@ -129,6 +135,7 @@
                 show.onclick = function(){
                     var on = in1.type === "password";
                     in1.type = in2.type = on ? "text" : "password";
+                    if(cur) cur.type = on ? "text" : "password";
                     show.textContent = on ? "Hide passwords" : "Show passwords";
                 };
                 card.appendChild(show);
@@ -146,7 +153,7 @@
 
                 wrap.appendChild(card);
                 document.body.appendChild(wrap);
-                setTimeout(function(){ try{ in1.focus(); }catch(e){} }, 50);
+                setTimeout(function(){ try{ (cur || in1).focus(); }catch(e){} }, 50);
 
                 function close(v){
                     if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -164,15 +171,29 @@
                 }
                 in1.addEventListener("input", function(){ err.textContent = ""; refresh(); });
                 in2.addEventListener("input", function(){ err.textContent = ""; });
+                if(cur) cur.addEventListener("input", function(){ err.textContent = ""; });
 
                 function submit(){
                     var pw = in1.value;
+                    if(cur && !cur.value){ err.textContent = "Enter your current password."; return; }
                     var pr = problems(pw, email);
                     if(pr.length){ err.textContent = pr[0] + "."; return; }
                     if(pw !== in2.value){ err.textContent = "The two passwords do not match."; return; }
+                    if(cur && pw === cur.value){ err.textContent = "The new password must be different from the current one."; return; }
 
                     var done = KTUI.busy(ok, "Checking...");
-                    breached(pw).then(function(bad){
+                    var currentOk = cur
+                        ? (typeof ktVerifyPassword === "function" ? ktVerifyPassword(email, cur.value) : Promise.resolve(false))
+                        : Promise.resolve(true);
+                    currentOk.then(function(good){
+                        if(!good){
+                            done();
+                            err.textContent = "The current password is incorrect.";
+                            return null;
+                        }
+                        return breached(pw);
+                    }).then(function(bad){
+                        if(bad === null) return null;
                         if(bad){
                             done();
                             err.textContent = "This password has appeared in known data breaches. Choose a different one.";

@@ -218,13 +218,14 @@
     // SAFETY
     // ---------------------------------------------------------
     function renderSafety(){
+        var isMain = !!(window.KTPerm && KTPerm.isSuper);
         $("setSafetyBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-lock"></i> Sign-in password</h3>' +
                 '<p class="kt-set-hint">The password you use to sign in to KT Admin. It is checked against known data breaches (the password itself is never sent).</p>' +
                 '<button class="kt-set-btn primary" data-act="change-login-password">Change sign-in password</button>' +
             '</div>' +
-            '<div class="kt-set-card">' +
+            (isMain ? '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
                 '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 10 characters, with letters and numbers).</p>' +
                 '<label>Current password</label><div id="chgOld"></div>' +
@@ -232,7 +233,7 @@
                 '<label>Re-enter new password</label><div id="chgNew2"></div>' +
                 '<div class="kt-set-error" id="chgError"></div>' +
                 '<button class="kt-set-btn primary" id="chgBtn">Change password</button>' +
-            '</div>' +
+            '</div>' : '') +
             '<div class="kt-set-card muted">' +
                 '<h3><i class="fa-solid fa-shield-halved"></i> How it protects you</h3>' +
                 '<ul class="kt-set-list">' +
@@ -242,6 +243,8 @@
                     '<li>All admins share this one settings password.</li>' +
                 '</ul>' +
             '</div>';
+
+        if(!isMain) return;   // only the main admin has the settings-password card
 
         var o = mountPassword("chgOld", "Current password", "current-password");
         var n = mountPassword("chgNew", "New password", "new-password");
@@ -453,9 +456,11 @@
                     '<div class="kt-set-person-info"><b>' + esc(name) + (a.is_you ? ' <span class="kt-set-tag">You</span>' : '') + '</b>' +
                     '<small>' + esc([a.email, a.phone].filter(Boolean).join(" · ") || "—") + '</small>' +
                     '<small>Admin since ' + esc(dOnly(a.since)) + '</small>' +
-                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small>' +
-                    '<button class="kt-set-mini primary kt-set-rename" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button></div>' +
-                    (a.is_you ? '' : '<button class="kt-set-mini" data-act="force-password" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Require new password</button><button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
+                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small></div>' +
+                    '<div class="kt-set-actions">' +
+                    '<button class="kt-set-mini primary" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button>' +
+                    ((a.is_you || !(window.KTPerm && KTPerm.isSuper)) ? '' : '<button class="kt-set-mini" data-act="force-password" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Require new password</button><button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
+                    '</div>' +
                 '</div>';
             }).join("");
         }).catch(function(e){
@@ -1224,7 +1229,7 @@
 
             var pw = e.target.closest("[data-act='change-login-password']");
             if(pw && window.KTPassword){
-                KTPassword.openChange({}).then(function(ok){
+                KTPassword.openChange({ requireCurrent: true, intro: "Enter your current password, then choose a new one (at least 10 characters, with letters and numbers)." }).then(function(ok){
                     if(ok) KTUI.success("Sign-in password changed.");
                 });
             }

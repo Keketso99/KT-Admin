@@ -8,6 +8,23 @@ window.sb = supabase.createClient(
     "sb_publishable_jB4BmxofDzNDTdX_n44NcQ_zRDyydgq"
 );
 
+// Checks an email + password WITHOUT touching the signed-in session
+// (uses a throw-away client that stores nothing). Resolves true / false.
+window.ktVerifyPassword = function(email, password){
+    try{
+        var tmp = supabase.createClient(
+            "https://tkvtsvrjzaohqevuxkhc.supabase.co",
+            "sb_publishable_jB4BmxofDzNDTdX_n44NcQ_zRDyydgq",
+            { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "kt-verify-tmp" } }
+        );
+        return tmp.auth.signInWithPassword({ email: email, password: password }).then(function(r){
+            return !r.error;
+        }, function(){ return false; });
+    }catch(e){
+        return Promise.resolve(false);
+    }
+};
+
 // Private files (ID documents, deposit proofs, support-chat files) are opened
 // with a short-lived signed link instead of a public link. Old records store the
 // former public address; this turns it into a signed one (10 minutes, kept for

@@ -9,6 +9,23 @@ window.sb = supabase.createClient(
     "sb_publishable_jB4BmxofDzNDTdX_n44NcQ_zRDyydgq"
 );
 
+// Checks an email + password WITHOUT touching the signed-in session
+// (uses a throw-away client that stores nothing). Resolves true / false.
+window.ktVerifyPassword = function(email, password){
+    try{
+        var tmp = supabase.createClient(
+            "https://tkvtsvrjzaohqevuxkhc.supabase.co",
+            "sb_publishable_jB4BmxofDzNDTdX_n44NcQ_zRDyydgq",
+            { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "kt-verify-tmp" } }
+        );
+        return tmp.auth.signInWithPassword({ email: email, password: password }).then(function(r){
+            return !r.error;
+        }, function(){ return false; });
+    }catch(e){
+        return Promise.resolve(false);
+    }
+};
+
 // Private files (ID documents, deposit proofs, support-chat files) are opened
 // with a short-lived signed link instead of a public link. Old records store the
 // former public address; this turns it into a signed one (10 minutes, kept for
@@ -1645,6 +1662,12 @@ var KTSecurity = (function(){
                 card.appendChild(el("h2", "", "Choose a new password"));
                 card.appendChild(el("p", "kt-mfa-text", opts.intro || "Use at least 10 characters with letters and numbers. A long phrase is best."));
 
+                var cur = null;
+                if(opts.requireCurrent){
+                    cur = el("input", "kt-pw-input");
+                    cur.type = "password"; cur.placeholder = "Current password"; cur.autocomplete = "current-password";
+                    card.appendChild(cur);
+                }
                 var in1 = el("input", "kt-pw-input");
                 in1.type = "password"; in1.placeholder = "New password"; in1.autocomplete = "new-password";
                 var in2 = el("input", "kt-pw-input");
@@ -1664,6 +1687,7 @@ var KTSecurity = (function(){
                 show.onclick = function(){
                     var on = in1.type === "password";
                     in1.type = in2.type = on ? "text" : "password";
+                    if(cur) cur.type = on ? "text" : "password";
                     show.textContent = on ? "Hide passwords" : "Show passwords";
                 };
                 card.appendChild(show);
@@ -1681,7 +1705,7 @@ var KTSecurity = (function(){
 
                 wrap.appendChild(card);
                 document.body.appendChild(wrap);
-                setTimeout(function(){ try{ in1.focus(); }catch(e){} }, 50);
+                setTimeout(function(){ try{ (cur || in1).focus(); }catch(e){} }, 50);
 
                 function close(v){
                     if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -1699,15 +1723,29 @@ var KTSecurity = (function(){
                 }
                 in1.addEventListener("input", function(){ err.textContent = ""; refresh(); });
                 in2.addEventListener("input", function(){ err.textContent = ""; });
+                if(cur) cur.addEventListener("input", function(){ err.textContent = ""; });
 
                 function submit(){
                     var pw = in1.value;
+                    if(cur && !cur.value){ err.textContent = "Enter your current password."; return; }
                     var pr = problems(pw, email);
                     if(pr.length){ err.textContent = pr[0] + "."; return; }
                     if(pw !== in2.value){ err.textContent = "The two passwords do not match."; return; }
+                    if(cur && pw === cur.value){ err.textContent = "The new password must be different from the current one."; return; }
 
                     var done = KTUI.busy(ok, "Checking...");
-                    breached(pw).then(function(bad){
+                    var currentOk = cur
+                        ? (typeof ktVerifyPassword === "function" ? ktVerifyPassword(email, cur.value) : Promise.resolve(false))
+                        : Promise.resolve(true);
+                    currentOk.then(function(good){
+                        if(!good){
+                            done();
+                            err.textContent = "The current password is incorrect.";
+                            return null;
+                        }
+                        return breached(pw);
+                    }).then(function(bad){
+                        if(bad === null) return null;
                         if(bad){
                             done();
                             err.textContent = "This password has appeared in known data breaches. Choose a different one.";
@@ -18735,13 +18773,14 @@ document.addEventListener("click", function(event) {
     // SAFETY
     // ---------------------------------------------------------
     function renderSafety(){
+        var isMain = !!(window.KTPerm && KTPerm.isSuper);
         $("setSafetyBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-lock"></i> Sign-in password</h3>' +
                 '<p class="kt-set-hint">The password you use to sign in to KT Admin. It is checked against known data breaches (the password itself is never sent).</p>' +
                 '<button class="kt-set-btn primary" data-act="change-login-password">Change sign-in password</button>' +
             '</div>' +
-            '<div class="kt-set-card">' +
+            (isMain ? '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-key"></i> Change settings password</h3>' +
                 '<p class="kt-set-hint">Enter the current password, then choose a new one (at least 10 characters, with letters and numbers).</p>' +
                 '<label>Current password</label><div id="chgOld"></div>' +
@@ -18749,7 +18788,7 @@ document.addEventListener("click", function(event) {
                 '<label>Re-enter new password</label><div id="chgNew2"></div>' +
                 '<div class="kt-set-error" id="chgError"></div>' +
                 '<button class="kt-set-btn primary" id="chgBtn">Change password</button>' +
-            '</div>' +
+            '</div>' : '') +
             '<div class="kt-set-card muted">' +
                 '<h3><i class="fa-solid fa-shield-halved"></i> How it protects you</h3>' +
                 '<ul class="kt-set-list">' +
@@ -18759,6 +18798,8 @@ document.addEventListener("click", function(event) {
                     '<li>All admins share this one settings password.</li>' +
                 '</ul>' +
             '</div>';
+
+        if(!isMain) return;   // only the main admin has the settings-password card
 
         var o = mountPassword("chgOld", "Current password", "current-password");
         var n = mountPassword("chgNew", "New password", "new-password");
@@ -18970,9 +19011,11 @@ document.addEventListener("click", function(event) {
                     '<div class="kt-set-person-info"><b>' + esc(name) + (a.is_you ? ' <span class="kt-set-tag">You</span>' : '') + '</b>' +
                     '<small>' + esc([a.email, a.phone].filter(Boolean).join(" · ") || "—") + '</small>' +
                     '<small>Admin since ' + esc(dOnly(a.since)) + '</small>' +
-                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small>' +
-                    '<button class="kt-set-mini primary kt-set-rename" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button></div>' +
-                    (a.is_you ? '' : '<button class="kt-set-mini" data-act="force-password" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Require new password</button><button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
+                    '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small></div>' +
+                    '<div class="kt-set-actions">' +
+                    '<button class="kt-set-mini primary" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button>' +
+                    ((a.is_you || !(window.KTPerm && KTPerm.isSuper)) ? '' : '<button class="kt-set-mini" data-act="force-password" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Require new password</button><button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
+                    '</div>' +
                 '</div>';
             }).join("");
         }).catch(function(e){
@@ -19741,7 +19784,7 @@ document.addEventListener("click", function(event) {
 
             var pw = e.target.closest("[data-act='change-login-password']");
             if(pw && window.KTPassword){
-                KTPassword.openChange({}).then(function(ok){
+                KTPassword.openChange({ requireCurrent: true, intro: "Enter your current password, then choose a new one (at least 10 characters, with letters and numbers)." }).then(function(ok){
                     if(ok) KTUI.success("Sign-in password changed.");
                 });
             }

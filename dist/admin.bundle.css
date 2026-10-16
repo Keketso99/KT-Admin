@@ -13533,6 +13533,13 @@ body.activity-modal-open{
 .kt-set-btn.danger{ background:#dc2626; color:#fff; }
 #secMore{ margin-top:10px; }
 
+/* Admins list: info on top, buttons underneath (wrap on small screens) */
+#setAdmin .kt-set-person{ flex-wrap:wrap; align-items:flex-start; }
+#setAdmin .kt-set-person-info{ flex:1 1 0; min-width:0; }
+#setAdmin .kt-set-person .kt-set-actions{ flex:0 0 100%; flex-wrap:wrap; gap:8px; padding-left:50px; }
+#setAdmin .kt-set-person .kt-set-mini + .kt-set-mini{ margin-left:0; }
+.kt-set-person-info small b{ font-size:inherit; }
+
 
 /* ===== css/manual.css ===== */
 .kt-man{padding:5px;display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:420px}
