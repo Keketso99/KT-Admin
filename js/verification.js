@@ -503,13 +503,17 @@ if (verificationSearch) {
                                 reviewPhone.textContent = entry.phone || "—";
  reviewCountry.textContent = entry.country || "—";
 
-                reviewIdFront.removeAttribute("src");
-                reviewIdBack.removeAttribute("src");
-                reviewSelfie.removeAttribute("src");
+                [reviewIdFront, reviewIdBack, reviewSelfie].forEach(function(im){ im.removeAttribute("src"); ktImgWatch(im); });
                 (function(e){
-                    ktSignedUrl(e.idFront).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdFront.src = u; });
-                    ktSignedUrl(e.idBack).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdBack.src = u; });
-                    ktSignedUrl(e.selfie).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewSelfie.src = u; });
+                    function load(path, im){
+                        ktSignedUrl(path).then(function(u){
+                            if(!(selectedRow && kycData[selectedRow.dataset.kycid] === e)) return;
+                            if(u) im.src = u; else ktImgFail(im);
+                        }, function(){ ktImgFail(im); });
+                    }
+                    load(e.idFront, reviewIdFront);
+                    load(e.idBack, reviewIdBack);
+                    load(e.selfie, reviewSelfie);
                 })(entry);
 
                 document.getElementById("adminNoteInput").value = "";

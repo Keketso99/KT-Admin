@@ -818,3 +818,25 @@ html, body { height: 100%; }
 .kt-pager .pagination button.active-page, .kt-pager .pagination button.active-page:hover:not(:disabled){ background:#1b8ef2; color:#fff; }
 .kt-pager-gap{ width:18px; text-align:center; color:#6b7280; }
 .kt-pager-info{ text-align:center; font-size:12px; color:#6b7280; margin-top:8px; }
+
+/* ---- Image loading animation (deposit proof, verification photos, chat images) ---- */
+img.kt-img-loading,
+img.kt-img-error{
+    min-width:120px;
+    min-height:120px;
+    color:transparent;
+    background-color:#f1f3f6;
+    background-image:
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><circle cx='20' cy='20' r='15' fill='none' stroke='%23d5d9e0' stroke-width='4'/><path d='M20 5a15 15 0 0 1 15 15' fill='none' stroke='%232563eb' stroke-width='4' stroke-linecap='round'><animateTransform attributeName='transform' type='rotate' from='0 20 20' to='360 20 20' dur='0.8s' repeatCount='indefinite'/></path></svg>");
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size:36px 36px;
+    border-radius:8px;
+    animation:ktImgPulse 1.4s ease-in-out infinite;
+}
+img.kt-img-error{
+    animation:none;
+    background-image:none;
+    position:relative;
+}
+@keyframes ktImgPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.65; } }

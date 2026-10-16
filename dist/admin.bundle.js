@@ -58,10 +58,36 @@ window.ktVerifyPassword = function(email, password){
     };
 
     // set an element attribute now if possible, otherwise as soon as the link is ready
+    // Loading animation for images: shows a spinner until the picture is fully loaded.
+    // ktImgWatch(img) starts it (call before the link is fetched / src is set);
+    // it stops itself on load or error. ktImgFail(img) stops it when there is no link.
+    window.ktImgWatch = function(img){
+        if(!img || img.tagName !== "IMG") return;
+        img.classList.remove("kt-img-error");
+        img.classList.add("kt-img-loading");
+        if(img._ktW) return;
+        img._ktW = true;
+        img.addEventListener("load", function(){ img.classList.remove("kt-img-loading", "kt-img-error"); });
+        img.addEventListener("error", function(){
+            if(!img.getAttribute("src")) return;
+            img.classList.remove("kt-img-loading");
+            img.classList.add("kt-img-error");
+        });
+    };
+    window.ktImgFail = function(img){
+        if(!img) return;
+        img.classList.remove("kt-img-loading");
+        img.classList.add("kt-img-error");
+    };
     window.ktApplySigned = function(el, attr, url){
+        var isImg = el && el.tagName === "IMG" && attr === "src";
+        if(isImg) window.ktImgWatch(el);
         var now = window.ktSignedUrlCached(url);
         if(now !== null){ el.setAttribute(attr, now); return; }
-        window.ktSignedUrl(url).then(function(u){ if(u) el.setAttribute(attr, u); });
+        window.ktSignedUrl(url).then(function(u){
+            if(u) el.setAttribute(attr, u);
+            else if(isImg) window.ktImgFail(el);
+        }, function(){ if(isImg) window.ktImgFail(el); });
     };
 })();
 
@@ -6370,9 +6396,10 @@ function openDepositReview(id){
     if(image){
 
         image.removeAttribute("src");
+        ktImgWatch(image);
         ktSignedUrl(deposit.proof || "").then(function(u){
-            if(u) image.src = u;
-        });
+            if(u) image.src = u; else ktImgFail(image);
+        }, function(){ ktImgFail(image); });
 
     }
 
@@ -10884,13 +10911,17 @@ if (verificationSearch) {
                                 reviewPhone.textContent = entry.phone || "—";
  reviewCountry.textContent = entry.country || "—";
 
-                reviewIdFront.removeAttribute("src");
-                reviewIdBack.removeAttribute("src");
-                reviewSelfie.removeAttribute("src");
+                [reviewIdFront, reviewIdBack, reviewSelfie].forEach(function(im){ im.removeAttribute("src"); ktImgWatch(im); });
                 (function(e){
-                    ktSignedUrl(e.idFront).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdFront.src = u; });
-                    ktSignedUrl(e.idBack).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewIdBack.src = u; });
-                    ktSignedUrl(e.selfie).then(function(u){ if(selectedRow && kycData[selectedRow.dataset.kycid] === e && u) reviewSelfie.src = u; });
+                    function load(path, im){
+                        ktSignedUrl(path).then(function(u){
+                            if(!(selectedRow && kycData[selectedRow.dataset.kycid] === e)) return;
+                            if(u) im.src = u; else ktImgFail(im);
+                        }, function(){ ktImgFail(im); });
+                    }
+                    load(e.idFront, reviewIdFront);
+                    load(e.idBack, reviewIdBack);
+                    load(e.selfie, reviewSelfie);
                 })(entry);
 
                 document.getElementById("adminNoteInput").value = "";

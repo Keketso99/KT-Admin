@@ -704,9 +704,10 @@ function openDepositReview(id){
     if(image){
 
         image.removeAttribute("src");
+        ktImgWatch(image);
         ktSignedUrl(deposit.proof || "").then(function(u){
-            if(u) image.src = u;
-        });
+            if(u) image.src = u; else ktImgFail(image);
+        }, function(){ ktImgFail(image); });
 
     }
 
