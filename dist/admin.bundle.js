@@ -19013,7 +19013,7 @@ document.addEventListener("click", function(event) {
                     '<small>Admin since ' + esc(dOnly(a.since)) + '</small>' +
                     '<small>Shown to users as: <b>' + esc(nicks[a.user_id] || name) + '</b></small></div>' +
                     '<div class="kt-set-actions">' +
-                    '<button class="kt-set-mini primary" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button>' +
+                    (a.is_you ? '<button class="kt-set-mini primary" data-act="set-nickname" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '" data-nick="' + esc(nicks[a.user_id] || "") + '"><i class="fa-solid fa-pen"></i> Rename nickname</button>' : '') +
                     ((a.is_you || !(window.KTPerm && KTPerm.isSuper)) ? '' : '<button class="kt-set-mini" data-act="force-password" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Require new password</button><button class="kt-set-mini danger" data-act="remove-admin" data-id="' + esc(a.user_id) + '" data-name="' + esc(name) + '">Remove</button>') +
                     '</div>' +
                 '</div>';
