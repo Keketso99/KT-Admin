@@ -69,6 +69,10 @@ let voiceMediaRecorder = null;
 let voiceRecordedChunks = [];
 let voiceStream = null;
 
+// Attachments / voice notes being uploaded (or failed): shown as a "Sending..." bubble at the bottom of their chat.
+let pendingSends = [];
+let pendingSendSeq = 0;
+
 let deleteActionType = null;
 let deleteActionId = null;
 let deleteActionIds = [];
@@ -1123,6 +1127,11 @@ function renderMessages() {
 
     (currentChat.messages || []).forEach(function (message) {
         container.appendChild(createMessageElement(message));
+    });
+
+    // Attachments / voice notes that are still uploading (or failed to send).
+    pendingSends.forEach(function (p) {
+        if (p.chatId === currentChat.id) container.appendChild(createPendingSendElement(p));
     });
 
     // Only once the messages have actually loaded (not while still loading).
@@ -2654,50 +2663,189 @@ function handleAttachmentFileChange(event, kind) {
 
 }
 
-function uploadAndSendAttachment(file, kind) {
+// Uploads and sends in progress / failed: see pendingSends (declared near the top).
 
-    const path = currentChat.id + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+function pendingKindLabel(p) {
+    if (p.kind === "voice") return "voice message";
+    if (p.kind === "document") return "document";
+    return "photo";
+}
 
-    sb.storage.from("support-chat").upload(path, file).then(function (uploadRes) {
+function createPendingSendElement(p) {
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "message-sending-row";
+    wrapper.dataset.pendingId = p.id;
+
+    const content = document.createElement("div");
+    content.className = "message-sending" + (p.state === "failed" ? " failed" : "");
+
+    const row = document.createElement("div");
+    row.className = "message-sending-line";
+
+    const icon = document.createElement("i");
+    icon.className = p.state === "failed"
+        ? "fa-solid fa-triangle-exclamation"
+        : "fa-solid fa-spinner fa-spin";
+
+    const text = document.createElement("span");
+    text.textContent = p.state === "failed"
+        ? "Couldn't send the " + pendingKindLabel(p)
+        : "Sending " + pendingKindLabel(p) + "...";
+
+    row.appendChild(icon);
+    row.appendChild(text);
+    content.appendChild(row);
+
+    if (p.kind !== "voice" && p.fileName) {
+        const name = document.createElement("small");
+        name.className = "message-sending-name";
+        name.textContent = p.fileName;
+        content.appendChild(name);
+    }
+
+    if (p.state === "failed") {
+
+        if (p.error) {
+            const err = document.createElement("small");
+            err.className = "message-sending-error";
+            err.textContent = p.error;
+            content.appendChild(err);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "message-sending-actions";
+
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.textContent = "Retry";
+        retry.onclick = function () { runPendingSend(p); };
+
+        const dismiss = document.createElement("button");
+        dismiss.type = "button";
+        dismiss.className = "secondary";
+        dismiss.textContent = "Dismiss";
+        dismiss.onclick = function () {
+            pendingSends = pendingSends.filter(function (x) { return x !== p; });
+            if (currentChat && currentChat.id === p.chatId) renderMessages();
+        };
+
+        actions.appendChild(retry);
+        actions.appendChild(dismiss);
+        content.appendChild(actions);
+
+    }
+
+    wrapper.appendChild(content);
+    return wrapper;
+
+}
+
+function refreshPendingView(p) {
+    if (currentChat && currentChat.id === p.chatId) {
+        renderMessages();
+        scrollMessagesToBottom();
+    }
+}
+
+// spec: { kind, blob, fileName, storageName, uploadOptions, label, messageType, attachmentName, attachmentMime }
+function startPendingSend(chat, spec) {
+
+    const p = {
+        id: "pending-" + (++pendingSendSeq),
+        chat: chat,
+        chatId: chat.id,
+        kind: spec.kind,
+        blob: spec.blob,
+        fileName: spec.fileName,
+        spec: spec,
+        state: "sending",
+        error: ""
+    };
+
+    pendingSends.push(p);
+    runPendingSend(p);
+
+}
+
+function runPendingSend(p) {
+
+    const spec = p.spec;
+
+    p.state = "sending";
+    p.error = "";
+    refreshPendingView(p);
+
+    function fail(message) {
+        p.state = "failed";
+        p.error = message;
+        refreshPendingView(p);
+    }
+
+    const path = p.chatId + "/" + Date.now() + "-" + spec.storageName;
+
+    Promise.resolve(sb.storage.from("support-chat").upload(path, p.blob, spec.uploadOptions)).then(function (uploadRes) {
 
         if (uploadRes.error) {
-            KTUI.notify("Failed to upload file: " + uploadRes.error.message);
+            fail("Upload failed: " + uploadRes.error.message);
             return;
         }
 
-        const publicUrlRes = sb.storage.from("support-chat").getPublicUrl(path);
-        const url = publicUrlRes.data.publicUrl;
+        const url = sb.storage.from("support-chat").getPublicUrl(path).data.publicUrl;
 
-        const label =
-            (kind === "camera" ? "📷 " : kind === "document" ? "📎 " : "🖼️ ") + file.name;
-
-        sb.from("support_messages")
+        return sb.from("support_messages")
             .insert({
-                conversation_id: currentChat.id,
+                conversation_id: p.chatId,
                 sender_type: "admin",
                 sender_id: supportAdminId,
-                content: label,
-                message_type: kind === "document" ? "document" : "photo",
+                content: spec.label,
+                message_type: spec.messageType,
                 attachment_url: url,
-                attachment_name: file.name,
-                attachment_mime: file.type
+                attachment_name: spec.attachmentName,
+                attachment_mime: spec.attachmentMime
             })
             .select("*")
             .single()
             .then(function (res) {
 
                 if (res.error) {
-                    KTUI.notify("Failed to send attachment: " + res.error.message);
+                    fail("Send failed: " + res.error.message);
                     return;
                 }
 
-                currentChat.messages.push(mapSupportMessageRow(res.data));
-                renderMessages();
-                scrollMessagesToBottom();
+                pendingSends = pendingSends.filter(function (x) { return x !== p; });
+                p.chat.messages.push(mapSupportMessageRow(res.data));
+
+                if (currentChat && currentChat.id === p.chatId) {
+                    renderMessages();
+                    scrollMessagesToBottom();
+                }
+
                 loadSupportConversations();
 
             });
 
+    }).catch(function (err) {
+        fail((err && err.message) ? err.message : "Check your connection and try again.");
+    });
+
+}
+
+function uploadAndSendAttachment(file, kind) {
+
+    const label =
+        (kind === "camera" ? "📷 " : kind === "document" ? "📎 " : "🖼️ ") + file.name;
+
+    startPendingSend(currentChat, {
+        kind: kind === "document" ? "document" : "photo",
+        blob: file,
+        fileName: file.name,
+        storageName: file.name.replace(/[^a-zA-Z0-9_.-]/g, "_"),
+        uploadOptions: undefined,
+        label: label,
+        messageType: kind === "document" ? "document" : "photo",
+        attachmentName: file.name,
+        attachmentMime: file.type
     });
 
 }
@@ -2770,45 +2918,16 @@ function stopVoiceRecording() {
 
 function uploadAndSendVoiceMessage(blob) {
 
-    const path = currentChat.id + "/" + Date.now() + "-voice.webm";
-
-    sb.storage.from("support-chat").upload(path, blob, { contentType: "audio/webm" }).then(function (uploadRes) {
-
-        if (uploadRes.error) {
-            KTUI.notify("Failed to upload voice message: " + uploadRes.error.message);
-            return;
-        }
-
-        const publicUrlRes = sb.storage.from("support-chat").getPublicUrl(path);
-        const url = publicUrlRes.data.publicUrl;
-
-        sb.from("support_messages")
-            .insert({
-                conversation_id: currentChat.id,
-                sender_type: "admin",
-                sender_id: supportAdminId,
-                content: "🎤 Voice message",
-                message_type: "voice",
-                attachment_url: url,
-                attachment_name: "voice-message.webm",
-                attachment_mime: "audio/webm"
-            })
-            .select("*")
-            .single()
-            .then(function (res) {
-
-                if (res.error) {
-                    KTUI.notify("Failed to send voice message: " + res.error.message);
-                    return;
-                }
-
-                currentChat.messages.push(mapSupportMessageRow(res.data));
-                renderMessages();
-                scrollMessagesToBottom();
-                loadSupportConversations();
-
-            });
-
+    startPendingSend(currentChat, {
+        kind: "voice",
+        blob: blob,
+        fileName: "voice-message.webm",
+        storageName: "voice.webm",
+        uploadOptions: { contentType: "audio/webm" },
+        label: "🎤 Voice message",
+        messageType: "voice",
+        attachmentName: "voice-message.webm",
+        attachmentMime: "audio/webm"
     });
 
 }

@@ -3916,3 +3916,15 @@
 }
 .chat-list-top{ gap:6px; }
 .chat-list-top h4{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+
+/* Sending... bubble for attachments and voice notes */
+.message-sending-row{ display:flex; justify-content:flex-end; margin-bottom:10px; }
+.message-sending{ max-width:65%; padding:9px 12px; border-radius:10px; border-top-right-radius:3px; background:#fff1c7; color:#5b4a14; font-size:13px; opacity:.92; }
+.message-sending-line{ display:flex; align-items:center; gap:8px; font-weight:600; }
+.message-sending-name{ display:block; margin-top:3px; font-size:11px; opacity:.75; word-break:break-all; }
+.message-sending-error{ display:block; margin-top:4px; font-size:11px; color:#b91c1c; word-break:break-word; }
+.message-sending.failed{ background:#fee2e2; color:#7f1d1d; }
+.message-sending-actions{ display:flex; gap:8px; margin-top:8px; }
+.message-sending-actions button{ border:0; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; background:#7f1d1d; color:#fff; }
+.message-sending-actions button.secondary{ background:#fff; color:#7f1d1d; }
