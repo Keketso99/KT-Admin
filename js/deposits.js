@@ -93,6 +93,12 @@ function initDeposits(){
 
     console.log("Deposits initialized");
 
+    if(window.KTPager){
+        ["pendingDepositsList", "approvedDepositsList", "rejectedDepositsList"].forEach(function(id){
+            KTPager.attach(document.getElementById(id), { rows: "tr" });
+        });
+    }
+
 
     // Load real data (renders + updates stats when it arrives)
 

@@ -12,6 +12,8 @@ function initUsers(){
 
     const usersList = document.getElementById("usersList");
 
+    if(window.KTPager) KTPager.attach(usersList, { rows: "tr[data-userid]" });
+
     const searchInput = document.getElementById("userSearch");
 
     const statusFilter = document.getElementById("statusFilter");

@@ -247,6 +247,8 @@ function initTransactions(){
 
     if(!filter || !search || !list) return;
 
+    if(window.KTPager) KTPager.attach(list, { rows: "tr" });
+
     loadTransactions();
 
     if(window.KTRealtime){

@@ -446,7 +446,9 @@
             nickRows.forEach(function(n){ nicks[n.user_id] = n.nickname; });
             var list = $("adminList");
             if(!list) return;
-            var admins = d.admins || [];
+            var admins = (d.admins || []).slice().sort(function(x, y){
+                return (y.is_you ? 1 : 0) - (x.is_you ? 1 : 0);   // the signed-in admin ("You") first; the rest keep their order
+            });
             if(!admins.length){ list.innerHTML = '<p class="kt-set-hint">No admins found.</p>'; return; }
 
             list.innerHTML = admins.map(function(a){
@@ -673,7 +675,7 @@
     // ---------------------------------------------------------
     // SECURITY LOG (main admin only; the database checks this too)
     // ---------------------------------------------------------
-    var SEC = { rows: [], filter: "", last: null, done: false };
+    var SEC = { rows: [], filter: "", last: null, done: false, page: 1 };
 
     var EVENT_TEXT = {
         signin_ok: "Signed in",
@@ -692,7 +694,7 @@
     var EVENT_ICON = { alert: "fa-triangle-exclamation", warning: "fa-circle-exclamation", info: "fa-circle-info" };
 
     function renderSeclog(){
-        SEC.rows = []; SEC.last = null; SEC.done = false;
+        SEC.rows = []; SEC.last = null; SEC.done = false; SEC.page = 1;
         $("setSeclogBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-gauge-high"></i> Last 24 hours</h3>' +
@@ -712,11 +714,12 @@
                     '<option value="info">Normal only</option>' +
                 '</select>' +
                 '<div id="secList"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
-                '<button class="kt-set-btn light" id="secMore" data-act="sec-more" hidden>Load more</button>' +
+                '<div id="secPager" class="kt-pager" hidden></div>' +
+                '<button class="kt-set-btn light" id="secMore" data-act="sec-more" hidden>Load older events</button>' +
             '</div>';
         var f = $("secFilter");
         if(f) f.addEventListener("change", function(){
-            SEC.filter = f.value; SEC.rows = []; SEC.last = null; SEC.done = false;
+            SEC.filter = f.value; SEC.rows = []; SEC.last = null; SEC.done = false; SEC.page = 1;
             $("secList").innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
             loadSeclog(false);
         });
@@ -761,16 +764,33 @@
             '<small>' + esc(dt(r.created_at)) + '</small></div></div>';
     }
 
+    var SEC_FETCH = 200;   // events fetched at a time (the server allows up to 200)
+    var SEC_PAGE = 10;     // events shown per page
+
+    function drawSeclog(){
+        var list = $("secList"), btn = $("secMore"), pg = $("secPager");
+        if(!list) return;
+        var pages = Math.max(1, Math.ceil(SEC.rows.length / SEC_PAGE));
+        if(SEC.page > pages) SEC.page = pages;
+        var slice = SEC.rows.slice((SEC.page - 1) * SEC_PAGE, SEC.page * SEC_PAGE);
+        list.innerHTML = slice.length ? slice.map(eventRow).join("") : '<p class="kt-set-hint">Nothing logged yet.</p>';
+        if(pg && window.KTPager){
+            KTPager.render(pg, { page: SEC.page, pages: pages, total: SEC.rows.length, size: SEC_PAGE, onPage: function(p){
+                SEC.page = p; drawSeclog();
+                try{ list.scrollIntoView({ block: "start", behavior: "smooth" }); }catch(e){}
+            } });
+        }
+        // older events exist on the server: offer them on the last page
+        if(btn) btn.hidden = SEC.done || SEC.page < pages;
+    }
+
     function loadSeclog(more){
-        rpc("admin_security_log_list", { p_limit: 50, p_before: more ? SEC.last : null, p_severity: SEC.filter || null }).then(function(rows){
+        rpc("admin_security_log_list", { p_limit: SEC_FETCH, p_before: more ? SEC.last : null, p_severity: SEC.filter || null }).then(function(rows){
             rows = rows || [];
             SEC.rows = SEC.rows.concat(rows);
             if(rows.length) SEC.last = rows[rows.length - 1].id;
-            SEC.done = rows.length < 50;
-            var list = $("secList"), btn = $("secMore");
-            if(!list) return;
-            list.innerHTML = SEC.rows.length ? SEC.rows.map(eventRow).join("") : '<p class="kt-set-hint">Nothing logged yet.</p>';
-            if(btn) btn.hidden = SEC.done;
+            SEC.done = rows.length < SEC_FETCH;
+            drawSeclog();
         }).catch(function(e){
             var list = $("secList");
             if(list) list.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';

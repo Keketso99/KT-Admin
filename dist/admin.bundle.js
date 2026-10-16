@@ -700,6 +700,179 @@ window.ktVerifyPassword = function(email, password){
 })();
 
 
+/* ===== js/pager.js ===== */
+// =========================================================
+// KT ADMIN — PAGINATION
+//
+// One shared page switcher « 1 2 3 » for every page that lists records.
+//
+//   KTPager.attach(listElement, { rows: "css selector for the record rows" })
+//
+// It works on top of whatever the page already draws: rows that the page's own
+// search / filter / tab hides (style.display = "none") are not counted, and
+// the pager only hides the rows that belong to other pages. Re-draws (live
+// refresh) keep the current page. Search / filter / tab changes go back to
+// page 1.
+//
+//   KTPager.render(hostElement, { page, pages, total, size, onPage })
+// draws just the buttons (used by the Security log, which holds its own list).
+// =========================================================
+
+(function(){
+
+    var PAGE_SIZE = 10;
+
+    function el(tag, cls, text){
+        var n = document.createElement(tag);
+        if(cls) n.className = cls;
+        if(text != null) n.textContent = text;
+        return n;
+    }
+
+    // numbers to show: 1 … current-1 current current+1 … last
+    function pageNumbers(page, pages){
+        var set = {};
+        [1, pages, page - 1, page, page + 1].forEach(function(n){
+            if(n >= 1 && n <= pages) set[n] = true;
+        });
+        var list = Object.keys(set).map(Number).sort(function(a, b){ return a - b; });
+        var out = [];
+        list.forEach(function(n, i){
+            if(i && n - list[i - 1] > 1) out.push("...");
+            out.push(n);
+        });
+        return out;
+    }
+
+    function render(host, o){
+        host.innerHTML = "";
+        host.className = "kt-pager";
+        if(!o.pages || o.pages <= 1){ host.hidden = true; return; }
+        host.hidden = false;
+
+        var bar = el("div", "pagination");
+
+        function btn(label, page, disabled, active, aria){
+            var b = el("button", active ? "active-page" : "", label);
+            b.type = "button";
+            if(aria) b.setAttribute("aria-label", aria);
+            if(disabled){ b.disabled = true; }
+            else b.onclick = function(){ o.onPage(page); };
+            return b;
+        }
+
+        bar.appendChild(btn("«", o.page - 1, o.page <= 1, false, "Previous page"));
+        pageNumbers(o.page, o.pages).forEach(function(n){
+            if(n === "..."){ bar.appendChild(el("span", "kt-pager-gap", "…")); return; }
+            bar.appendChild(btn(String(n), n, false, n === o.page, "Page " + n));
+        });
+        bar.appendChild(btn("»", o.page + 1, o.page >= o.pages, false, "Next page"));
+        host.appendChild(bar);
+
+        var from = (o.page - 1) * o.size + 1;
+        var to = Math.min(o.total, o.page * o.size);
+        host.appendChild(el("div", "kt-pager-info", "Showing " + from + "–" + to + " of " + o.total));
+    }
+
+    function isEmptyRow(row){
+        if(row.classList.contains("kt-empty-row")) return true;
+        if(/empty/i.test(row.className || "")) return true;
+        var first = row.children[0];
+        return !!(first && row.children.length === 1 && first.hasAttribute && first.hasAttribute("colspan"));
+    }
+
+    function pageRoot(node){
+        var n = node;
+        while(n && n.parentElement && n.parentElement.id !== "admin-body") n = n.parentElement;
+        return n || node;
+    }
+
+    function attach(list, opts){
+        if(!list || list.__ktPager) return;
+        opts = opts || {};
+        var size = opts.size || PAGE_SIZE;
+        var rowSel = opts.rows || ":scope > *";
+        var state = { page: 1 };
+        var timer = null;
+
+        var anchor = list.closest("table") || list;
+        anchor.style.scrollMarginTop = "8px";
+        var after = (list.closest("table") && list.closest("table").parentElement) || list;
+
+        var host = el("div", "kt-pager");
+        host.hidden = true;
+        after.parentNode.insertBefore(host, after.nextSibling);
+
+        function rows(){
+            return Array.prototype.filter.call(list.querySelectorAll(rowSel), function(r){
+                return !isEmptyRow(r);
+            });
+        }
+
+        function recompute(){
+            timer = null;
+            var all = rows();
+            var eligible = all.filter(function(r){ return r.style.display !== "none" && !r.hidden; });
+            var pages = Math.max(1, Math.ceil(eligible.length / size));
+            if(state.page > pages) state.page = pages;
+            if(state.page < 1) state.page = 1;
+
+            all.forEach(function(r){ r.classList.remove("kt-pg-hide"); });
+            eligible.forEach(function(r, i){
+                if(Math.floor(i / size) !== state.page - 1) r.classList.add("kt-pg-hide");
+            });
+
+            var visible = list.getClientRects().length > 0;   // not on a hidden tab
+            render(host, {
+                page: state.page, pages: pages, total: eligible.length, size: size,
+                onPage: function(p){
+                    state.page = p;
+                    recompute();
+                    try{ anchor.scrollIntoView({ block: "start", behavior: "smooth" }); }catch(e){}
+                }
+            });
+            if(!visible) host.hidden = true;
+        }
+
+        function schedule(){
+            if(timer) return;
+            timer = setTimeout(recompute, 30);
+        }
+
+        function reset(){
+            state.page = 1;
+            setTimeout(recompute, 60);
+        }
+
+        var obs = new MutationObserver(schedule);
+        obs.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "hidden"] });
+
+        // search / filter / tab changes -> page 1
+        var root = pageRoot(list);
+        function inModal(t){ return !!(t.closest && t.closest("[class*='modal'], [id*='odal']")); }
+        function onField(e){
+            var t = e.target;
+            if(!t || inModal(t)) return;
+            if(t.matches && t.matches("input, select, textarea")) reset();
+        }
+        function onClick(e){
+            var t = e.target && e.target.closest ? e.target.closest("button, [role='tab'], .tab") : null;
+            if(!t || inModal(t)) return;
+            if(/tab/i.test(t.className || "")){ reset(); }
+        }
+        root.addEventListener("input", onField);
+        root.addEventListener("change", onField);
+        root.addEventListener("click", onClick);
+
+        list.__ktPager = { recompute: recompute, reset: reset };
+        recompute();
+    }
+
+    window.KTPager = { attach: attach, render: render, PAGE_SIZE: PAGE_SIZE };
+
+})();
+
+
 /* ===== js/permissions.js ===== */
 // =========================================================
 // KT ADMIN — MAIN ADMIN PERMISSIONS
@@ -4594,6 +4767,12 @@ function initWithdrawals(){
 
     console.log("Withdrawals initialized");
 
+    if(window.KTPager){
+        ["pendingWithdrawalList", "approvedWithdrawalList", "rejectedWithdrawalList"].forEach(function(id){
+            KTPager.attach(document.getElementById(id), { rows: "tr" });
+        });
+    }
+
 
     // Load real data (renders + updates stats when it arrives)
 
@@ -5579,6 +5758,12 @@ function loadDeposits(){
 function initDeposits(){
 
     console.log("Deposits initialized");
+
+    if(window.KTPager){
+        ["pendingDepositsList", "approvedDepositsList", "rejectedDepositsList"].forEach(function(id){
+            KTPager.attach(document.getElementById(id), { rows: "tr" });
+        });
+    }
 
 
     // Load real data (renders + updates stats when it arrives)
@@ -6707,6 +6892,8 @@ function initTransactions(){
 
     if(!filter || !search || !list) return;
 
+    if(window.KTPager) KTPager.attach(list, { rows: "tr" });
+
     loadTransactions();
 
     if(window.KTRealtime){
@@ -7286,6 +7473,8 @@ function initUsers(){
     // ===============================
 
     const usersList = document.getElementById("usersList");
+
+    if(window.KTPager) KTPager.attach(usersList, { rows: "tr[data-userid]" });
 
     const searchInput = document.getElementById("userSearch");
 
@@ -10196,6 +10385,12 @@ if(withdrawBtn){
 
 function initVerification() {
 
+    if(window.KTPager){
+        ["pendingList", "approvedList", "rejectedList", "requestsList", "resetsList"].forEach(function(id){
+            KTPager.attach(document.querySelector("#" + id + " tbody"), { rows: "tr" });
+        });
+    }
+
     const totalRequests = document.getElementById("totalRequests");
     const pendingRequests = document.getElementById("pendingRequests");
     const approvedRequests = document.getElementById("approvedRequests");
@@ -11719,6 +11914,8 @@ row.dataset.search = [
 
 
 function initNotifications(){
+
+    if(window.KTPager) KTPager.attach(document.getElementById("notificationList"), { rows: ".notification-row" });
 
     loadNotifications();
 
@@ -13425,6 +13622,8 @@ function initActivityLogs(){
     console.log("Activity Logs Loaded");
 
     activeActivityCategory = "all";
+
+    if(window.KTPager) KTPager.attach(document.getElementById("activityList"), { rows: "tr" });
 
     const searchInput = document.getElementById("activitySearch");
     if(searchInput) searchInput.value = "";
@@ -19001,7 +19200,9 @@ document.addEventListener("click", function(event) {
             nickRows.forEach(function(n){ nicks[n.user_id] = n.nickname; });
             var list = $("adminList");
             if(!list) return;
-            var admins = d.admins || [];
+            var admins = (d.admins || []).slice().sort(function(x, y){
+                return (y.is_you ? 1 : 0) - (x.is_you ? 1 : 0);   // the signed-in admin ("You") first; the rest keep their order
+            });
             if(!admins.length){ list.innerHTML = '<p class="kt-set-hint">No admins found.</p>'; return; }
 
             list.innerHTML = admins.map(function(a){
@@ -19228,7 +19429,7 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // SECURITY LOG (main admin only; the database checks this too)
     // ---------------------------------------------------------
-    var SEC = { rows: [], filter: "", last: null, done: false };
+    var SEC = { rows: [], filter: "", last: null, done: false, page: 1 };
 
     var EVENT_TEXT = {
         signin_ok: "Signed in",
@@ -19247,7 +19448,7 @@ document.addEventListener("click", function(event) {
     var EVENT_ICON = { alert: "fa-triangle-exclamation", warning: "fa-circle-exclamation", info: "fa-circle-info" };
 
     function renderSeclog(){
-        SEC.rows = []; SEC.last = null; SEC.done = false;
+        SEC.rows = []; SEC.last = null; SEC.done = false; SEC.page = 1;
         $("setSeclogBody").innerHTML =
             '<div class="kt-set-card">' +
                 '<h3><i class="fa-solid fa-gauge-high"></i> Last 24 hours</h3>' +
@@ -19267,11 +19468,12 @@ document.addEventListener("click", function(event) {
                     '<option value="info">Normal only</option>' +
                 '</select>' +
                 '<div id="secList"><div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div></div>' +
-                '<button class="kt-set-btn light" id="secMore" data-act="sec-more" hidden>Load more</button>' +
+                '<div id="secPager" class="kt-pager" hidden></div>' +
+                '<button class="kt-set-btn light" id="secMore" data-act="sec-more" hidden>Load older events</button>' +
             '</div>';
         var f = $("secFilter");
         if(f) f.addEventListener("change", function(){
-            SEC.filter = f.value; SEC.rows = []; SEC.last = null; SEC.done = false;
+            SEC.filter = f.value; SEC.rows = []; SEC.last = null; SEC.done = false; SEC.page = 1;
             $("secList").innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
             loadSeclog(false);
         });
@@ -19316,16 +19518,33 @@ document.addEventListener("click", function(event) {
             '<small>' + esc(dt(r.created_at)) + '</small></div></div>';
     }
 
+    var SEC_FETCH = 200;   // events fetched at a time (the server allows up to 200)
+    var SEC_PAGE = 10;     // events shown per page
+
+    function drawSeclog(){
+        var list = $("secList"), btn = $("secMore"), pg = $("secPager");
+        if(!list) return;
+        var pages = Math.max(1, Math.ceil(SEC.rows.length / SEC_PAGE));
+        if(SEC.page > pages) SEC.page = pages;
+        var slice = SEC.rows.slice((SEC.page - 1) * SEC_PAGE, SEC.page * SEC_PAGE);
+        list.innerHTML = slice.length ? slice.map(eventRow).join("") : '<p class="kt-set-hint">Nothing logged yet.</p>';
+        if(pg && window.KTPager){
+            KTPager.render(pg, { page: SEC.page, pages: pages, total: SEC.rows.length, size: SEC_PAGE, onPage: function(p){
+                SEC.page = p; drawSeclog();
+                try{ list.scrollIntoView({ block: "start", behavior: "smooth" }); }catch(e){}
+            } });
+        }
+        // older events exist on the server: offer them on the last page
+        if(btn) btn.hidden = SEC.done || SEC.page < pages;
+    }
+
     function loadSeclog(more){
-        rpc("admin_security_log_list", { p_limit: 50, p_before: more ? SEC.last : null, p_severity: SEC.filter || null }).then(function(rows){
+        rpc("admin_security_log_list", { p_limit: SEC_FETCH, p_before: more ? SEC.last : null, p_severity: SEC.filter || null }).then(function(rows){
             rows = rows || [];
             SEC.rows = SEC.rows.concat(rows);
             if(rows.length) SEC.last = rows[rows.length - 1].id;
-            SEC.done = rows.length < 50;
-            var list = $("secList"), btn = $("secMore");
-            if(!list) return;
-            list.innerHTML = SEC.rows.length ? SEC.rows.map(eventRow).join("") : '<p class="kt-set-hint">Nothing logged yet.</p>';
-            if(btn) btn.hidden = SEC.done;
+            SEC.done = rows.length < SEC_FETCH;
+            drawSeclog();
         }).catch(function(e){
             var list = $("secList");
             if(list) list.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';

@@ -91,6 +91,12 @@ function initWithdrawals(){
 
     console.log("Withdrawals initialized");
 
+    if(window.KTPager){
+        ["pendingWithdrawalList", "approvedWithdrawalList", "rejectedWithdrawalList"].forEach(function(id){
+            KTPager.attach(document.getElementById(id), { rows: "tr" });
+        });
+    }
+
 
     // Load real data (renders + updates stats when it arrives)
 

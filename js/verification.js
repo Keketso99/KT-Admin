@@ -4,6 +4,12 @@
 
 function initVerification() {
 
+    if(window.KTPager){
+        ["pendingList", "approvedList", "rejectedList", "requestsList", "resetsList"].forEach(function(id){
+            KTPager.attach(document.querySelector("#" + id + " tbody"), { rows: "tr" });
+        });
+    }
+
     const totalRequests = document.getElementById("totalRequests");
     const pendingRequests = document.getElementById("pendingRequests");
     const approvedRequests = document.getElementById("approvedRequests");

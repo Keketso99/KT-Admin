@@ -553,6 +553,8 @@ function initActivityLogs(){
 
     activeActivityCategory = "all";
 
+    if(window.KTPager) KTPager.attach(document.getElementById("activityList"), { rows: "tr" });
+
     const searchInput = document.getElementById("activitySearch");
     if(searchInput) searchInput.value = "";
     activitySearchValue = "";

@@ -808,6 +808,18 @@ html, body { height: 100%; }
 .kt-sec-banner-go{background:#fff;color:#7f1d1d;border:none;border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;cursor:pointer}
 .kt-sec-banner-x{background:none;border:none;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
 
+/* Pagination (shared) */
+.kt-pg-hide{ display:none !important; }
+.kt-pager{ margin:18px 0 6px; }
+.kt-pager[hidden]{ display:none; }
+.kt-pager .pagination{ display:flex; justify-content:center; align-items:center; gap:8px; margin-top:0; flex-wrap:wrap; }
+.kt-pager .pagination button{ width:35px; height:35px; border:none; border-radius:7px; background:#fff; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.08); font-size:14px; }
+.kt-pager .pagination button:hover:not(:disabled){ background:#eaf4ff; }
+.kt-pager .pagination button:disabled{ opacity:.4; cursor:default; }
+.kt-pager .pagination button.active-page, .kt-pager .pagination button.active-page:hover:not(:disabled){ background:#1b8ef2; color:#fff; }
+.kt-pager-gap{ width:18px; text-align:center; color:#6b7280; }
+.kt-pager-info{ text-align:center; font-size:12px; color:#6b7280; margin-top:8px; }
+
 
 /* ===== css/dashboard.css ===== */
 /* ==========================

@@ -400,6 +400,8 @@ row.dataset.search = [
 
 function initNotifications(){
 
+    if(window.KTPager) KTPager.attach(document.getElementById("notificationList"), { rows: ".notification-row" });
+
     loadNotifications();
 
     if(window.KTRealtime){
