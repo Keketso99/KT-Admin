@@ -45,6 +45,7 @@ const JS_ORDER = [
     "js/push.js",
     "js/auth.js",
     "js/admin.js",
+    "js/back-nav.js",
     "js/withdrawals.js",
     "js/deposits.js",
     "js/transactions.js",

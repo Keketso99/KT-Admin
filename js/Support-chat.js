@@ -1387,10 +1387,7 @@ function setupComposerEvents() {
 
 function handleMessageInputKeydown(event) {
 
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
-    }
+    // Enter only starts a new line. Messages are sent with the Send button.
 
 }
 
