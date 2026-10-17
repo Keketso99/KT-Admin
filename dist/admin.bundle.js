@@ -15834,12 +15834,21 @@ function getMessageText() {
 
 }
 
+// Back to the normal one-line height (after sending, saving or cancelling).
+function resetComposerHeight(input) {
+    if (!input) return;
+    input.style.height = "";
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 120) + "px";
+}
+
 function clearMessageInput() {
 
     const input = getMessageInput();
     if (!input) return;
 
     input.value = "";
+    resetComposerHeight(input);
     input.dataset.editing = "false";
     delete input.dataset.editingMessageId;
     input.focus();
@@ -16082,6 +16091,7 @@ function cancelEditMessage() {
         input.dataset.editing = "false";
         delete input.dataset.editingMessageId;
         input.value = "";
+        resetComposerHeight(input);
     }
 
     const editPreview = supportChatElement("editPreview");
@@ -16137,6 +16147,7 @@ function saveEditedMessage() {
 
     editingMessage = null;
     input.value = "";
+    resetComposerHeight(input);
     input.dataset.editing = "false";
     delete input.dataset.editingMessageId;
 
