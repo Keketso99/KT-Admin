@@ -517,6 +517,9 @@ function renderIndividualChats() {
             } else if (currentChatFilter === "priority") {
                 title = "No priority conversations";
                 text = "Conversations you mark as priority will appear here.";
+                showButton = false;            } else if (currentChatFilter === "requests") {
+                title = "No pending requests";
+                text = "Conversations with users who have requests waiting for you will appear here.";
                 showButton = false;
             }
 
