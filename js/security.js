@@ -145,7 +145,7 @@ var KTSecurity = (function(){
             var input = el("input", "kt-mfa-input");
             input.type = "text";
             input.inputMode = "numeric";
-            input.autocomplete = "one-time-code";
+            input.autocomplete = "off";
             input.maxLength = 6;
             input.placeholder = "6-digit code";
             card.appendChild(input);

@@ -312,13 +312,15 @@ window.ktVerifyPassword = function(email, password){
 
             if(config.input){
                 input = el("input", "kt-ui-input");
-                input.type = config.input.type || "text";
+                var isPwInput = config.input.type === "password";
+                input.type = isPwInput ? "text" : (config.input.type || "text");
                 if(config.input.inputMode) input.setAttribute("inputmode", config.input.inputMode);
                 if(config.input.placeholder) input.placeholder = config.input.placeholder;
                 if(config.input.value !== undefined) input.value = String(config.input.value);
                 input.setAttribute("autocomplete", "off");
 
-                if(input.type === "password"){
+                if(isPwInput){
+                    maskInput(input);
                     var pw = passwordWrap(input);
                     pw.style.marginTop = "12px";
                     input.style.marginTop = "0";
@@ -446,6 +448,26 @@ window.ktVerifyPassword = function(email, password){
     }
 
     // ---------------------------------------------------------
+    // Masked input: looks and works like a password box, but is a plain text
+    // field so Chrome never offers to save / fill / update passwords or ask
+    // for a PIN inside the app (only the sign-in page keeps real password fields).
+    // ---------------------------------------------------------
+    function maskInput(input){
+        input.type = "text";
+        input.classList.add("kt-mask");
+        input.setAttribute("autocomplete", "off");
+        input.setAttribute("autocapitalize", "off");
+        input.setAttribute("autocorrect", "off");
+        input.setAttribute("spellcheck", "false");
+        input.setAttribute("name", "kt-f-" + Math.random().toString(36).slice(2, 10));
+        input.setAttribute("data-lpignore", "true");
+        input.setAttribute("data-form-type", "other");
+        return input;
+    }
+    function isMasked(input){ return input.classList.contains("kt-mask"); }
+    function setMasked(input, on){ input.classList.toggle("kt-mask", !!on); }
+
+    // ---------------------------------------------------------
     // Password input with a show / hide (eye) button
     // ---------------------------------------------------------
     function passwordWrap(input){
@@ -455,8 +477,8 @@ window.ktVerifyPassword = function(email, password){
         eye.setAttribute("aria-label", "Show or hide password");
         eye.innerHTML = '<i class="fa-solid fa-eye"></i>';
         eye.addEventListener("click", function(){
-            var show = input.type === "password";
-            input.type = show ? "text" : "password";
+            var show = isMasked(input);
+            setMasked(input, !show);
             eye.innerHTML = '<i class="fa-solid ' + (show ? "fa-eye-slash" : "fa-eye") + '"></i>';
             try{ input.focus(); }catch(e){}
         });
@@ -470,10 +492,9 @@ window.ktVerifyPassword = function(email, password){
         injectStyles();
         options = options || {};
         var input = el("input", "kt-ui-input");
-        input.type = "password";
+        maskInput(input);
         input.style.marginTop = "0";
         if(options.placeholder) input.placeholder = options.placeholder;
-        input.setAttribute("autocomplete", options.autocomplete || "off");
         return { wrap: passwordWrap(input), input: input };
     }
 
@@ -704,6 +725,9 @@ window.ktVerifyPassword = function(email, password){
     window.KTUI = {
         busy: busy,
         passwordField: passwordField,
+        maskInput: maskInput,
+        isMasked: isMasked,
+        setMasked: setMasked,
         syncTableEmpty: syncTableEmpty,
         syncBlockEmpty: syncBlockEmpty,
         toast: toast,
@@ -1196,7 +1220,7 @@ var KTSecurity = (function(){
             var input = el("input", "kt-mfa-input");
             input.type = "text";
             input.inputMode = "numeric";
-            input.autocomplete = "one-time-code";
+            input.autocomplete = "off";
             input.maxLength = 6;
             input.placeholder = "6-digit code";
             card.appendChild(input);
@@ -1938,13 +1962,13 @@ var KTSecurity = (function(){
                 var cur = null;
                 if(opts.requireCurrent){
                     cur = el("input", "kt-pw-input");
-                    cur.type = "password"; cur.placeholder = "Current password"; cur.autocomplete = "current-password";
+                    KTUI.maskInput(cur); cur.placeholder = "Current password";
                     card.appendChild(cur);
                 }
                 var in1 = el("input", "kt-pw-input");
-                in1.type = "password"; in1.placeholder = "New password"; in1.autocomplete = "new-password";
+                KTUI.maskInput(in1); in1.placeholder = "New password";
                 var in2 = el("input", "kt-pw-input");
-                in2.type = "password"; in2.placeholder = "Re-enter new password"; in2.autocomplete = "new-password";
+                KTUI.maskInput(in2); in2.placeholder = "Re-enter new password";
                 card.appendChild(in1);
                 card.appendChild(in2);
 
@@ -1958,9 +1982,10 @@ var KTSecurity = (function(){
                 var show = el("button", "kt-pw-show", "Show passwords");
                 show.type = "button";
                 show.onclick = function(){
-                    var on = in1.type === "password";
-                    in1.type = in2.type = on ? "text" : "password";
-                    if(cur) cur.type = on ? "text" : "password";
+                    var on = KTUI.isMasked(in1);   // currently hidden -> show them
+                    KTUI.setMasked(in1, !on);
+                    KTUI.setMasked(in2, !on);
+                    if(cur) KTUI.setMasked(cur, !on);
                     show.textContent = on ? "Hide passwords" : "Show passwords";
                 };
                 card.appendChild(show);

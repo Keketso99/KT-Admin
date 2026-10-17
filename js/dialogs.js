@@ -217,13 +217,15 @@
 
             if(config.input){
                 input = el("input", "kt-ui-input");
-                input.type = config.input.type || "text";
+                var isPwInput = config.input.type === "password";
+                input.type = isPwInput ? "text" : (config.input.type || "text");
                 if(config.input.inputMode) input.setAttribute("inputmode", config.input.inputMode);
                 if(config.input.placeholder) input.placeholder = config.input.placeholder;
                 if(config.input.value !== undefined) input.value = String(config.input.value);
                 input.setAttribute("autocomplete", "off");
 
-                if(input.type === "password"){
+                if(isPwInput){
+                    maskInput(input);
                     var pw = passwordWrap(input);
                     pw.style.marginTop = "12px";
                     input.style.marginTop = "0";
@@ -351,6 +353,26 @@
     }
 
     // ---------------------------------------------------------
+    // Masked input: looks and works like a password box, but is a plain text
+    // field so Chrome never offers to save / fill / update passwords or ask
+    // for a PIN inside the app (only the sign-in page keeps real password fields).
+    // ---------------------------------------------------------
+    function maskInput(input){
+        input.type = "text";
+        input.classList.add("kt-mask");
+        input.setAttribute("autocomplete", "off");
+        input.setAttribute("autocapitalize", "off");
+        input.setAttribute("autocorrect", "off");
+        input.setAttribute("spellcheck", "false");
+        input.setAttribute("name", "kt-f-" + Math.random().toString(36).slice(2, 10));
+        input.setAttribute("data-lpignore", "true");
+        input.setAttribute("data-form-type", "other");
+        return input;
+    }
+    function isMasked(input){ return input.classList.contains("kt-mask"); }
+    function setMasked(input, on){ input.classList.toggle("kt-mask", !!on); }
+
+    // ---------------------------------------------------------
     // Password input with a show / hide (eye) button
     // ---------------------------------------------------------
     function passwordWrap(input){
@@ -360,8 +382,8 @@
         eye.setAttribute("aria-label", "Show or hide password");
         eye.innerHTML = '<i class="fa-solid fa-eye"></i>';
         eye.addEventListener("click", function(){
-            var show = input.type === "password";
-            input.type = show ? "text" : "password";
+            var show = isMasked(input);
+            setMasked(input, !show);
             eye.innerHTML = '<i class="fa-solid ' + (show ? "fa-eye-slash" : "fa-eye") + '"></i>';
             try{ input.focus(); }catch(e){}
         });
@@ -375,10 +397,9 @@
         injectStyles();
         options = options || {};
         var input = el("input", "kt-ui-input");
-        input.type = "password";
+        maskInput(input);
         input.style.marginTop = "0";
         if(options.placeholder) input.placeholder = options.placeholder;
-        input.setAttribute("autocomplete", options.autocomplete || "off");
         return { wrap: passwordWrap(input), input: input };
     }
 
@@ -609,6 +630,9 @@
     window.KTUI = {
         busy: busy,
         passwordField: passwordField,
+        maskInput: maskInput,
+        isMasked: isMasked,
+        setMasked: setMasked,
         syncTableEmpty: syncTableEmpty,
         syncBlockEmpty: syncBlockEmpty,
         toast: toast,

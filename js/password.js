@@ -113,13 +113,13 @@
                 var cur = null;
                 if(opts.requireCurrent){
                     cur = el("input", "kt-pw-input");
-                    cur.type = "password"; cur.placeholder = "Current password"; cur.autocomplete = "current-password";
+                    KTUI.maskInput(cur); cur.placeholder = "Current password";
                     card.appendChild(cur);
                 }
                 var in1 = el("input", "kt-pw-input");
-                in1.type = "password"; in1.placeholder = "New password"; in1.autocomplete = "new-password";
+                KTUI.maskInput(in1); in1.placeholder = "New password";
                 var in2 = el("input", "kt-pw-input");
-                in2.type = "password"; in2.placeholder = "Re-enter new password"; in2.autocomplete = "new-password";
+                KTUI.maskInput(in2); in2.placeholder = "Re-enter new password";
                 card.appendChild(in1);
                 card.appendChild(in2);
 
@@ -133,9 +133,10 @@
                 var show = el("button", "kt-pw-show", "Show passwords");
                 show.type = "button";
                 show.onclick = function(){
-                    var on = in1.type === "password";
-                    in1.type = in2.type = on ? "text" : "password";
-                    if(cur) cur.type = on ? "text" : "password";
+                    var on = KTUI.isMasked(in1);   // currently hidden -> show them
+                    KTUI.setMasked(in1, !on);
+                    KTUI.setMasked(in2, !on);
+                    if(cur) KTUI.setMasked(cur, !on);
                     show.textContent = on ? "Hide passwords" : "Show passwords";
                 };
                 card.appendChild(show);

@@ -797,6 +797,8 @@ html, body { height: 100%; }
 .side-item{ position:relative; }
 .kt-side-dot{ float:right; margin-top:1px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#dc2626; color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
 
+/* masked "password" boxes inside the app (plain text fields, no Chrome password prompts) */
+.kt-mask{-webkit-text-security:disc;text-security:disc}
 .kt-pw-input{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:11px;font-size:15px;margin-bottom:8px}
 .kt-pw-meter{height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:2px 0 6px}
 .kt-pw-bar{display:block;height:100%;width:0;transition:width .2s,background .2s}
