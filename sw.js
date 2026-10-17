@@ -2,9 +2,9 @@
 // Network-only for pages (this app must always reflect live server data),
 // plus Web Push so admins are alerted even when the app is closed.
 
-const SW_VERSION = "kt-admin-v36";
+const SW_VERSION = "kt-admin-v37";
 
-const OFFLINE_CACHE = "kt-admin-offline-v1";
+const OFFLINE_CACHE = "kt-admin-offline-v2";
 const OFFLINE_FILES = ["offline.html", "icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -30,6 +30,11 @@ self.addEventListener("fetch", (event) => {
   // Only when opening the app with no connection, show the offline page.
   event.respondWith(
     fetch(event.request).catch(async () => {
+      // Files kept for the offline page (e.g. the KT logo) are served from the cache.
+      if (event.request.mode !== "navigate") {
+        const hit = await caches.match(event.request, { ignoreSearch: true });
+        if (hit) return hit;
+      }
       if (event.request.mode === "navigate") {
         const cached = await caches.match(new URL("offline.html", self.registration.scope).href);
         if (cached) return cached;
