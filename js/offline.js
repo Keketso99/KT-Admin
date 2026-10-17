@@ -1,5 +1,5 @@
 // =========================================================
-// KT ADMIN — "Internet connection lost" SCREEN (while the app is open)
+// KT ADMIN — "You're offline" SCREEN (while the app is open)
 //
 // Covers the app with the same screen as the start-up offline page when the
 // connection is lost, and removes it by itself when the connection is back

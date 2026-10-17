@@ -728,7 +728,7 @@ window.ktVerifyPassword = function(email, password){
 
 /* ===== js/offline.js ===== */
 // =========================================================
-// KT ADMIN — "Internet connection lost" SCREEN (while the app is open)
+// KT ADMIN — "You're offline" SCREEN (while the app is open)
 //
 // Covers the app with the same screen as the start-up offline page when the
 // connection is lost, and removes it by itself when the connection is back
@@ -762,7 +762,7 @@ window.ktVerifyPassword = function(email, password){
             '<div class="kt-off-msg">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
             '<path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"/><path d="m2 2 20 20"/></svg>' +
-            "<span>Internet connection lost</span></div>";
+            "<span>You're offline</span></div>";
         document.body.appendChild(overlay);
         return overlay;
     }

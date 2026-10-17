@@ -140,6 +140,12 @@
 #setDevices .kt-set-person{ flex-wrap:wrap; }
 #setDevices .kt-set-actions{ width:100%; justify-content:flex-end; }
 
+/* Admins list: keep details readable, buttons drop under them */
+#adminList .kt-set-person{ flex-wrap:wrap; }
+#adminList .kt-set-person-info{ flex:1 1 0; min-width:0; }
+#adminList .kt-set-actions{ width:100%; flex-wrap:wrap; justify-content:flex-start; padding-left:50px; box-sizing:border-box; }
+#adminList .kt-set-person .kt-set-mini + .kt-set-mini{ margin-left:0; }
+
 /* Security log */
 .kt-sec-tiles{ display:flex; gap:8px; }
 .kt-sec-tile{ flex:1 1 0; min-width:0; background:#f3f6fb; border-radius:12px; padding:10px 6px; text-align:center; }
