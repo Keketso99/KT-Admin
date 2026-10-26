@@ -379,6 +379,12 @@ bottom:0;
 
 html, body {
     overscroll-behavior: none;
+    overscroll-behavior-y: none;
+}
+
+/* The page scrolls inside #admin-body: keep a pull-down from reaching the browser. */
+#admin-body {
+    overscroll-behavior-y: contain;
 }
 
 body {

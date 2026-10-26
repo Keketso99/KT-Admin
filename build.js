@@ -32,6 +32,7 @@ const CSS_ORDER = [
 ];
 
 const JS_ORDER = [
+    "js/no-pull-refresh.js",
     "js/supabase-client.js",
     "js/dialogs.js",
     "js/offline.js",
