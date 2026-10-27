@@ -116,7 +116,18 @@
                 </div>
                 <div class="detail-row">
                     <strong>Transaction ID</strong>
-                    <span id="review-transaction"></span>
+                    <span class="detail-copy">
+                        <span id="review-transaction"></span>
+                        <button
+                            type="button"
+                            id="review-transaction-copy"
+                            class="detail-copy-btn"
+                            title="Copy transaction ID"
+                            aria-label="Copy transaction ID"
+                            onclick="copyDepositTransaction()">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </span>
                 </div>
                 <div class="detail-row">
                     <strong>Amount</strong>

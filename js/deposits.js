@@ -654,6 +654,25 @@ function openDepositReview(id){
 
     }
 
+    // Copy icon only makes sense when there is a real transaction ID.
+    const copyBtn =
+        document.getElementById(
+            "review-transaction-copy"
+        );
+
+    if(copyBtn){
+
+        copyBtn.classList.toggle(
+            "hidden",
+            !deposit.transaction ||
+            deposit.transaction === "—"
+        );
+
+        copyBtn.innerHTML =
+            '<i class="fa-regular fa-copy"></i>';
+
+    }
+
 
 
     // =================================
@@ -975,3 +994,85 @@ window.addEventListener(
 
     }
 );
+
+
+// =================================
+// COPY TRANSACTION ID (Deposit Review)
+// =================================
+
+function copyDepositTransaction(){
+
+    const el =
+        document.getElementById(
+            "review-transaction"
+        );
+
+    const btn =
+        document.getElementById(
+            "review-transaction-copy"
+        );
+
+    const text =
+        el ? el.textContent.trim() : "";
+
+    if(!text || text === "—") return;
+
+    const done = function(){
+
+        if(btn){
+
+            btn.innerHTML =
+                '<i class="fa-solid fa-check"></i>';
+
+            setTimeout(function(){
+                btn.innerHTML =
+                    '<i class="fa-regular fa-copy"></i>';
+            }, 1500);
+
+        }
+
+        if(window.KTUI && KTUI.toast){
+            KTUI.toast("Transaction ID copied", "success");
+        }
+
+    };
+
+    const fallback = function(){
+
+        try{
+
+            const ta =
+                document.createElement("textarea");
+
+            ta.value = text;
+            ta.style.cssText =
+                "position:fixed;top:0;left:0;opacity:0";
+
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+
+            const ok =
+                document.execCommand("copy");
+
+            document.body.removeChild(ta);
+
+            if(ok) done();
+
+        }catch(e){}
+
+    };
+
+    if(navigator.clipboard && navigator.clipboard.writeText){
+
+        navigator.clipboard.writeText(text)
+            .then(done)
+            .catch(fallback);
+
+    }else{
+
+        fallback();
+
+    }
+
+}

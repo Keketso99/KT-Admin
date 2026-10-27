@@ -1620,6 +1620,42 @@ button{
     color:#666;
 }
 
+.detail-copy{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+    justify-content:flex-end;
+}
+
+#review-transaction{
+    word-break:break-all;
+    text-align:right;
+}
+
+.detail-copy-btn{
+    flex-shrink:0;
+    width:30px;
+    height:30px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #d1d5db;
+    border-radius:8px;
+    background:#fff;
+    color:#374151;
+    cursor:pointer;
+    font-size:13px;
+}
+
+.detail-copy-btn:hover{
+    background:#f3f4f6;
+}
+
+.detail-copy-btn.hidden{
+    display:none;
+}
+
 /* ==================================
    PROOF IMAGE
 ================================== */
