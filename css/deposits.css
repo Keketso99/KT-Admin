@@ -352,6 +352,21 @@
     gap:5px;
 }
 
+/* Transaction ID: text starts at the left, copy icon stays at the far right */
+.detail-copy{
+    display:flex;
+    width:100%;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+}
+
+#review-transaction{
+    flex:1 1 auto;
+    min-width:0;
+    text-align:left;
+}
+
 .modal-buttons{
     flex-direction:column;
 }
