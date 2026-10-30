@@ -2855,7 +2855,8 @@ if(withdrawBtn){
     
 
     // ===============================
-    // DELETE USER — real (admin_delete_user RPC)
+    // DELETE USER — moves the user to the Trash (admin_trash_user RPC). Nothing is erased here;
+    // permanent deletion lives in Settings > Trash.
     // ===============================
     // Deletes the auth.users row via a SECURITY DEFINER function; profiles
     // cascades automatically (ON DELETE CASCADE). Any other table that
@@ -2887,9 +2888,9 @@ if(withdrawBtn){
 
             if(!currentRow) return;
 
-            const done = KTUI.busy(confirmDelete, "Deleting...");
+            const done = KTUI.busy(confirmDelete, "Moving...");
 
-            sb.rpc("admin_delete_user", { p_user_id: currentRow.dataset.userid })
+            sb.rpc("admin_trash_user", { p_user_id: currentRow.dataset.userid })
 
                 .then(({ error }) => {
 
@@ -2898,7 +2899,7 @@ if(withdrawBtn){
                     deleteModal.style.display="none";
 
                     if(error){
-                        KTUI.notify("Failed to delete user: " + error.message);
+                        KTUI.notify(error.message || "Could not move this user to the Trash.");
                         return;
                     }
 
@@ -2907,7 +2908,7 @@ if(withdrawBtn){
 
                     syncUsersEmpty();
 
-                    KTUI.notify("User deleted.");
+                    KTUI.notify("User moved to Trash.");
 
                 });
 

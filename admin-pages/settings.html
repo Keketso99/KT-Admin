@@ -53,6 +53,12 @@
                 <i class="fa-solid fa-lock kt-set-cat-lock"></i>
             </button>
 
+            <button class="kt-set-cat" data-cat="trash" id="setTrashCard" hidden>
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-trash-can"></i></span>
+                <span class="kt-set-cat-text"><b>Trash</b><small>Deleted users: restore them, or erase them for good</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
             <button class="kt-set-cat" data-cat="devices" id="setDevicesCard" hidden>
                 <span class="kt-set-cat-icon"><i class="fa-solid fa-mobile-screen-button"></i></span>
                 <span class="kt-set-cat-text"><b>Trusted Devices</b><small>Approve or remove the devices admins sign in from</small></span>
@@ -98,6 +104,15 @@
             <h2>Audit</h2>
         </div>
         <div id="setAuditBody"></div>
+    </section>
+
+    <!-- Trash (main admin only) -->
+    <section class="kt-set-view" id="setTrash" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Trash</h2>
+        </div>
+        <div id="setTrashBody"></div>
     </section>
 
     <!-- Trusted devices (main admin only) -->

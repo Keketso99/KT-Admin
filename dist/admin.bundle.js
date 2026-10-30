@@ -10756,7 +10756,8 @@ if(withdrawBtn){
     
 
     // ===============================
-    // DELETE USER — real (admin_delete_user RPC)
+    // DELETE USER — moves the user to the Trash (admin_trash_user RPC). Nothing is erased here;
+    // permanent deletion lives in Settings > Trash.
     // ===============================
     // Deletes the auth.users row via a SECURITY DEFINER function; profiles
     // cascades automatically (ON DELETE CASCADE). Any other table that
@@ -10788,9 +10789,9 @@ if(withdrawBtn){
 
             if(!currentRow) return;
 
-            const done = KTUI.busy(confirmDelete, "Deleting...");
+            const done = KTUI.busy(confirmDelete, "Moving...");
 
-            sb.rpc("admin_delete_user", { p_user_id: currentRow.dataset.userid })
+            sb.rpc("admin_trash_user", { p_user_id: currentRow.dataset.userid })
 
                 .then(({ error }) => {
 
@@ -10799,7 +10800,7 @@ if(withdrawBtn){
                     deleteModal.style.display="none";
 
                     if(error){
-                        KTUI.notify("Failed to delete user: " + error.message);
+                        KTUI.notify(error.message || "Could not move this user to the Trash.");
                         return;
                     }
 
@@ -10808,7 +10809,7 @@ if(withdrawBtn){
 
                     syncUsersEmpty();
 
-                    KTUI.notify("User deleted.");
+                    KTUI.notify("User moved to Trash.");
 
                 });
 
@@ -19337,7 +19338,7 @@ document.addEventListener("click", function(event) {
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "devices", "seclog"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "trash", "devices", "seclog"];
 
     var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
@@ -19425,7 +19426,7 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", trash: "setTrash", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -19452,6 +19453,7 @@ document.addEventListener("click", function(event) {
         S.password = null;
         S.users = null;
         S.audit = null;
+        S.trash = null;
         clearTimeout(S.idle);
         if(S.view !== "create" && S.view !== "loading"){
             show("menu");
@@ -19461,7 +19463,7 @@ document.addEventListener("click", function(event) {
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", devices: "Trusted Devices", seclog: "Security log" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", trash: "Trash", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -19486,6 +19488,7 @@ document.addEventListener("click", function(event) {
         if(cat === "sound") renderSound();
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
+        else if(cat === "trash") renderTrash();
         else if(cat === "devices") renderDevices();
         else if(cat === "seclog"){
             try{ localStorage.setItem("kt_seclog_seen", String(Date.now())); }catch(e){}
@@ -20552,6 +20555,166 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // wiring
     // ---------------------------------------------------------
+    // ---------------------------------------------------------
+    // TRASH (main admin only) — users moved to the Trash from the Users page
+    // ---------------------------------------------------------
+    function renderTrash(){
+        $("setTrashBody").innerHTML =
+            '<div class="kt-set-card muted">' +
+                '<p class="kt-set-hint" style="margin:0">Users you delete from the Users page wait here. Their deposits, withdrawals, transactions, plans and chats are all still in the other pages and in the Dashboard totals. ' +
+                'Their wallet is frozen and they cannot sign in. Nothing here is erased until you choose it.</p>' +
+            '</div>' +
+            '<div id="trashList"><div class="kt-set-empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading...</p></div></div>';
+        loadTrash();
+    }
+
+    function loadTrash(){
+        return rpc("admin_list_trashed_users").then(function(rows){
+            S.trash = rows || [];
+            paintTrash();
+        }).catch(function(e){
+            var h = $("trashList");
+            if(h) h.innerHTML = '<p class="kt-set-error">' + esc(e.message) + '</p>';
+        });
+    }
+
+    function paintTrash(){
+        var holder = $("trashList");
+        if(!holder) return;
+        var rows = S.trash || [];
+        if(!rows.length){
+            holder.innerHTML = '<div class="kt-set-empty"><i class="fa-regular fa-trash-can"></i><p>The Trash is empty.</p></div>';
+            return;
+        }
+        holder.innerHTML = rows.map(function(u){
+            var name = u.erased ? "Deleted user" : (((u.username || "") + " " + (u.surname || "")).trim() || "Unnamed user");
+            var counts = [
+                u.deposits_count + " deposit" + (Number(u.deposits_count) === 1 ? "" : "s"),
+                u.withdrawals_count + " withdrawal" + (Number(u.withdrawals_count) === 1 ? "" : "s"),
+                u.transactions_count + " transaction" + (Number(u.transactions_count) === 1 ? "" : "s"),
+                u.subscriptions_count + " plan" + (Number(u.subscriptions_count) === 1 ? "" : "s")
+            ].join(" · ");
+            return '<div class="kt-set-card" data-uid="' + esc(u.id) + '">' +
+                '<h3><i class="fa-solid fa-user-slash"></i> ' + esc(name) + '</h3>' +
+                '<p class="kt-set-hint" style="margin:0">' + (u.erased ? 'Personal data erased · records kept' : esc(u.phone || "") + (u.email ? " · " + esc(u.email) : "")) + '</p>' +
+                '<p class="kt-set-hint" style="margin:6px 0 0">Moved to Trash ' + esc(dt(u.deleted_at)) + (u.deleted_by_name ? " by " + esc(u.deleted_by_name) : "") + '</p>' +
+                '<div class="kt-set-row"><span>Frozen wallet</span><b>' + esc(rand(u.balance_zar)) + '</b></div>' +
+                '<div class="kt-set-row"><span>Records kept</span><span style="text-align:right">' + esc(counts) + '</span></div>' +
+                (u.erased ? '' : '<button class="kt-set-btn light" data-act="trash-restore"><i class="fa-solid fa-rotate-left"></i> Restore user</button>') +
+                (u.erased ? '' : '<button class="kt-set-btn light" data-act="trash-erase"><i class="fa-solid fa-eraser"></i> Erase personal data (keep records)</button>') +
+                '<button class="kt-set-btn danger" data-act="trash-everything"><i class="fa-solid fa-trash-can"></i> Delete everything for good</button>' +
+            '</div>';
+        }).join("");
+    }
+
+    function trashUser(btn){
+        var card = btn.closest("[data-uid]");
+        if(!card) return null;
+        var id = card.getAttribute("data-uid");
+        return (S.trash || []).filter(function(u){ return u.id === id; })[0] || null;
+    }
+
+    function trashLabel(u){
+        return u.erased ? "this deleted user" : (((u.username || "") + " " + (u.surname || "")).trim() || "this user");
+    }
+
+    function restoreTrashUser(u){
+        if(window.KTPerm && !KTPerm.require("restore a user")) return;
+        KTUI.confirm("Restore " + trashLabel(u) + "?\n\nThey will appear in Users again, can sign in, and their plans and wallet carry on as before.", {
+            title: "Restore user", confirmText: "Restore", busyText: "Restoring...",
+            run: function(){
+                return rpc("admin_restore_user", { p_user_id: u.id }).then(function(){ return null; }, function(e){ return e.message; });
+            }
+        }).then(function(ok){
+            if(!ok) return;
+            KTUI.success("User restored.");
+            loadTrash();
+        });
+    }
+
+    // Removes the user's stored files (ID photos, deposit proofs, chat files). Best effort.
+    function removeFiles(files){
+        var byBucket = {};
+        (files || []).forEach(function(f){
+            if(!f || !f.path) return;
+            (byBucket[f.bucket] = byBucket[f.bucket] || []).push(f.path);
+        });
+        return Promise.all(Object.keys(byBucket).map(function(b){
+            return sb.storage.from(b).remove(byBucket[b]).catch(function(){});
+        }));
+    }
+
+    // Excel file with everything that is about to be deleted
+    function exportUserRecords(u){
+        function all(table, cols){
+            return sb.from(table).select(cols).eq("user_id", u.id).order("created_at", { ascending: false }).limit(5000)
+                .then(function(r){ if(r.error) throw new Error(r.error.message); return r.data || []; });
+        }
+        return Promise.all([
+            all("deposits", "id,amount_zar,method,status,transaction_ref,admin_note,created_at,reviewed_at"),
+            all("withdrawals", "id,amount_zar,status,admin_note,created_at,reviewed_at"),
+            all("transactions", "id,type,amount_zar,balance_after_zar,description,created_at"),
+            all("mining_subscriptions", "id,plan_id,price_paid_zar,day_count,status,started_at,completed_at")
+        ]).then(function(parts){
+            function sheet(name, header, rows, pick){
+                var data = [header.map(function(h){ return { v: h, s: "header" }; })];
+                rows.forEach(function(r){ data.push(pick(r)); });
+                return { name: name, widths: header.map(function(){ return 22; }), rows: data, freeze: { rows: 1 } };
+            }
+            var who = [
+                [{ v: "Name", s: "header" }, { v: "Phone", s: "header" }, { v: "Email", s: "header" }, { v: "Frozen wallet (R)", s: "header" }, { v: "Moved to Trash", s: "header" }],
+                [(u.username || "") + " " + (u.surname || ""), u.phone || "", u.email || "", Number(u.balance_zar) || 0, u.deleted_at || ""]
+            ];
+            var book = { sheets: [
+                { name: "User", widths: [26, 18, 30, 18, 26], rows: who },
+                sheet("Deposits", ["Date", "Amount (R)", "Method", "Status", "Reference", "Note"], parts[0], function(r){ return [r.created_at || "", Number(r.amount_zar) || 0, r.method || "", r.status || "", r.transaction_ref || "", r.admin_note || ""]; }),
+                sheet("Withdrawals", ["Date", "Amount (R)", "Status", "Note"], parts[1], function(r){ return [r.created_at || "", Number(r.amount_zar) || 0, r.status || "", r.admin_note || ""]; }),
+                sheet("Transactions", ["Date", "Type", "Amount (R)", "Balance after (R)", "Description"], parts[2], function(r){ return [r.created_at || "", r.type || "", Number(r.amount_zar) || 0, Number(r.balance_after_zar) || 0, r.description || ""]; }),
+                sheet("Plans", ["Started", "Price paid (R)", "Days paid", "Status", "Completed"], parts[3], function(r){ return [r.started_at || "", Number(r.price_paid_zar) || 0, r.day_count || 0, r.status || "", r.completed_at || ""]; })
+            ] };
+            var bytes = KTXlsx.build(book);
+            var nm = ((u.username || "user") + "-" + (u.surname || "")).replace(/[^A-Za-z0-9-]+/g, "_");
+            KTXlsx.download(bytes, "KT-Deleted-User-" + nm + "-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+        });
+    }
+
+    function purgeTrashUser(u, mode){
+        if(window.KTPerm && !KTPerm.require("delete a user for good")) return;
+        var name = trashLabel(u);
+        var text = mode === "erase"
+            ? "Erase the personal data of " + name + "?\n\nTheir name, phone, email, PIN, ID photos, payment details, chats and notifications are erased. Every deposit, withdrawal, transaction and plan stays in the other pages and in the totals, shown as \"Deleted user\". The account can no longer be restored. This cannot be undone."
+            : "Delete EVERYTHING for " + name + "?\n\nThe user and all their deposits, withdrawals, transactions, plans, KYC, chats and files are deleted. Money already approved stays in the Dashboard totals. A spreadsheet of their records downloads first. This cannot be undone.";
+        KTUI.confirm(text, {
+            title: mode === "erase" ? "Erase personal data" : "Delete everything", danger: true,
+            confirmText: mode === "erase" ? "Erase" : "Delete everything", busyText: "Working...",
+            run: function(){
+                var files = [];
+                var step = rpc("admin_trash_user_files", { p_user_id: u.id }).then(function(f){ files = f || []; });
+                if(mode === "everything") step = step.then(function(){ return exportUserRecords(u); });
+                return step.then(function(){
+                    return guarded("admin_purge_user", { p_user_id: u.id, p_mode: mode });
+                }).then(function(){
+                    return removeFiles(files).then(function(){ return null; });
+                }, function(e){ return e.message; });
+            }
+        }).then(function(ok){
+            if(!ok) return;
+            KTUI.success(mode === "erase" ? "Personal data erased. Records kept." : "User and records deleted.");
+            loadTrash();
+        });
+    }
+
+    function onTrashClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t) return;
+        var act = t.getAttribute("data-act");
+        var u = trashUser(t);
+        if(!u) return;
+        if(act === "trash-restore") restoreTrashUser(u);
+        else if(act === "trash-erase") purgeTrashUser(u, "erase");
+        else if(act === "trash-everything") purgeTrashUser(u, "everything");
+    }
+
     var pushListener = false;
 
     function bindRoot(){
@@ -20571,6 +20734,7 @@ document.addEventListener("click", function(event) {
             if(S.view === "sound") onSoundClick(e);
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
+            else if(S.view === "trash") onTrashClick(e);
             else if(S.view === "devices") onDevicesClick(e);
             else if(S.view === "seclog") onSeclogClick(e);
 
@@ -20604,7 +20768,7 @@ document.addEventListener("click", function(event) {
 
     window.initSettings = function(){
         // a fresh visit always starts locked
-        S.password = null; S.users = null; S.audit = null;
+        S.password = null; S.users = null; S.audit = null; S.trash = null;
         clearTimeout(S.idle);
         bindRoot();
         show("loading");
@@ -20614,6 +20778,7 @@ document.addEventListener("click", function(event) {
             if(u) S.adminName = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || u.email || "Admin";
         }).catch(function(){});
 
+        var tc = $("setTrashCard"); if(tc) tc.hidden = !(window.KTPerm && KTPerm.isSuper);
         var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
         var sc = $("setSeclogCard"); if(sc) sc.hidden = !(window.KTPerm && KTPerm.isSuper);
 
