@@ -1459,6 +1459,7 @@
 
         var tc = $("setTrashCard"); if(tc) tc.hidden = !(window.KTPerm && KTPerm.isSuper);
         var mc = $("setMdelCard"); if(mc) mc.hidden = !(window.KTPerm && KTPerm.isSuper);
+        var ss = $("setSafetySub"); if(ss) ss.textContent = (window.KTPerm && KTPerm.isSuper) ? "Change your sign-in and settings passwords" : "Change your sign-in password";
         var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
         var sc = $("setSeclogCard"); if(sc) sc.hidden = !(window.KTPerm && KTPerm.isSuper);
 
