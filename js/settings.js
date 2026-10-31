@@ -10,7 +10,7 @@
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "trash", "devices", "seclog"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "trash", "mdel", "devices", "seclog"];
 
     var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
@@ -98,7 +98,7 @@
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", trash: "setTrash", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -135,7 +135,7 @@
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", trash: "Trash", devices: "Trusted Devices", seclog: "Security log" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -161,6 +161,7 @@
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
         else if(cat === "trash") renderTrash();
+        else if(cat === "mdel") renderMdel();
         else if(cat === "devices") renderDevices();
         else if(cat === "seclog"){
             try{ localStorage.setItem("kt_seclog_seen", String(Date.now())); }catch(e){}
@@ -1230,6 +1231,12 @@
     // ---------------------------------------------------------
     // TRASH (main admin only) — users moved to the Trash from the Users page
     // ---------------------------------------------------------
+    // MANUAL DELETE (main admin only) — see js/manual-delete.js
+    function renderMdel(){
+        if(!window.KTManualDelete){ $("setMdelBody").innerHTML = '<p class="kt-set-error">Manual delete could not load. Reload the app.</p>'; return; }
+        window.KTManualDelete.mount($("setMdelBody"), { guarded: guarded, rpc: rpc, esc: esc, dt: dt, rand: rand });
+    }
+
     function renderTrash(){
         $("setTrashBody").innerHTML =
             '<div class="kt-set-card muted">' +
@@ -1451,6 +1458,7 @@
         }).catch(function(){});
 
         var tc = $("setTrashCard"); if(tc) tc.hidden = !(window.KTPerm && KTPerm.isSuper);
+        var mc = $("setMdelCard"); if(mc) mc.hidden = !(window.KTPerm && KTPerm.isSuper);
         var dc = $("setDevicesCard"); if(dc) dc.hidden = !(window.KTPerm && KTPerm.isSuper);
         var sc = $("setSeclogCard"); if(sc) sc.hidden = !(window.KTPerm && KTPerm.isSuper);
 

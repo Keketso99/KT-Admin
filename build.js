@@ -60,6 +60,7 @@ const JS_ORDER = [
     "js/activity-log.js",
     "js/support-chat.js",
     "js/media.js",
+    "js/manual-delete.js",
     "js/settings.js",
     "js/manual.js",
     "js/dashboard.js"

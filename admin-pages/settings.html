@@ -53,6 +53,12 @@
                 <i class="fa-solid fa-lock kt-set-cat-lock"></i>
             </button>
 
+            <button class="kt-set-cat" data-cat="mdel" id="setMdelCard" hidden>
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-eraser"></i></span>
+                <span class="kt-set-cat-text"><b>Manual delete</b><small>Delete deposits, withdrawals, transactions, notifications and logs by days or one by one</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
             <button class="kt-set-cat" data-cat="trash" id="setTrashCard" hidden>
                 <span class="kt-set-cat-icon"><i class="fa-solid fa-trash-can"></i></span>
                 <span class="kt-set-cat-text"><b>Trash</b><small>Deleted users: restore them, or erase them for good</small></span>
@@ -104,6 +110,15 @@
             <h2>Audit</h2>
         </div>
         <div id="setAuditBody"></div>
+    </section>
+
+    <!-- Manual delete (main admin only) -->
+    <section class="kt-set-view" id="setMdel" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Manual delete</h2>
+        </div>
+        <div id="setMdelBody"></div>
     </section>
 
     <!-- Trash (main admin only) -->
