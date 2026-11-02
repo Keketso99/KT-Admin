@@ -18526,6 +18526,52 @@ function uploadContentFile(file, folder) {
 
 }
 
+// After a file has been REPLACED and the record saved, remove the old file from the
+// "content" bucket so unused files do not pile up. Safe by design: it never runs before
+// the save succeeds, skips files still used by another record, and ignores any error.
+function removeOldContentFiles(urls) {
+    try {
+        const inUse = [];
+        mediaVideos.forEach(v => inUse.push(v.url, v.thumbnail));
+        mediaGuides.forEach(g => inUse.push(g.video, g.image));
+        mediaDownloads.forEach(d => inUse.push(d.url));
+        const marker = "/content/";
+        const paths = [];
+        (urls || []).forEach(u => {
+            if (!u || typeof u !== "string") return;
+            const i = u.indexOf(marker);
+            if (i === -1) return;
+            // still used by a different record? keep it
+            const shared = inUse.filter(x => x === u).length > 1;
+            if (shared) return;
+            paths.push(decodeURIComponent(u.slice(i + marker.length).split("?")[0]));
+        });
+        if (paths.length) sb.storage.from("content").remove(paths).then(() => {}, () => {});
+    } catch (e) { /* never block the save */ }
+}
+
+// Opens a media modal the same way the Add buttons do.
+function mediaOpenModal(id) {
+    const m = document.getElementById(id);
+    if (m) m.style.display = "flex";
+}
+
+// Small grey line under a file picker, e.g. "Current file: x.pdf. Choose a new file only to replace it."
+function mediaCurrentNote(inputId, text) {
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+    let n = inp.parentNode.querySelector('.media-current-file[data-for="' + inputId + '"]');
+    if (!n) {
+        n = document.createElement("small");
+        n.className = "media-current-file";
+        n.dataset.for = inputId;
+        n.style.cssText = "display:block;margin-top:6px;font-size:12px;color:#6b7280;word-break:break-all;";
+        inp.insertAdjacentElement("afterend", n);
+    }
+    n.textContent = text || "";
+    n.style.display = text ? "block" : "none";
+}
+
 // Simple toast — used for the video-upload confirmation.
 let mediaToastTimer = null;
 
@@ -18672,6 +18718,8 @@ function openAddVideoModal() {
 
     document.getElementById("videoEditId").value = "";
     document.getElementById("videoModalTitle").textContent = "Add Video";
+    mediaCurrentNote("videoFile", "");
+    mediaCurrentNote("videoThumbnail", "");
 
     modal.style.display = "flex";
 }
@@ -18685,16 +18733,22 @@ function closeVideoModal() {
 }
 
 function editMediaVideo(id) {
+    if(window.KTPerm && !KTPerm.require("edit a video")) return;
 
     const video = mediaVideos.find(v => v.id === id);
     if (!video) return;
+
+    const vForm = document.getElementById("videoForm");
+    if (vForm) vForm.reset();
 
     document.getElementById("videoEditId").value = video.id;
     document.getElementById("videoTitle").value = video.title || "";
     document.getElementById("videoDescription").value = video.description || "";
 
     document.getElementById("videoModalTitle").textContent = "Edit Video";
-    document.getElementById("mediaVideoModal").classList.add("active");
+    mediaCurrentNote("videoFile", "Current file: " + (video.fileName || "uploaded video") + ". Choose a new file only to replace it.");
+    mediaCurrentNote("videoThumbnail", video.thumbnail ? "A thumbnail is set. Choose a new image only to replace it." : "No thumbnail yet.");
+    mediaOpenModal("mediaVideoModal");
 
 }
 
@@ -18717,6 +18771,8 @@ function saveMediaVideo(event) {
     }
 
     const payload = { title, description };
+    const oldVideo = editId ? mediaVideos.find(v => v.id === editId) : null;
+    const oldFiles = [];
 
     const done = KTUI.busy(
         event.target.querySelector('button[type="submit"]'),
@@ -18731,6 +18787,7 @@ function saveMediaVideo(event) {
                 payload.file_name = videoFile.files[0].name;
                 return uploadContentFile(videoFile.files[0], "videos").then(url => {
                     payload.url = url;
+                    if (oldVideo && oldVideo.url) oldFiles.push(oldVideo.url);
                 });
             }
 
@@ -18741,6 +18798,7 @@ function saveMediaVideo(event) {
             if (thumbnailInput && thumbnailInput.files.length > 0) {
                 return uploadContentFile(thumbnailInput.files[0], "thumbnails").then(url => {
                     payload.thumbnail_url = url;
+                    if (oldVideo && oldVideo.thumbnail) oldFiles.push(oldVideo.thumbnail);
                 });
             }
 
@@ -18765,6 +18823,7 @@ function saveMediaVideo(event) {
                 return;
             }
 
+            removeOldContentFiles(oldFiles);
             loadMediaData();
             closeVideoModal();
             KTUI.success(editId ? "Video updated successfully." : "Video uploaded successfully.");
@@ -18875,6 +18934,8 @@ function openAddGuideModal() {
 
     document.getElementById("guideEditId").value = "";
     document.getElementById("guideModalTitle").textContent = "Add Guide";
+    mediaCurrentNote("guideImage", "");
+    mediaCurrentNote("guideVideoFile", "");
     document.getElementById("guideStatus").value = "photo";
     toggleGuideMediaField();
 
@@ -18890,9 +18951,13 @@ function closeGuideModal() {
 }
 
 function editMediaGuide(id) {
+    if(window.KTPerm && !KTPerm.require("edit a guide")) return;
 
     const guide = mediaGuides.find(g => g.id === id);
     if (!guide) return;
+
+    const gForm = document.getElementById("guideForm");
+    if (gForm) gForm.reset();
 
     document.getElementById("guideEditId").value = guide.id;
     document.getElementById("guideTitle").value = guide.title || "";
@@ -18901,7 +18966,9 @@ function editMediaGuide(id) {
     toggleGuideMediaField();
 
     document.getElementById("guideModalTitle").textContent = "Edit Guide";
-    document.getElementById("mediaGuideModal").classList.add("active");
+    mediaCurrentNote("guideImage", guide.image ? "A photo is set. Choose a new photo only to replace it." : "No photo yet.");
+    mediaCurrentNote("guideVideoFile", guide.video ? "A video is set. Choose a new video only to replace it." : "No video yet.");
+    mediaOpenModal("mediaGuideModal");
 
 }
 
@@ -18930,7 +18997,18 @@ function saveMediaGuide(event) {
         return;
     }
 
+    if (editId && !hasNewFile) {
+        const cur = mediaGuides.find(g => g.id === editId);
+        const hasExisting = cur && (status === "video" ? cur.video : cur.image);
+        if (!hasExisting) {
+            KTUI.notify(status === "video" ? "This guide has no video yet. Please choose one." : "This guide has no photo yet. Please choose one.");
+            return;
+        }
+    }
+
     const payload = { title, category, status };
+    const oldGuide = editId ? mediaGuides.find(g => g.id === editId) : null;
+    const oldFiles = [];
 
     const done = KTUI.busy(
         event.target.querySelector('button[type="submit"]'),
@@ -18944,12 +19022,14 @@ function saveMediaGuide(event) {
             if (status === "video" && videoInput && videoInput.files.length > 0) {
                 return uploadContentFile(videoInput.files[0], "guides").then(url => {
                     payload.video_url = url;
+                    if (oldGuide && oldGuide.video) oldFiles.push(oldGuide.video);
                 });
             }
 
             if (status === "photo" && imageInput && imageInput.files.length > 0) {
                 return uploadContentFile(imageInput.files[0], "guides").then(url => {
                     payload.image_url = url;
+                    if (oldGuide && oldGuide.image) oldFiles.push(oldGuide.image);
                 });
             }
 
@@ -18972,6 +19052,7 @@ function saveMediaGuide(event) {
                 return;
             }
 
+            removeOldContentFiles(oldFiles);
             loadMediaData();
             closeGuideModal();
             KTUI.notify(editId ? "Guide updated successfully." : "Guide added successfully.");
@@ -19072,6 +19153,7 @@ function openAddDownloadModal() {
 
     document.getElementById("downloadEditId").value = "";
     document.getElementById("downloadModalTitle").textContent = "Add Download";
+    mediaCurrentNote("downloadFile", "");
 
     modal.style.display = "flex";
 }
@@ -19085,16 +19167,21 @@ function closeDownloadModal() {
 }
 
 function editMediaDownload(id) {
+    if(window.KTPerm && !KTPerm.require("edit a download")) return;
 
     const item = mediaDownloads.find(d => d.id === id);
     if (!item) return;
+
+    const dForm = document.getElementById("downloadForm");
+    if (dForm) dForm.reset();
 
     document.getElementById("downloadEditId").value = item.id;
     document.getElementById("downloadTitle").value = item.title || "";
     document.getElementById("downloadDescription").value = item.description || "";
 
     document.getElementById("downloadModalTitle").textContent = "Edit Download";
-    document.getElementById("mediaDownloadModal").classList.add("active");
+    mediaCurrentNote("downloadFile", "Current file: " + (item.fileName || "uploaded PDF") + ". Choose a new PDF only to replace it.");
+    mediaOpenModal("mediaDownloadModal");
 
 }
 
@@ -19126,6 +19213,9 @@ function saveMediaDownload(event) {
         description: document.getElementById("downloadDescription").value.trim()
     };
 
+    const oldDownload = editId ? mediaDownloads.find(d => d.id === editId) : null;
+    const oldFiles = [];
+
     const done = KTUI.busy(
         event.target.querySelector('button[type="submit"]'),
         editId ? "Saving..." : "Uploading..."
@@ -19142,6 +19232,7 @@ function saveMediaDownload(event) {
 
                 return uploadContentFile(file, "downloads").then(url => {
                     payload.file_url = url;
+                    if (oldDownload && oldDownload.url) oldFiles.push(oldDownload.url);
                 });
             }
 
@@ -19164,6 +19255,7 @@ function saveMediaDownload(event) {
                 return;
             }
 
+            removeOldContentFiles(oldFiles);
             loadMediaData();
             closeDownloadModal();
             KTUI.notify(editId ? "Download updated successfully." : "Download added successfully.");
