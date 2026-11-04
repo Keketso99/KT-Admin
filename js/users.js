@@ -2046,9 +2046,174 @@ if(verifyBtn){
 
         pinResetBtn.onclick=function(){
             if(!currentRow) return;
-            
+
             renderResetPinModal();
             resetPinModal.style.display="flex";
+        };
+
+    }
+
+    // ===============================
+    // WITHDRAWAL STATUS (waiting period + reset)
+    // ===============================
+    // Opens a small modal that checks the user:
+    //   waiting -> shows the time left + a "Reset withdrawal" button
+    //   pending -> tells the admin to handle the request on the Withdrawals page
+    //   open    -> "No waiting period"
+    // Reset (after an in-app confirmation) lets the user withdraw straight away.
+
+    const withdrawWaitBtn = document.querySelector(".withdraw-wait-btn");
+
+    const withdrawWaitModal = document.getElementById("withdrawWaitModal");
+
+    const withdrawWaitStatus = document.getElementById("withdrawWaitStatus");
+
+    const withdrawWaitActions = document.getElementById("withdrawWaitActions");
+
+    let withdrawWaitTimer = null;
+
+    let withdrawWaitToken = 0;
+
+    function stopWithdrawWaitTimer(){
+        if(withdrawWaitTimer){
+            clearInterval(withdrawWaitTimer);
+            withdrawWaitTimer = null;
+        }
+    }
+
+    function closeWithdrawWaitModal(){
+        stopWithdrawWaitTimer();
+        withdrawWaitToken++;
+        withdrawWaitModal.style.display = "none";
+    }
+
+    function bindWithdrawWaitClose(){
+        const closeBtn = withdrawWaitActions.querySelector(".cancel-btn");
+        if(closeBtn){
+            closeBtn.onclick = closeWithdrawWaitModal;
+        }
+    }
+
+    function formatWithdrawWaitLeft(ms){
+        if(ms < 0) ms = 0;
+        const total = Math.floor(ms / 1000);
+        const d = Math.floor(total / 86400);
+        const h = Math.floor((total % 86400) / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return d + "d " + h + "h " + m + "m " + s + "s";
+    }
+
+    function renderWithdrawWaitModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        const token = ++withdrawWaitToken;
+
+        stopWithdrawWaitTimer();
+
+        withdrawWaitStatus.textContent = "Checking withdrawal status…";
+        withdrawWaitActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindWithdrawWaitClose();
+
+        sb.rpc("admin_get_user_withdrawal_gate", { p_user_id: userId })
+
+            .then(({ data, error }) => {
+
+                if(token !== withdrawWaitToken) return;
+
+                if(error){
+                    withdrawWaitStatus.textContent = "Failed to check status: " + error.message;
+                    return;
+                }
+
+                const row = Array.isArray(data) ? data[0] : data;
+
+                const state = row ? row.state : "open";
+
+                if(state === "pending"){
+                    withdrawWaitStatus.textContent =
+                        "This user has a pending withdrawal request. Approve or reject it on the Withdrawals page.";
+                    return;
+                }
+
+                if(state !== "waiting"){
+                    withdrawWaitStatus.textContent =
+                        "No waiting period. This user can make a withdrawal now.";
+                    return;
+                }
+
+                // waiting: live countdown, based on the server clock
+                const availableMs = new Date(row.available_at).getTime();
+                const offset = new Date(row.server_now).getTime() - Date.now();
+
+                const paint = function(){
+                    if(withdrawWaitModal.style.display === "none"){
+                        stopWithdrawWaitTimer();
+                        return;
+                    }
+                    const left = availableMs - (Date.now() + offset);
+                    if(left <= 0){
+                        stopWithdrawWaitTimer();
+                        renderWithdrawWaitModal();
+                        return;
+                    }
+                    withdrawWaitStatus.textContent =
+                        "This user is waiting to withdraw again. Time left: " + formatWithdrawWaitLeft(left);
+                };
+
+                paint();
+                withdrawWaitTimer = setInterval(paint, 1000);
+
+                withdrawWaitActions.innerHTML =
+                    '<button class="cancel-btn">Close</button>' +
+                    '<button class="reset-btn withdraw-wait-reset-btn">Reset withdrawal</button>';
+                bindWithdrawWaitClose();
+
+                const resetBtn = withdrawWaitActions.querySelector(".withdraw-wait-reset-btn");
+
+                if(resetBtn){
+
+                    resetBtn.onclick = function(){
+
+                        if(window.KTPerm && !KTPerm.require("reset a user's withdrawal waiting period")) return;
+
+                        KTUI.confirm(
+                            "Reset this user's withdrawal waiting period?\n\nThe countdown is removed and the user can make a withdrawal straight away. Their withdrawal history is not changed.",
+                            {
+                                title: "Reset withdrawal",
+                                confirmText: "Reset",
+                                busyText: "Resetting...",
+                                run: function(){
+                                    return sb.rpc("admin_reset_withdrawal_wait", { p_user_id: userId })
+                                        .then(function(res){
+                                            return res.error ? res.error.message : null;
+                                        });
+                                }
+                            }
+                        ).then(function(ok){
+                            if(!ok) return;
+                            KTUI.success("Withdrawal reset. The user can withdraw now.");
+                            renderWithdrawWaitModal();
+                        });
+
+                    };
+
+                }
+
+            });
+
+    }
+
+    if(withdrawWaitBtn && withdrawWaitModal){
+
+        withdrawWaitBtn.onclick = function(){
+            if(!currentRow) return;
+
+            renderWithdrawWaitModal();
+            withdrawWaitModal.style.display = "flex";
         };
 
     }

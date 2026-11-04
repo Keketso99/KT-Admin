@@ -985,3 +985,141 @@ window.addEventListener(
 
     }
 );
+
+
+
+// =====================================
+// WITHDRAWAL DAY — interval between a user's approved withdrawals
+// (admin_get_withdrawal_interval / admin_set_withdrawal_interval)
+// =====================================
+
+let withdrawalDaysLoaded = null;
+
+function openWithdrawalDays(){
+
+    const modal = document.getElementById("withdrawalDaysModal");
+    const input = document.getElementById("withdrawalDaysInput");
+    const save = document.getElementById("withdrawalDaysSaveBtn");
+    const status = document.getElementById("withdrawalDaysStatus");
+
+    if(!modal || !input || !save || !status) return;
+
+    modal.style.display = "flex";
+
+    input.value = "";
+    input.disabled = true;
+    save.disabled = true;
+    status.textContent = "Loading…";
+    status.className = "wday-status";
+
+    sb.rpc("admin_get_withdrawal_interval")
+
+        .then(({ data, error }) => {
+
+            if(error){
+
+                status.textContent = "Failed to load: " + error.message;
+                status.className = "wday-status wday-status-error";
+
+                return;
+
+            }
+
+            withdrawalDaysLoaded = Number(data) || 0;
+
+            input.value = String(withdrawalDaysLoaded);
+            input.disabled = false;
+            save.disabled = false;
+
+            status.textContent = withdrawalDaysLoaded === 0
+                ? "Currently: no waiting period."
+                : "Currently: " + withdrawalDaysLoaded + (withdrawalDaysLoaded === 1 ? " day" : " days") + " between withdrawals.";
+
+            input.focus();
+
+        });
+
+}
+
+function closeWithdrawalDays(){
+
+    const modal = document.getElementById("withdrawalDaysModal");
+
+    if(modal){
+        modal.style.display = "none";
+    }
+
+}
+
+function saveWithdrawalDays(button){
+
+    if(window.KTPerm && !KTPerm.require("change the withdrawal interval")) return;
+
+    const input = document.getElementById("withdrawalDaysInput");
+    const status = document.getElementById("withdrawalDaysStatus");
+
+    if(!input) return;
+
+    const raw = String(input.value).trim();
+
+    if(!/^\d+$/.test(raw)){
+
+        KTUI.warning("Enter a whole number of days (0 or more).");
+        return;
+
+    }
+
+    const days = parseInt(raw, 10);
+
+    if(days > 365){
+
+        KTUI.warning("The interval can be at most 365 days.");
+        return;
+
+    }
+
+    const done = KTUI.busy(button, "Saving...");
+
+    sb.rpc("admin_set_withdrawal_interval", { p_days: days })
+
+        .then(({ error }) => {
+
+            done();
+
+            if(error){
+
+                KTUI.notify("Failed to save: " + error.message);
+                return;
+
+            }
+
+            withdrawalDaysLoaded = days;
+
+            if(status){
+                status.className = "wday-status";
+                status.textContent = days === 0
+                    ? "Currently: no waiting period."
+                    : "Currently: " + days + (days === 1 ? " day" : " days") + " between withdrawals.";
+            }
+
+            closeWithdrawalDays();
+
+            KTUI.success(
+                days === 0
+                    ? "Saved. Users can withdraw without waiting (one request at a time)."
+                    : "Saved. Users wait " + days + (days === 1 ? " day" : " days") + " after an approved withdrawal."
+            );
+
+        });
+
+}
+
+window.addEventListener("click", function(e){
+
+    const modal = document.getElementById("withdrawalDaysModal");
+
+    if(modal && e.target === modal){
+        closeWithdrawalDays();
+    }
+
+});

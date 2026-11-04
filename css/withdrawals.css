@@ -300,3 +300,104 @@
     width:100%;
 }
 }
+
+/* ==================================
+   WITHDRAWAL DAY (button + modal)
+================================== */
+.wday-bar{
+    display:flex;
+    justify-content:flex-start;
+    margin:0 0 20px 0;
+}
+
+.wday-btn{
+    border:none;
+    outline:none;
+    cursor:pointer;
+    background:#fff;
+    color:#444;
+    padding:13px 22px;
+    border-radius:30px;
+    font-size:15px;
+    font-weight:600;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    transition:.25s;
+}
+
+.wday-btn i{
+    margin-right:8px;
+    color:#FDBA05;
+}
+
+.wday-btn:hover{
+    background:#FDBA05;
+    color:#fff;
+}
+
+.wday-btn:hover i{
+    color:#fff;
+}
+
+.wday-body{
+    padding:20px;
+}
+
+.wday-text{
+    margin:0 0 16px 0;
+    font-size:14px;
+    line-height:1.5;
+    color:#555;
+}
+
+.wday-label{
+    display:block;
+    margin-bottom:6px;
+    font-size:14px;
+    font-weight:600;
+    color:#333;
+}
+
+.wday-input{
+    width:100%;
+    box-sizing:border-box;
+    padding:12px 14px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    font-size:16px;
+    outline:none;
+}
+
+.wday-input:focus{
+    border-color:#FDBA05;
+}
+
+.wday-hint{
+    margin:12px 0 0 0;
+    font-size:12.5px;
+    line-height:1.5;
+    color:#777;
+}
+
+.wday-status{
+    margin:14px 0 0 0;
+    font-size:13px;
+    font-weight:600;
+    color:#1b8ef2;
+}
+
+.wday-status-error{
+    color:#dc2626;
+}
+
+.wmodal-buttons button:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
+
+@media(max-width:768px){
+
+.wday-btn{
+    width:100%;
+}
+
+}

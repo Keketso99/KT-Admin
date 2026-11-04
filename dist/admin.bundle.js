@@ -6000,6 +6000,144 @@ window.addEventListener(
 );
 
 
+
+// =====================================
+// WITHDRAWAL DAY — interval between a user's approved withdrawals
+// (admin_get_withdrawal_interval / admin_set_withdrawal_interval)
+// =====================================
+
+let withdrawalDaysLoaded = null;
+
+function openWithdrawalDays(){
+
+    const modal = document.getElementById("withdrawalDaysModal");
+    const input = document.getElementById("withdrawalDaysInput");
+    const save = document.getElementById("withdrawalDaysSaveBtn");
+    const status = document.getElementById("withdrawalDaysStatus");
+
+    if(!modal || !input || !save || !status) return;
+
+    modal.style.display = "flex";
+
+    input.value = "";
+    input.disabled = true;
+    save.disabled = true;
+    status.textContent = "Loading…";
+    status.className = "wday-status";
+
+    sb.rpc("admin_get_withdrawal_interval")
+
+        .then(({ data, error }) => {
+
+            if(error){
+
+                status.textContent = "Failed to load: " + error.message;
+                status.className = "wday-status wday-status-error";
+
+                return;
+
+            }
+
+            withdrawalDaysLoaded = Number(data) || 0;
+
+            input.value = String(withdrawalDaysLoaded);
+            input.disabled = false;
+            save.disabled = false;
+
+            status.textContent = withdrawalDaysLoaded === 0
+                ? "Currently: no waiting period."
+                : "Currently: " + withdrawalDaysLoaded + (withdrawalDaysLoaded === 1 ? " day" : " days") + " between withdrawals.";
+
+            input.focus();
+
+        });
+
+}
+
+function closeWithdrawalDays(){
+
+    const modal = document.getElementById("withdrawalDaysModal");
+
+    if(modal){
+        modal.style.display = "none";
+    }
+
+}
+
+function saveWithdrawalDays(button){
+
+    if(window.KTPerm && !KTPerm.require("change the withdrawal interval")) return;
+
+    const input = document.getElementById("withdrawalDaysInput");
+    const status = document.getElementById("withdrawalDaysStatus");
+
+    if(!input) return;
+
+    const raw = String(input.value).trim();
+
+    if(!/^\d+$/.test(raw)){
+
+        KTUI.warning("Enter a whole number of days (0 or more).");
+        return;
+
+    }
+
+    const days = parseInt(raw, 10);
+
+    if(days > 365){
+
+        KTUI.warning("The interval can be at most 365 days.");
+        return;
+
+    }
+
+    const done = KTUI.busy(button, "Saving...");
+
+    sb.rpc("admin_set_withdrawal_interval", { p_days: days })
+
+        .then(({ error }) => {
+
+            done();
+
+            if(error){
+
+                KTUI.notify("Failed to save: " + error.message);
+                return;
+
+            }
+
+            withdrawalDaysLoaded = days;
+
+            if(status){
+                status.className = "wday-status";
+                status.textContent = days === 0
+                    ? "Currently: no waiting period."
+                    : "Currently: " + days + (days === 1 ? " day" : " days") + " between withdrawals.";
+            }
+
+            closeWithdrawalDays();
+
+            KTUI.success(
+                days === 0
+                    ? "Saved. Users can withdraw without waiting (one request at a time)."
+                    : "Saved. Users wait " + days + (days === 1 ? " day" : " days") + " after an approved withdrawal."
+            );
+
+        });
+
+}
+
+window.addEventListener("click", function(e){
+
+    const modal = document.getElementById("withdrawalDaysModal");
+
+    if(modal && e.target === modal){
+        closeWithdrawalDays();
+    }
+
+});
+
+
 /* ===== js/deposits.js ===== */
 // =====================================
 // DEPOSIT MANAGEMENT
@@ -9947,9 +10085,174 @@ if(verifyBtn){
 
         pinResetBtn.onclick=function(){
             if(!currentRow) return;
-            
+
             renderResetPinModal();
             resetPinModal.style.display="flex";
+        };
+
+    }
+
+    // ===============================
+    // WITHDRAWAL STATUS (waiting period + reset)
+    // ===============================
+    // Opens a small modal that checks the user:
+    //   waiting -> shows the time left + a "Reset withdrawal" button
+    //   pending -> tells the admin to handle the request on the Withdrawals page
+    //   open    -> "No waiting period"
+    // Reset (after an in-app confirmation) lets the user withdraw straight away.
+
+    const withdrawWaitBtn = document.querySelector(".withdraw-wait-btn");
+
+    const withdrawWaitModal = document.getElementById("withdrawWaitModal");
+
+    const withdrawWaitStatus = document.getElementById("withdrawWaitStatus");
+
+    const withdrawWaitActions = document.getElementById("withdrawWaitActions");
+
+    let withdrawWaitTimer = null;
+
+    let withdrawWaitToken = 0;
+
+    function stopWithdrawWaitTimer(){
+        if(withdrawWaitTimer){
+            clearInterval(withdrawWaitTimer);
+            withdrawWaitTimer = null;
+        }
+    }
+
+    function closeWithdrawWaitModal(){
+        stopWithdrawWaitTimer();
+        withdrawWaitToken++;
+        withdrawWaitModal.style.display = "none";
+    }
+
+    function bindWithdrawWaitClose(){
+        const closeBtn = withdrawWaitActions.querySelector(".cancel-btn");
+        if(closeBtn){
+            closeBtn.onclick = closeWithdrawWaitModal;
+        }
+    }
+
+    function formatWithdrawWaitLeft(ms){
+        if(ms < 0) ms = 0;
+        const total = Math.floor(ms / 1000);
+        const d = Math.floor(total / 86400);
+        const h = Math.floor((total % 86400) / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return d + "d " + h + "h " + m + "m " + s + "s";
+    }
+
+    function renderWithdrawWaitModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        const token = ++withdrawWaitToken;
+
+        stopWithdrawWaitTimer();
+
+        withdrawWaitStatus.textContent = "Checking withdrawal status…";
+        withdrawWaitActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindWithdrawWaitClose();
+
+        sb.rpc("admin_get_user_withdrawal_gate", { p_user_id: userId })
+
+            .then(({ data, error }) => {
+
+                if(token !== withdrawWaitToken) return;
+
+                if(error){
+                    withdrawWaitStatus.textContent = "Failed to check status: " + error.message;
+                    return;
+                }
+
+                const row = Array.isArray(data) ? data[0] : data;
+
+                const state = row ? row.state : "open";
+
+                if(state === "pending"){
+                    withdrawWaitStatus.textContent =
+                        "This user has a pending withdrawal request. Approve or reject it on the Withdrawals page.";
+                    return;
+                }
+
+                if(state !== "waiting"){
+                    withdrawWaitStatus.textContent =
+                        "No waiting period. This user can make a withdrawal now.";
+                    return;
+                }
+
+                // waiting: live countdown, based on the server clock
+                const availableMs = new Date(row.available_at).getTime();
+                const offset = new Date(row.server_now).getTime() - Date.now();
+
+                const paint = function(){
+                    if(withdrawWaitModal.style.display === "none"){
+                        stopWithdrawWaitTimer();
+                        return;
+                    }
+                    const left = availableMs - (Date.now() + offset);
+                    if(left <= 0){
+                        stopWithdrawWaitTimer();
+                        renderWithdrawWaitModal();
+                        return;
+                    }
+                    withdrawWaitStatus.textContent =
+                        "This user is waiting to withdraw again. Time left: " + formatWithdrawWaitLeft(left);
+                };
+
+                paint();
+                withdrawWaitTimer = setInterval(paint, 1000);
+
+                withdrawWaitActions.innerHTML =
+                    '<button class="cancel-btn">Close</button>' +
+                    '<button class="reset-btn withdraw-wait-reset-btn">Reset withdrawal</button>';
+                bindWithdrawWaitClose();
+
+                const resetBtn = withdrawWaitActions.querySelector(".withdraw-wait-reset-btn");
+
+                if(resetBtn){
+
+                    resetBtn.onclick = function(){
+
+                        if(window.KTPerm && !KTPerm.require("reset a user's withdrawal waiting period")) return;
+
+                        KTUI.confirm(
+                            "Reset this user's withdrawal waiting period?\n\nThe countdown is removed and the user can make a withdrawal straight away. Their withdrawal history is not changed.",
+                            {
+                                title: "Reset withdrawal",
+                                confirmText: "Reset",
+                                busyText: "Resetting...",
+                                run: function(){
+                                    return sb.rpc("admin_reset_withdrawal_wait", { p_user_id: userId })
+                                        .then(function(res){
+                                            return res.error ? res.error.message : null;
+                                        });
+                                }
+                            }
+                        ).then(function(ok){
+                            if(!ok) return;
+                            KTUI.success("Withdrawal reset. The user can withdraw now.");
+                            renderWithdrawWaitModal();
+                        });
+
+                    };
+
+                }
+
+            });
+
+    }
+
+    if(withdrawWaitBtn && withdrawWaitModal){
+
+        withdrawWaitBtn.onclick = function(){
+            if(!currentRow) return;
+
+            renderWithdrawWaitModal();
+            withdrawWaitModal.style.display = "flex";
         };
 
     }
@@ -13160,6 +13463,18 @@ function sendNotification(){
         var p = metaParts(entry), a = adminOf(entry), act = entry.action;
         var b = p.before, af = p.after;
 
+        if(act === "withdrawal_interval_changed"){
+            var wi = p.meta || {};
+            var dayText = function(n){ return n === null || n === undefined ? "—" : (Number(n) === 0 ? "No waiting" : n + (Number(n) === 1 ? " day" : " days")); };
+            return {
+                summary: a.name + " changed the days between withdrawals to " + dayText(wi.new_days).toLowerCase() + ".",
+                body: section("Withdrawal Day", "fa-solid fa-calendar-days", [
+                    change("Days between withdrawals", dayText(wi.old_days), dayText(wi.new_days))
+                ]) + note("Countdowns already running were not changed. The new number applies from each user's next approved withdrawal.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
+
         if(act === "audit_records_deleted"){
             var m = p.meta;
             var older = m.scope === "older";
@@ -13410,6 +13725,20 @@ function sendNotification(){
             };
         }
 
+        // --- withdrawal waiting period reset
+        if(act === "withdrawal_wait_reset"){
+            var wr = p.meta || {};
+            return {
+                summary: a.name + " reset the withdrawal waiting period of " + userName + ".",
+                body: section("Withdrawal reset", "fa-solid fa-clock-rotate-left", [
+                    userRows(ctx, null),
+                    row("Waiting until", when(wr.was_available_at)),
+                    row("What happened", "The countdown was removed. The user can make a withdrawal straight away.")
+                ]) + note("The user's withdrawal history was not changed.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
+
         // --- user deleted
         if(act === "user_deleted"){
             var nm = personName(b) || "a user";
@@ -13588,6 +13917,8 @@ reset_pin: "users",
 withdrawal_pin_reset_rejected: "users",
 withdrawal_pin_reset_completed: "users",
 withdrawal_pin_reset: "users",
+withdrawal_wait_reset: "users",
+withdrawal_interval_changed: "changes",
 
 // Personal Information
 profile_change_approved: "users",
@@ -13678,6 +14009,8 @@ const ACTIVITY_ICONS = {
     withdrawal_pin_reset_rejected: "fa-solid fa-key",
     withdrawal_pin_reset_completed: "fa-solid fa-key",
     withdrawal_pin_reset: "fa-solid fa-key",
+    withdrawal_wait_reset: "fa-solid fa-clock-rotate-left",
+    withdrawal_interval_changed: "fa-solid fa-calendar-days",
     profile_change_approved: "fa-solid fa-circle-check",
     profile_change_rejected: "fa-solid fa-circle-xmark",
     payment_methods_change_approved: "fa-solid fa-circle-check",

@@ -451,6 +451,18 @@
         var p = metaParts(entry), a = adminOf(entry), act = entry.action;
         var b = p.before, af = p.after;
 
+        if(act === "withdrawal_interval_changed"){
+            var wi = p.meta || {};
+            var dayText = function(n){ return n === null || n === undefined ? "—" : (Number(n) === 0 ? "No waiting" : n + (Number(n) === 1 ? " day" : " days")); };
+            return {
+                summary: a.name + " changed the days between withdrawals to " + dayText(wi.new_days).toLowerCase() + ".",
+                body: section("Withdrawal Day", "fa-solid fa-calendar-days", [
+                    change("Days between withdrawals", dayText(wi.old_days), dayText(wi.new_days))
+                ]) + note("Countdowns already running were not changed. The new number applies from each user's next approved withdrawal.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
+
         if(act === "audit_records_deleted"){
             var m = p.meta;
             var older = m.scope === "older";
@@ -698,6 +710,20 @@
                     row("Price paid", money(af.price_paid_zar)),
                     row("Started", when(af.started_at))
                 ]) + performedBy(entry) + deviceSection(entry, "Performed from")
+            };
+        }
+
+        // --- withdrawal waiting period reset
+        if(act === "withdrawal_wait_reset"){
+            var wr = p.meta || {};
+            return {
+                summary: a.name + " reset the withdrawal waiting period of " + userName + ".",
+                body: section("Withdrawal reset", "fa-solid fa-clock-rotate-left", [
+                    userRows(ctx, null),
+                    row("Waiting until", when(wr.was_available_at)),
+                    row("What happened", "The countdown was removed. The user can make a withdrawal straight away.")
+                ]) + note("The user's withdrawal history was not changed.") +
+                    performedBy(entry) + deviceSection(entry, "Performed from")
             };
         }
 

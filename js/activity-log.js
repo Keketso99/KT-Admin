@@ -74,6 +74,8 @@ reset_pin: "users",
 withdrawal_pin_reset_rejected: "users",
 withdrawal_pin_reset_completed: "users",
 withdrawal_pin_reset: "users",
+withdrawal_wait_reset: "users",
+withdrawal_interval_changed: "changes",
 
 // Personal Information
 profile_change_approved: "users",
@@ -164,6 +166,8 @@ const ACTIVITY_ICONS = {
     withdrawal_pin_reset_rejected: "fa-solid fa-key",
     withdrawal_pin_reset_completed: "fa-solid fa-key",
     withdrawal_pin_reset: "fa-solid fa-key",
+    withdrawal_wait_reset: "fa-solid fa-clock-rotate-left",
+    withdrawal_interval_changed: "fa-solid fa-calendar-days",
     profile_change_approved: "fa-solid fa-circle-check",
     profile_change_rejected: "fa-solid fa-circle-xmark",
     payment_methods_change_approved: "fa-solid fa-circle-check",
