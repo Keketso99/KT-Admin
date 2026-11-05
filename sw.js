@@ -2,7 +2,7 @@
 // Network-only for pages (this app must always reflect live server data),
 // plus Web Push so admins are alerted even when the app is closed.
 
-const SW_VERSION = "kt-admin-v40";
+const SW_VERSION = "kt-admin-v41";
 
 const OFFLINE_CACHE = "kt-admin-offline-v2";
 const OFFLINE_FILES = ["offline.html", "icons/icon-192.png"];
@@ -68,9 +68,12 @@ self.addEventListener("push", (event) => {
 
     // Small KT logo in the notification header (Android uses only the shape of this image).
     const badge = new URL("icons/badge-96.png", self.registration.scope).href;
+    // Big KT logo on the right (without it Chrome draws a grey letter circle).
+    const icon = new URL("icons/icon-192.png", self.registration.scope).href;
 
     await self.registration.showNotification(data.title || "KT Admin", {
       body: data.body || "",
+      icon,
       badge,
       tag: data.tag || undefined,
       renotify: !!data.tag,

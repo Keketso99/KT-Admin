@@ -3614,6 +3614,32 @@ var KTSecurity = (function(){
 })();
 
 
+// ---------------------------------------------------------
+// Clear the phone's notification-bar alerts when the app is opened.
+// (Only the alerts in the phone's notification bar. The in-app
+// notifications page is not touched.)
+// ---------------------------------------------------------
+(function(){
+    function clearPhoneNotifications(){
+        try{
+            if(!("serviceWorker" in navigator)) return;
+            navigator.serviceWorker.getRegistration().then(function(reg){
+                if(!reg || !reg.getNotifications) return;
+                return reg.getNotifications().then(function(list){
+                    list.forEach(function(n){ n.close(); });
+                });
+            }).catch(function(){});
+        }catch(e){}
+    }
+    document.addEventListener("visibilitychange", function(){
+        if(document.visibilityState === "visible") clearPhoneNotifications();
+    });
+    window.addEventListener("focus", clearPhoneNotifications);
+    window.addEventListener("pageshow", clearPhoneNotifications);
+    clearPhoneNotifications();
+})();
+
+
 /* ===== js/auth.js ===== */
 // KT Admin Panel — Admin authentication gate
 // Nothing in the panel is shown until a signed-in user is confirmed
