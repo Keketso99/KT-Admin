@@ -318,9 +318,9 @@
 
             </button>
 
-            <button class="action-btn referral-btn">
+            <button class="action-btn plans-history-btn">
 
-                Referral List
+                Plans History
 
             </button>
 
@@ -758,6 +758,48 @@
             <div class="user-history-loading">
                 Loading history...
             </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================= -->
+<!-- User Plans History Modal -->
+<!-- ========================= -->
+
+<div class="user-history-modal" id="plansHistoryModal">
+
+    <div class="user-history-content">
+
+        <div class="user-history-header">
+
+            <div>
+                <h2>Plans History</h2>
+                <p id="plansHistoryUser"></p>
+            </div>
+
+            <button
+                type="button"
+                class="user-history-close"
+                id="plansHistoryClose"
+                aria-label="Close plans history"
+            >
+                &times;
+            </button>
+
+        </div>
+
+        <p class="ph-hint" id="plansHistoryHint">Oldest plan first. Press and hold a past plan to select it for deleting. The current plan cannot be deleted.</p>
+
+        <div class="user-history-body" id="plansHistoryBody">
+            <div class="user-history-loading">Loading plans history...</div>
+        </div>
+
+        <div class="ph-bar" id="plansHistoryBar" style="display:none">
+            <span class="ph-bar-count" id="plansHistoryCount">0 selected</span>
+            <button type="button" class="ph-bar-btn" id="plansHistoryCancel">Cancel</button>
+            <button type="button" class="ph-bar-btn del" id="plansHistoryDelete"><i class="fa-solid fa-trash-can"></i> Delete</button>
         </div>
 
     </div>

@@ -11070,7 +11070,208 @@ if(withdrawBtn){
   
 
     // ===============================
-    // REFERRAL LIST
+    // PLANS HISTORY
+    // Shows every plan this user has had (first plan -> current plan) from the ADMIN's own record
+    // table (admin_plan_history). Deleting here never touches what the user sees in their app,
+    // and the user deleting their own records never touches this table.
+    // Press and hold a PAST plan to select it, then delete the selected ones.
+    // The current (active) plan can never be deleted.
+    // ===============================
+
+    const plansHistoryBtn = document.querySelector(".plans-history-btn");
+    const plansHistoryModal = document.getElementById("plansHistoryModal");
+    const plansHistoryBody = document.getElementById("plansHistoryBody");
+    const plansHistoryUser = document.getElementById("plansHistoryUser");
+    const plansHistoryBar = document.getElementById("plansHistoryBar");
+    const plansHistoryCount = document.getElementById("plansHistoryCount");
+    const plansHistoryHint = document.getElementById("plansHistoryHint");
+
+    let phUserId = null;
+    let phRows = [];
+    let phPicked = {};
+    let phSelecting = false;
+    const PH_HOLD_MS = 500;
+    let phHold = { timer: null, x: 0, y: 0, fired: false };
+
+    function phEsc(v){
+        return String(v == null ? "" : v)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function phMoney(v){
+        if(v === null || v === undefined) return "—";
+        return "M " + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function phDate(v){
+        if(!v) return "—";
+        const d = new Date(v);
+        return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+    }
+
+    const PH_STATUS = {
+        active:    { label: "Current",   cls: "s-active" },
+        completed: { label: "Completed", cls: "s-done" },
+        upgraded:  { label: "Upgraded",  cls: "s-up" },
+        cancelled: { label: "Cancelled", cls: "s-cancel" }
+    };
+
+    function phPickedIds(){
+        return Object.keys(phPicked);
+    }
+
+    function phPaintBar(){
+        const n = phPickedIds().length;
+        plansHistoryBar.style.display = phSelecting ? "flex" : "none";
+        plansHistoryCount.textContent = n + " selected";
+        document.getElementById("plansHistoryDelete").disabled = !n;
+        plansHistoryHint.style.display = phSelecting ? "none" : "";
+        plansHistoryBody.classList.toggle("ph-pad", phSelecting);
+    }
+
+    function phPaintList(){
+        if(!phRows.length){
+            plansHistoryBody.innerHTML = '<div class="user-history-empty">This user has no plan history yet.</div>';
+            return;
+        }
+        plansHistoryBody.innerHTML = phRows.map(function(r, i){
+            const st = PH_STATUS[r.status] || { label: phEsc(r.status || "—"), cls: "s-done" };
+            const locked = r.status === "active";
+            const next = phRows[i + 1];
+            const ended = locked ? "Ongoing" : phDate(r.completed_at || (next && next.started_at) || null);
+            const name = r.plan_name || "Plan";
+            return '<div class="ph-row' + (phSelecting ? " selecting" : "") + (phPicked[r.id] ? " picked" : "") + (locked ? " locked" : "") + '" data-id="' + phEsc(r.id) + '">' +
+                '<span class="ph-check"><i class="fa-solid fa-check"></i></span>' +
+                '<div class="ph-main">' +
+                    '<div class="ph-top"><b>' + (i + 1) + '. ' + phEsc(name) + '</b><span class="ph-badge ' + st.cls + '">' + st.label + '</span></div>' +
+                    '<div class="ph-meta"><span>Price: ' + phEsc(phMoney(r.price_paid_zar)) + '</span><span>Days: ' + phEsc(r.day_count == null ? "—" : r.day_count) + '</span></div>' +
+                    '<div class="ph-meta"><span>Started: ' + phEsc(phDate(r.started_at)) + '</span></div>' +
+                    '<div class="ph-meta"><span>Ended: ' + phEsc(ended) + '</span></div>' +
+                '</div></div>';
+        }).join("");
+    }
+
+    async function phLoad(){
+        plansHistoryBody.innerHTML = '<div class="user-history-loading">Loading plans history...</div>';
+        const { data, error } = await sb
+            .from("admin_plan_history")
+            .select("id, plan_name, price_paid_zar, day_count, status, started_at, completed_at, created_at")
+            .eq("user_id", phUserId)
+            .order("started_at", { ascending: true })
+            .order("created_at", { ascending: true });
+        if(error){
+            plansHistoryBody.innerHTML = '<div class="user-history-error">Could not load plans history.</div>';
+            return;
+        }
+        phRows = data || [];
+        phPicked = {};
+        phSelecting = false;
+        phPaintList();
+        phPaintBar();
+    }
+
+    function phClose(){
+        plansHistoryModal.style.display = "none";
+        phSelecting = false;
+        phPicked = {};
+        clearTimeout(phHold.timer);
+        phHold.timer = null;
+    }
+
+    function phToggle(id){
+        const r = phRows.filter(function(x){ return x.id === id; })[0];
+        if(!r || r.status === "active") return;
+        if(phPicked[id]) delete phPicked[id]; else phPicked[id] = true;
+        if(!phPickedIds().length) phSelecting = false;
+        phPaintList();
+        phPaintBar();
+    }
+
+    function phDeleteSelected(){
+        if(window.KTPerm && !KTPerm.require("delete plans history")) return;
+        const ids = phPickedIds();
+        if(!ids.length) return;
+        const word = ids.length === 1 ? "1 plan record" : ids.length + " plan records";
+        let result = null;
+        KTUI.confirm("Delete " + word + " from this user's plans history?\n\nThis only removes them from the admin\'s own plans history. The user still sees their own records, and the user\'s wallet, current plan and other pages are not changed.\n\nThis cannot be undone.", {
+            title: "Delete plans history",
+            danger: true,
+            confirmText: "Delete",
+            busyText: "Deleting...",
+            run: function(){
+                return sb.rpc("admin_delete_plan_history", { p_user_id: phUserId, p_ids: ids }).then(function(res){
+                    if(res.error) return res.error.message || "Could not delete these records.";
+                    result = res.data;
+                    return null;
+                });
+            }
+        }).then(function(ok){
+            if(!ok) return;
+            const n = result && Number(result.deleted) || 0;
+            KTUI.success((n === 1 ? "1 record" : n + " records") + " deleted.");
+            phLoad();
+        });
+    }
+
+    if(plansHistoryBtn && plansHistoryModal){
+
+        plansHistoryBtn.onclick = function(){
+            if(!currentRow) return;
+            phUserId = currentRow.dataset.userid;
+            plansHistoryUser.textContent = (currentRow.querySelector("h4") || {}).textContent || "User";
+            plansHistoryModal.style.display = "flex";
+            phLoad();
+        };
+
+        document.getElementById("plansHistoryClose").onclick = phClose;
+        plansHistoryModal.addEventListener("click", function(e){ if(e.target === plansHistoryModal) phClose(); });
+        document.getElementById("plansHistoryCancel").onclick = function(){ phSelecting = false; phPicked = {}; phPaintList(); phPaintBar(); };
+        document.getElementById("plansHistoryDelete").onclick = phDeleteSelected;
+
+        plansHistoryBody.addEventListener("pointerdown", function(e){
+            const row = e.target.closest(".ph-row");
+            if(!row) return;
+            phHold.fired = false;
+            phHold.x = e.clientX; phHold.y = e.clientY;
+            clearTimeout(phHold.timer);
+            const id = row.getAttribute("data-id");
+            phHold.timer = setTimeout(function(){
+                phHold.fired = true;
+                const r = phRows.filter(function(x){ return x.id === id; })[0];
+                if(r && r.status === "active"){
+                    KTUI.info("The current plan cannot be deleted.");
+                    return;
+                }
+                phSelecting = true;
+                phPicked[id] = true;
+                phPaintList();
+                phPaintBar();
+                try{ if(navigator.vibrate) navigator.vibrate(15); }catch(x){}
+            }, PH_HOLD_MS);
+        });
+        plansHistoryBody.addEventListener("pointermove", function(e){
+            if(!phHold.timer) return;
+            if(Math.abs(e.clientX - phHold.x) > 10 || Math.abs(e.clientY - phHold.y) > 10){ clearTimeout(phHold.timer); phHold.timer = null; }
+        });
+        ["pointerup", "pointercancel", "pointerleave"].forEach(function(ev){
+            plansHistoryBody.addEventListener(ev, function(){ clearTimeout(phHold.timer); phHold.timer = null; });
+        });
+        plansHistoryBody.addEventListener("contextmenu", function(e){ if(e.target.closest(".ph-row")) e.preventDefault(); });
+        plansHistoryBody.addEventListener("click", function(e){
+            const row = e.target.closest(".ph-row");
+            if(!row) return;
+            if(phHold.fired){ phHold.fired = false; return; }
+            if(phSelecting){
+                const id = row.getAttribute("data-id");
+                const r = phRows.filter(function(x){ return x.id === id; })[0];
+                if(r && r.status === "active"){ KTUI.info("The current plan cannot be deleted."); return; }
+                phToggle(id);
+            }
+        });
+
+    }
+
     // ===============================
 
     const referralBtn = document.querySelector(".referral-btn");

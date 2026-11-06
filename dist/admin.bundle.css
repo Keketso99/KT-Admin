@@ -4867,6 +4867,32 @@ button{
 
 }
 
+/* =========================================================
+   PLANS HISTORY (user management modal)
+========================================================= */
+.ph-hint{ margin:0 0 10px; color:#777; font-size:12.5px; flex-shrink:0; }
+.ph-pad{ padding-bottom:70px; }
+.ph-row{ display:flex; align-items:flex-start; gap:10px; padding:12px 10px; border:1px solid #eef0f3; border-radius:12px; margin-bottom:10px; background:#fff; touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; cursor:pointer; }
+.ph-row .ph-check{ display:none; width:22px; height:22px; flex:0 0 22px; border-radius:50%; border:2px solid #cbd5e1; align-items:center; justify-content:center; color:#fff; font-size:11px; margin-top:2px; }
+.ph-row.selecting .ph-check{ display:inline-flex; }
+.ph-row.picked{ background:#fef2f2; border-color:#fecaca; }
+.ph-row.picked .ph-check{ background:#dc2626; border-color:#dc2626; }
+.ph-row.locked{ background:#f8fafc; }
+.ph-main{ flex:1; min-width:0; }
+.ph-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; color:#222; font-size:14.5px; }
+.ph-meta{ display:flex; flex-wrap:wrap; gap:4px 14px; color:#6b7280; font-size:12.5px; line-height:1.6; }
+.ph-badge{ flex:0 0 auto; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+.ph-badge.s-active{ background:#dcfce7; color:#166534; }
+.ph-badge.s-done{ background:#e0f2fe; color:#075985; }
+.ph-badge.s-up{ background:#fef3c7; color:#92400e; }
+.ph-badge.s-cancel{ background:#f3f4f6; color:#4b5563; }
+.ph-bar{ position:absolute; left:12px; right:12px; bottom:12px; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#0f2a55; color:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.25); z-index:5; }
+.ph-bar-count{ flex:1; font-weight:700; font-size:14px; }
+.ph-bar-btn{ border:0; background:rgba(255,255,255,.14); color:#fff; padding:8px 12px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }
+.ph-bar-btn.del{ background:#dc2626; }
+.ph-bar-btn:disabled{ opacity:.5; }
+
+
 /* ===== css/verification.css ===== */
 /* =================================
 VERIFICATION PAGE
