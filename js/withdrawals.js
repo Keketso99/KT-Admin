@@ -14,15 +14,9 @@ let withdrawals = {};
 // METHOD LABEL HELPER
 // =====================================
 
-function formatWithdrawalMethodLabel(method){
+function formatWithdrawalMethodLabel(method, network){
 
-    const labels = {
-        usdt_trc20: "USDT (TRC20)",
-        mpesa: "M-Pesa",
-        ecocash: "EcoCash"
-    };
-
-    return labels[method] || method;
+    return KTNetwork.label(method, network);
 
 }
 
@@ -34,7 +28,7 @@ function formatWithdrawalMethodLabel(method){
 function loadWithdrawals(){
 
     sb.from("withdrawals")
-        .select("id, amount_zar, status, created_at, profiles(username), payment_methods(method)")
+        .select("id, amount_zar, status, created_at, network, profiles(username), payment_methods(method)")
         .order("created_at", { ascending: false })
 
         .then(({ data, error }) => {
@@ -58,7 +52,7 @@ function loadWithdrawals(){
                     user: row.profiles ? row.profiles.username : "Unknown",
 
                     method: row.payment_methods
-                        ? formatWithdrawalMethodLabel(row.payment_methods.method)
+                        ? formatWithdrawalMethodLabel(row.payment_methods.method, row.network)
                         : "—",
 
                     amount: "M " + Number(row.amount_zar).toLocaleString("en-US"),

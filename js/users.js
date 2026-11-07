@@ -2448,13 +2448,13 @@ function renderHistoryRecords(){
 
 if(userHistoryType === "deposit"){
 
-    method = formatDepositMethodLabel(record.method);
+    method = formatDepositMethodLabel(record.method, record.network);
 
 }else{
 
     method =
         record.payment_methods
-            ? formatWithdrawalMethodLabel(record.payment_methods.method)
+            ? formatWithdrawalMethodLabel(record.payment_methods.method, record.network)
             : "—";
 
 }
@@ -2548,7 +2548,7 @@ if(userHistoryType === "deposit"){
         if(userHistoryType === "deposit"){
 
             method =
-               formatDepositMethodLabel(record.method) || "—";
+               formatDepositMethodLabel(record.method, record.network) || "—";
 
         }
 
@@ -2559,7 +2559,8 @@ if(userHistoryType === "deposit"){
                 record.payment_methods
 
                     ? formatUserHistoryWithdrawalMethod(
-                        record.payment_methods.method
+                        record.payment_methods.method,
+                        record.network
                     )
 
                     : "—";
@@ -2657,19 +2658,9 @@ if(userHistoryType === "deposit"){
 // Uses the same method mapping as withdrawals.js
 // ======================================================
 
-function formatUserHistoryWithdrawalMethod(method){
+function formatUserHistoryWithdrawalMethod(method, network){
 
-    const labels = {
-
-        usdt_trc20: "USDT (TRC20)",
-
-        mpesa: "M-Pesa",
-
-        ecocash: "EcoCash"
-
-    };
-
-    return labels[method] || method || "—";
+    return method ? KTNetwork.label(method, network) : "—";
 
 }
 
@@ -2678,19 +2669,9 @@ function formatUserHistoryWithdrawalMethod(method){
 // DEPOSIT METHOD LABEL
 // ======================================================
 
-function formatDepositMethodLabel(method){
+function formatDepositMethodLabel(method, network){
 
-    const labels = {
-
-        usdt_trc20: "USDT (TRC20)",
-
-        mpesa: "M-Pesa",
-
-        ecocash: "EcoCash"
-
-    };
-
-    return labels[method] || method || "—";
+    return method ? KTNetwork.label(method, network) : "—";
 
 }
   
@@ -2781,6 +2762,7 @@ async function openUserHistory(type){
                         user_id,
                         amount_zar,
                         method,
+                        network,
                         status,
                         created_at
                     `)
@@ -2820,6 +2802,7 @@ async function openUserHistory(type){
                         amount_zar,
                         status,
                         created_at,
+                        network,
                         payment_methods(method)
                     `)
 

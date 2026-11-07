@@ -14,15 +14,9 @@ let deposits = {};
 // METHOD LABEL HELPER
 // =====================================
 
-function formatDepositMethodLabel(method){
+function formatDepositMethodLabel(method, network){
 
-    const labels = {
-        usdt_trc20: "USDT (TRC20)",
-        mpesa: "M-Pesa",
-        ecocash: "EcoCash"
-    };
-
-    return labels[method] || method;
+    return KTNetwork.label(method, network);
 
 }
 
@@ -34,7 +28,7 @@ function formatDepositMethodLabel(method){
 function loadDeposits(){
 
     sb.from("deposits")
-        .select("id, amount_zar, method, transaction_ref, proof_url, status, created_at, profiles(username)")
+        .select("id, amount_zar, method, network, transaction_ref, proof_url, status, created_at, profiles(username)")
         .order("created_at", { ascending: false })
 
         .then(({ data, error }) => {
@@ -57,7 +51,7 @@ function loadDeposits(){
 
                     user: row.profiles ? row.profiles.username : "Unknown",
 
-                    method: formatDepositMethodLabel(row.method),
+                    method: formatDepositMethodLabel(row.method, row.network),
 
                     transaction: row.transaction_ref || "—",
 

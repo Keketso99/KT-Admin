@@ -9,12 +9,12 @@
 (function(){
 
     var METHODS = [
-        { id: "usdt",    label: "USDT",    sub: "TRC-20 network", icon: "fa-brands fa-bitcoin" },
+        { id: "usdt",    label: "USDT",    sub: "",               icon: "fa-brands fa-bitcoin" },
         { id: "mpesa",   label: "M-Pesa",  sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" },
         { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" }
     ];
 
-    var state = { kind: null, values: {}, channel: null, busy: {}, loaded: false, failed: false };
+    var state = { kind: null, values: {}, channel: null, busy: {}, loaded: false, failed: false, network: "" };
 
     function kindWord(kind){ return kind === "deposit" ? "Deposit" : "Withdrawal"; }
 
@@ -89,7 +89,7 @@
                 '<div class="mth-row">' +
                     '<div class="mth-ico"><i class="' + m.icon + '"></i></div>' +
                     '<div class="mth-info">' +
-                        '<div class="mth-name">' + m.label + '</div>' +
+                        '<div class="mth-name">' + m.label + (m.id === "usdt" && state.network ? ' <span class="mth-net">(' + String(state.network).replace(/</g, "&lt;") + ')</span>' : '') + '</div>' +
                         '<div class="mth-sub ' + (on ? "mth-open" : "mth-closed") + '">' +
                             (on ? "Open for " + word + "s" : "Closed for " + word + "s") +
                         '</div>' +
@@ -110,9 +110,15 @@
         var status = document.getElementById("methodsStatus");
         var kind = state.kind;
 
-        return sb.from("method_settings").select("method, enabled").eq("kind", kind)
+        return Promise.all([
+            sb.from("method_settings").select("method, enabled").eq("kind", kind),
+            sb.from("deposit_payment_details").select("network").eq("method", "usdt")
+        ])
 
-            .then(function(res){
+            .then(function(results){
+
+                var res = results[0];
+                var nres = results[1];
 
                 if(state.kind !== kind) return;
 
@@ -136,6 +142,7 @@
                 (res.data || []).forEach(function(r){ v[r.method] = r.enabled === true; });
 
                 state.values = v;
+                state.network = (nres && nres.data && nres.data[0] && nres.data[0].network) || "";
                 state.loaded = true;
                 state.failed = false;
 
@@ -155,6 +162,10 @@
             var ch = sb.channel("methods-admin-" + Date.now())
                 .on("postgres_changes", { event: "*", schema: "public", table: "method_settings" }, function(){
                     // another admin window changed a switch: stay in sync
+                    if(modalEl() && modalEl().style.display === "flex") load();
+                })
+                .on("postgres_changes", { event: "*", schema: "public", table: "deposit_payment_details" }, function(){
+                    // the USDT network was edited: show the new name
                     if(modalEl() && modalEl().style.display === "flex") load();
                 })
                 .subscribe();
