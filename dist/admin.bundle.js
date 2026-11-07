@@ -11135,7 +11135,8 @@ if(withdrawBtn){
             plansHistoryBody.innerHTML = '<div class="user-history-empty">This user has no plan history yet.</div>';
             return;
         }
-        plansHistoryBody.innerHTML = phRows.map(function(r, i){
+        plansHistoryBody.innerHTML = phRows.map(function(r, i){ return [r, i]; }).reverse().map(function(pair){
+            const r = pair[0], i = pair[1];
             const st = PH_STATUS[r.status] || { label: phEsc(r.status || "—"), cls: "s-done" };
             const locked = r.status === "active";
             const next = phRows[i + 1];
@@ -11152,27 +11153,58 @@ if(withdrawBtn){
         }).join("");
     }
 
-    async function phLoad(){
-        plansHistoryBody.innerHTML = '<div class="user-history-loading">Loading plans history...</div>';
+    async function phLoad(silent){
+        if(!silent) plansHistoryBody.innerHTML = '<div class="user-history-loading">Loading plans history...</div>';
+        const userId = phUserId;
         const { data, error } = await sb
             .from("admin_plan_history")
             .select("id, plan_name, price_paid_zar, day_count, status, started_at, completed_at, created_at")
-            .eq("user_id", phUserId)
+            .eq("user_id", userId)
             .order("started_at", { ascending: true })
             .order("created_at", { ascending: true });
+        if(userId !== phUserId || plansHistoryModal.style.display === "none") return;
         if(error){
-            plansHistoryBody.innerHTML = '<div class="user-history-error">Could not load plans history.</div>';
+            if(!silent) plansHistoryBody.innerHTML = '<div class="user-history-error">Could not load plans history.</div>';
             return;
         }
         phRows = data || [];
-        phPicked = {};
-        phSelecting = false;
+        if(silent){
+            const keep = {};
+            phRows.forEach(function(r){ if(phPicked[r.id] && r.status !== "active") keep[r.id] = true; });
+            phPicked = keep;
+            if(!phPickedIds().length) phSelecting = false;
+        }else{
+            phPicked = {};
+            phSelecting = false;
+        }
         phPaintList();
         phPaintBar();
     }
 
+    // Live updates: the list refreshes by itself when this user's plan records change.
+    let phChannel = null, phPoll = null, phLiveTimer = null;
+    function phLiveStart(){
+        phLiveStop();
+        try{
+            phChannel = sb.channel("plans-history-" + phUserId + "-" + Date.now())
+                .on("postgres_changes", { event: "*", schema: "public", table: "admin_plan_history", filter: "user_id=eq." + phUserId }, function(){
+                    clearTimeout(phLiveTimer);
+                    phLiveTimer = setTimeout(function(){ phLoad(true); }, 250);
+                })
+                .subscribe();
+        }catch(e){ phChannel = null; }
+        // safety net in case the live connection drops
+        phPoll = setInterval(function(){ if(!document.hidden) phLoad(true); }, 12000);
+    }
+    function phLiveStop(){
+        clearTimeout(phLiveTimer);
+        if(phPoll){ clearInterval(phPoll); phPoll = null; }
+        if(phChannel){ try{ sb.removeChannel(phChannel); }catch(e){} phChannel = null; }
+    }
+
     function phClose(){
         plansHistoryModal.style.display = "none";
+        phLiveStop();
         phSelecting = false;
         phPicked = {};
         clearTimeout(phHold.timer);
@@ -11210,7 +11242,8 @@ if(withdrawBtn){
             if(!ok) return;
             const n = result && Number(result.deleted) || 0;
             KTUI.success((n === 1 ? "1 record" : n + " records") + " deleted.");
-            phLoad();
+            phPicked = {}; phSelecting = false;
+            phLoad(true);
         });
     }
 
@@ -11222,6 +11255,7 @@ if(withdrawBtn){
             plansHistoryUser.textContent = (currentRow.querySelector("h4") || {}).textContent || "User";
             plansHistoryModal.style.display = "flex";
             phLoad();
+            phLiveStart();
         };
 
         document.getElementById("plansHistoryClose").onclick = phClose;
