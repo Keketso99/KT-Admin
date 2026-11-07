@@ -7262,7 +7262,7 @@ function copyDepositTransaction(){
         { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" }
     ];
 
-    var state = { kind: null, values: {}, channel: null, busy: {}, loaded: false };
+    var state = { kind: null, values: {}, channel: null, busy: {}, loaded: false, failed: false };
 
     function kindWord(kind){ return kind === "deposit" ? "Deposit" : "Withdrawal"; }
 
@@ -7309,6 +7309,25 @@ function copyDepositTransaction(){
 
         var word = kindWord(state.kind).toLowerCase();
 
+        // Not loaded yet: grey placeholder rows (no switches), so nothing
+        // looks "closed" before the real answer arrives.
+        if(!state.loaded){
+
+            list.innerHTML = state.failed ? "" : METHODS.map(function(){
+                return '' +
+                    '<div class="mth-row mth-skel" aria-hidden="true">' +
+                        '<div class="mth-ico"></div>' +
+                        '<div class="mth-info">' +
+                            '<div class="mth-bar mth-bar-name"></div>' +
+                            '<div class="mth-bar mth-bar-sub"></div>' +
+                        '</div>' +
+                        '<div class="mth-bar mth-bar-switch"></div>' +
+                    '</div>';
+            }).join("");
+            return;
+
+        }
+
         list.innerHTML = METHODS.map(function(m){
 
             var on = state.values[m.id] === true;
@@ -7347,9 +7366,14 @@ function copyDepositTransaction(){
 
                 if(res.error){
 
-                    if(status){
-                        status.textContent = "Failed to load: " + res.error.message;
-                        status.className = "mth-status mth-status-error";
+                    if(!state.loaded){
+                        state.failed = true;
+                        render();
+                        if(status){
+                            status.innerHTML = 'Failed to load: ' + String(res.error.message).replace(/</g, "&lt;") +
+                                ' <button type="button" class="mth-retry" onclick="retryMethods()">Try again</button>';
+                            status.className = "mth-status mth-status-error";
+                        }
                     }
                     return;
 
@@ -7361,6 +7385,7 @@ function copyDepositTransaction(){
 
                 state.values = v;
                 state.loaded = true;
+                state.failed = false;
 
                 if(status){ status.textContent = ""; status.className = "mth-status"; }
 
@@ -7403,6 +7428,7 @@ function copyDepositTransaction(){
         state.values = {};
         state.busy = {};
         state.loaded = false;
+        state.failed = false;
 
         var word = kindWord(state.kind);
 
@@ -7413,7 +7439,7 @@ function copyDepositTransaction(){
             "Changes apply instantly. These switches only affect " + word.toLowerCase() + "s.";
 
         var status = document.getElementById("methodsStatus");
-        status.textContent = "Loading…";
+        status.textContent = "";
         status.className = "mth-status";
 
         render();
@@ -7422,6 +7448,20 @@ function copyDepositTransaction(){
 
         load();
         subscribe();
+
+    };
+
+    window.retryMethods = function(){
+
+        if(!state.kind) return;
+
+        state.failed = false;
+
+        var status = document.getElementById("methodsStatus");
+        if(status){ status.textContent = ""; status.className = "mth-status"; }
+
+        render();
+        load();
 
     };
 
