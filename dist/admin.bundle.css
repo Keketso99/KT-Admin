@@ -1931,6 +1931,8 @@ button{
     background:#FDBA05; color:#fff; font-size:15px; font-weight:700; cursor:pointer;
 }
 .pay-save:disabled{ background:#e5e7eb; color:#9ca3af; cursor:not-allowed; }
+.pay-area{ resize:none; line-height:1.4; font-family:inherit; }
+.pay-area.pay-mono{ font-family:ui-monospace,Menlo,Consolas,monospace; word-break:break-all; }
 
 
 /* ===== css/transactions.css ===== */
