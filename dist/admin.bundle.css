@@ -1373,13 +1373,12 @@ button{
     color:#FDBA05;
 }
 
-.wday-btn:hover{
-    background:#FDBA05;
-    color:#fff;
-}
-
-.wday-btn:hover i{
-    color:#fff;
+/* no gold hover/active colour: the button stays white (it stuck gold on phones after opening a window) */
+.wday-btn:hover,
+.wday-btn:focus,
+.wday-btn:active{
+    background:#fff;
+    color:#444;
 }
 
 .wday-body{
@@ -1445,6 +1444,18 @@ button{
 }
 
 }
+
+
+/* Withdrawal Day window: grey shimmer placeholder while the number loads */
+.wday-loading .wday-input{
+    color:transparent;
+    border-color:transparent;
+    background:linear-gradient(90deg,#eceff3 25%,#f7f8fa 50%,#eceff3 75%);
+    background-size:200% 100%;
+    animation:mthShimmer 1.2s linear infinite;
+}
+.wday-loading .wday-hint{ visibility:hidden; }
+@media (prefers-reduced-motion:reduce){ .wday-loading .wday-input{ animation:none; } }
 
 
 /* ===== css/deposits.css ===== */

@@ -6048,12 +6048,15 @@ function openWithdrawalDays(){
     input.value = "";
     input.disabled = true;
     save.disabled = true;
-    status.textContent = "Loading…";
+    status.textContent = "";
     status.className = "wday-status";
+    if(input.parentElement) input.parentElement.classList.add("wday-loading");
 
     sb.rpc("admin_get_withdrawal_interval")
 
         .then(({ data, error }) => {
+
+            if(input.parentElement) input.parentElement.classList.remove("wday-loading");
 
             if(error){
 
@@ -6074,7 +6077,7 @@ function openWithdrawalDays(){
                 ? "Currently: no waiting period."
                 : "Currently: " + withdrawalDaysLoaded + (withdrawalDaysLoaded === 1 ? " day" : " days") + " between withdrawals.";
 
-            input.focus();
+            // no input.focus(): it would pop the phone keyboard open by itself
 
         });
 
