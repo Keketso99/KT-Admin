@@ -46,6 +46,9 @@
         document.body.appendChild(m);
 
         m.addEventListener("click", function(e){ if(e.target === m) closeMethods(); });
+        document.addEventListener("keydown", function(e){
+            if(e.key === "Escape" && modalEl() && modalEl().style.display === "flex") closeMethods();
+        });
 
         return m;
 
@@ -167,6 +170,7 @@
 
         render();
         m.style.display = "flex";
+        m.scrollTop = 0;
 
         load();
         subscribe();
