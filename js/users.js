@@ -3144,6 +3144,9 @@ if(withdrawBtn){
         phPicked = {};
         clearTimeout(phHold.timer);
         phHold.timer = null;
+        // close the "N selected / Cancel / Delete" bar together with the window
+        phPaintBar();
+        plansHistoryBar.style.display = "none";
     }
 
     function phToggle(id){
@@ -3188,6 +3191,9 @@ if(withdrawBtn){
             if(!currentRow) return;
             phUserId = currentRow.dataset.userid;
             plansHistoryUser.textContent = (currentRow.querySelector("h4") || {}).textContent || "User";
+            phSelecting = false;
+            phPicked = {};
+            phPaintBar();
             plansHistoryModal.style.display = "flex";
             phLoad();
             phLiveStart();
