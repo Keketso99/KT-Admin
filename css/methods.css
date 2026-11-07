@@ -1,0 +1,40 @@
+/* ==================================
+   METHOD SWITCHES (Withdrawals + Deposits)
+================================== */
+.mth-body{ padding:20px; }
+.mth-text{ margin:0 0 16px 0; font-size:14px; line-height:1.5; color:#555; }
+.mth-list{ display:flex; flex-direction:column; gap:10px; }
+.mth-row{
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; border:1px solid #eee; border-radius:14px; background:#fafafa;
+}
+.mth-ico{
+    width:40px; height:40px; border-radius:12px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    background:#fff; color:#FDBA05; font-size:18px; box-shadow:0 1px 6px rgba(0,0,0,.08);
+}
+.mth-info{ flex:1 1 auto; min-width:0; }
+.mth-name{ font-size:15px; font-weight:700; color:#333; }
+.mth-sub{ font-size:12.5px; font-weight:600; margin-top:2px; }
+.mth-open{ color:#16a34a; }
+.mth-closed{ color:#dc2626; }
+.mth-switch{
+    position:relative; flex:0 0 auto; width:50px; height:28px; border:none; outline:none;
+    border-radius:20px; background:#cfcfcf; cursor:pointer; transition:background .2s; padding:0;
+}
+.mth-switch span{
+    position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.3); transition:transform .2s;
+}
+.mth-switch.mth-on{ background:#16a34a; }
+.mth-switch.mth-on span{ transform:translateX(22px); }
+.mth-switch:disabled{ opacity:.6; cursor:not-allowed; }
+.mth-status{ margin:14px 0 0 0; font-size:13px; font-weight:600; color:#1b8ef2; min-height:1px; }
+.mth-status-error{ color:#dc2626; }
+
+/* "Method" button sits next to "Withdrawal Day" on one line */
+.wday-bar{ gap:10px; }
+.deposit-page .wday-bar{ margin-top:0; }
+@media(max-width:768px){
+    .wday-bar .wday-btn{ width:auto; flex:1 1 0; min-width:0; padding:13px 10px; font-size:14px; }
+}
