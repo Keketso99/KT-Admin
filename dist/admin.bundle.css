@@ -1458,6 +1458,27 @@ button{
 @media (prefers-reduced-motion:reduce){ .wday-loading .wday-input{ animation:none; } }
 
 
+/* Withdrawal Day: mode switch + shared cycle */
+.wday-seg{ display:flex; gap:8px; margin:0 0 16px; }
+.wday-seg-btn{ flex:1; padding:11px 8px; border-radius:10px; border:1px solid #ddd; background:#fff; color:#0f2a55; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
+.wday-seg-btn.on{ background:#0f2a55; border-color:#0f2a55; color:#fff; }
+.wday-fields{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.wday-f{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+.wday-f small{ font-size:11px; font-weight:600; color:#777; }
+.wday-num{ text-align:center; padding:10px 4px; }
+.wday-run{ margin:0 0 16px; padding:12px 14px; border-radius:10px; background:#f3f6fb; color:#0f2a55; font-size:14px; font-weight:700; line-height:1.5; }
+.wday-run.open{ background:#ecfdf3; color:#166534; }
+.wday-run.closed{ background:#fef2f2; color:#991b1b; }
+.wday-run small{ display:block; font-weight:600; opacity:.8; }
+.wday-actions{ display:flex; gap:10px; margin-top:14px; }
+.wday-actions button{ flex:1; }
+.wday-note{ margin:12px 0 0; padding:10px 12px; border-radius:10px; background:#fff7ed; color:#9a3412; font-size:13px; font-weight:600; line-height:1.5; }
+.wday-note button{ margin-top:8px; }
+.wday-loading .wday-seg,
+.wday-loading .wday-run{ visibility:hidden; }
+.wday-loading .wday-num{ color:transparent; border-color:transparent; background:linear-gradient(90deg,#eceff3 25%,#f7f8fa 50%,#eceff3 75%); background-size:200% 100%; animation:mthShimmer 1.2s linear infinite; }
+
+
 /* ===== css/deposits.css ===== */
 /* ==================================
    DEPOSIT PAGE

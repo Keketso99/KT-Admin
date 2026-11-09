@@ -155,29 +155,63 @@
                 <button type="button" class="wclose-modal" onclick="closeWithdrawalDays()">×</button>
             </div>
 
-            <div class="wday-body">
-                <p class="wday-text">
-                    A user can send one withdrawal request at a time. After a withdrawal is
-                    <b>approved</b>, the user must wait this many days before the next one.
-                </p>
+            <div class="wday-body" id="wdBody">
+                <div class="wday-seg" id="wdSeg">
+                    <button type="button" class="wday-seg-btn on" id="wdSegPer" onclick="wdSetView('per_user')">Per user</button>
+                    <button type="button" class="wday-seg-btn" id="wdSegAll" onclick="wdSetView('shared')">Same for everyone</button>
+                </div>
 
-                <label class="wday-label" for="withdrawalDaysInput">Days between withdrawals</label>
-                <input
-                    type="number"
-                    id="withdrawalDaysInput"
-                    class="wday-input"
-                    min="0"
-                    max="365"
-                    step="1"
-                    inputmode="numeric"
-                    placeholder="e.g. 15"
-                    disabled>
+                <div id="wdViewPer">
+                    <p class="wday-text">
+                        Each user has their own timer. A user can send one withdrawal request at a time.
+                        After a withdrawal is <b>approved</b>, that user must wait this many days before the next one.
+                    </p>
 
-                <p class="wday-hint">
-                    <b>0</b> = no waiting (still one request at a time).<br>
-                    Changing this does not affect countdowns already running. The new number
-                    applies from each user's next approved withdrawal.
-                </p>
+                    <label class="wday-label" for="withdrawalDaysInput">Days between withdrawals</label>
+                    <input
+                        type="number"
+                        id="withdrawalDaysInput"
+                        class="wday-input"
+                        min="0"
+                        max="365"
+                        step="1"
+                        inputmode="numeric"
+                        placeholder="e.g. 15"
+                        disabled>
+
+                    <p class="wday-hint">
+                        <b>0</b> = no waiting (still one request at a time).<br>
+                        Changing this does not affect countdowns already running. The new number
+                        applies from each user's next approved withdrawal.
+                    </p>
+                    <div id="wdPerNote" class="wday-note" style="display:none"></div>
+                </div>
+
+                <div id="wdViewAll" style="display:none">
+                    <p class="wday-text">
+                        One timer for <b>all users</b>, not tied to anyone's withdrawal. Withdrawals are
+                        <b>open</b> for the open time, then <b>closed</b> for the closed time, and this repeats.
+                        In each open period every user can make one request. Starting it replaces the per user timers.
+                    </p>
+
+                    <div class="wday-run" id="wdRun">Loading…</div>
+
+                    <label class="wday-label">Open time (users can withdraw)</label>
+                    <div class="wday-fields"><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdOD" placeholder="0" disabled><small>Days</small></div><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdOH" placeholder="0" disabled><small>Hours</small></div><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdOM" placeholder="0" disabled><small>Min</small></div><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdOS" placeholder="0" disabled><small>Sec</small></div></div>
+
+                    <label class="wday-label" style="margin-top:14px">Closed time (nobody can withdraw)</label>
+                    <div class="wday-fields"><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdCD" placeholder="0" disabled><small>Days</small></div><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdCH" placeholder="0" disabled><small>Hours</small></div><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdCM" placeholder="0" disabled><small>Min</small></div><div class="wday-f"><input type="number" inputmode="numeric" min="0" step="1" class="wday-input wday-num" id="wdCS" placeholder="0" disabled><small>Sec</small></div></div>
+
+                    <p class="wday-hint">
+                        Start begins with an <b>open</b> period right now. To change the times while it runs,
+                        enter the new times and press Restart. Stop goes back to per user timers.
+                    </p>
+
+                    <div class="wday-actions">
+                        <button type="button" class="approve-btn" id="wdStartBtn" onclick="wdStart(this)" disabled>Start</button>
+                        <button type="button" class="wclose-btn" id="wdStopBtn" onclick="wdStop(this)" style="display:none">Stop</button>
+                    </div>
+                </div>
 
                 <p class="wday-status" id="withdrawalDaysStatus">Loading…</p>
             </div>

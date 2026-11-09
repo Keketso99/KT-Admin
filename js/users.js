@@ -2118,9 +2118,15 @@ if(verifyBtn){
         withdrawWaitActions.innerHTML = '<button class="cancel-btn">Close</button>';
         bindWithdrawWaitClose();
 
-        sb.rpc("admin_get_user_withdrawal_gate", { p_user_id: userId })
+        Promise.all([
+            sb.rpc("admin_get_user_withdrawal_gate", { p_user_id: userId }),
+            sb.rpc("admin_get_withdrawal_cycle").then(function(r){ return r; }, function(){ return { data: null }; })
+        ])
 
-            .then(({ data, error }) => {
+            .then(([gateRes, cycleRes]) => {
+
+                const data = gateRes.data, error = gateRes.error;
+                const shared = !!(cycleRes && cycleRes.data && cycleRes.data.mode === "shared" && cycleRes.data.phase);
 
                 if(token !== withdrawWaitToken) return;
 
@@ -2140,8 +2146,9 @@ if(verifyBtn){
                 }
 
                 if(state !== "waiting"){
-                    withdrawWaitStatus.textContent =
-                        "No waiting period. This user can make a withdrawal now.";
+                    withdrawWaitStatus.textContent = shared
+                        ? "Withdrawals are open for everyone now. This user can make one request in this open period."
+                        : "No waiting period. This user can make a withdrawal now.";
                     return;
                 }
 
@@ -2160,12 +2167,22 @@ if(verifyBtn){
                         renderWithdrawWaitModal();
                         return;
                     }
-                    withdrawWaitStatus.textContent =
-                        "This user is waiting to withdraw again. Time left: " + formatWithdrawWaitLeft(left);
+                    withdrawWaitStatus.textContent = shared
+                        ? (cycleRes.data.phase === "closed"
+                            ? "Withdrawals are closed for everyone. Opens in: "
+                            : "This user already withdrew in this open period. Opens again in: ") + formatWithdrawWaitLeft(left)
+                        : "This user is waiting to withdraw again. Time left: " + formatWithdrawWaitLeft(left);
                 };
 
                 paint();
                 withdrawWaitTimer = setInterval(paint, 1000);
+
+                if(shared){
+                    // the shared timer decides for everyone: nothing to reset for one user
+                    withdrawWaitActions.innerHTML = '<button class="cancel-btn">Close</button>';
+                    bindWithdrawWaitClose();
+                    return;
+                }
 
                 withdrawWaitActions.innerHTML =
                     '<button class="cancel-btn">Close</button>' +

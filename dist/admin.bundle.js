@@ -6056,59 +6056,226 @@ window.addEventListener(
 // =====================================
 
 let withdrawalDaysLoaded = null;
+let wdCycle = null;        // last answer of admin_get_withdrawal_cycle
+let wdOffset = 0;          // server clock minus this device's clock
+let wdView = "per_user";
+let wdTimer = null;
+let wdToken = 0;
+let wdLegacy = false;      // true when the cycle SQL has not been run yet
+
+function wdEl(id){ return document.getElementById(id); }
+
+function wdFmt(ms){
+    if(ms < 0) ms = 0;
+    const t = Math.floor(ms / 1000);
+    const d = Math.floor(t / 86400), h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    const p = n => String(n).padStart(2, "0");
+    return d + "d " + p(h) + ":" + p(m) + ":" + p(s);
+}
+
+function wdLen(secs){
+    secs = Number(secs) || 0;
+    const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    const parts = [];
+    if(d) parts.push(d + (d === 1 ? " day" : " days"));
+    if(h) parts.push(h + (h === 1 ? " hour" : " hours"));
+    if(m) parts.push(m + (m === 1 ? " minute" : " minutes"));
+    if(s || !parts.length) parts.push(s + (s === 1 ? " second" : " seconds"));
+    return parts.join(" ");
+}
+
+function wdSetFields(pfx, secs){
+    secs = Number(secs) || 0;
+    const v = { D: Math.floor(secs / 86400), H: Math.floor((secs % 86400) / 3600), M: Math.floor((secs % 3600) / 60), S: secs % 60 };
+    Object.keys(v).forEach(k => { const el = wdEl(pfx + k); if(el) el.value = String(v[k]); });
+}
+
+// returns seconds, or null when a box is not a whole number >= 0
+function wdReadFields(pfx){
+    let total = 0;
+    const mult = { D: 86400, H: 3600, M: 60, S: 1 };
+    for(const k of ["D", "H", "M", "S"]){
+        const el = wdEl(pfx + k);
+        const raw = el ? String(el.value).trim() : "";
+        if(raw === "") continue;
+        if(!/^\d+$/.test(raw)) return null;
+        total += parseInt(raw, 10) * mult[k];
+    }
+    return total;
+}
+
+function wdStopTimer(){
+    if(wdTimer){ clearInterval(wdTimer); wdTimer = null; }
+}
+
+function wdSetView(view){
+    wdView = view === "shared" ? "shared" : "per_user";
+    const per = wdEl("wdViewPer"), all = wdEl("wdViewAll");
+    if(!per || !all) return;
+    per.style.display = wdView === "per_user" ? "" : "none";
+    all.style.display = wdView === "shared" ? "" : "none";
+    wdEl("wdSegPer").classList.toggle("on", wdView === "per_user");
+    wdEl("wdSegAll").classList.toggle("on", wdView === "shared");
+    const save = wdEl("withdrawalDaysSaveBtn");
+    if(save) save.style.display = wdView === "per_user" ? "" : "none";
+    wdPaintStatus();
+}
+
+function wdRunning(){
+    return !!(wdCycle && wdCycle.mode === "shared" && wdCycle.phase);
+}
+
+function wdPaintStatus(){
+    const status = wdEl("withdrawalDaysStatus");
+    if(!status) return;
+    status.className = "wday-status";
+    if(wdView === "per_user"){
+        status.textContent = withdrawalDaysLoaded === null ? "" :
+            (withdrawalDaysLoaded === 0
+                ? "Saved per user setting: no waiting period."
+                : "Saved per user setting: " + withdrawalDaysLoaded + (withdrawalDaysLoaded === 1 ? " day" : " days") + " between withdrawals.");
+    } else {
+        status.textContent = "";
+    }
+    const note = wdEl("wdPerNote");
+    if(note){
+        if(wdRunning()){
+            note.style.display = "";
+            note.innerHTML = 'The shared timer for everyone is running, so these per user timers are not used right now. Stop it to use per user timers again. ' +
+                '<button type="button" class="wclose-btn" onclick="wdStop(this)">Stop shared timer</button>';
+        } else {
+            note.style.display = "none";
+            note.innerHTML = "";
+        }
+    }
+}
+
+function wdPaintRun(){
+    const run = wdEl("wdRun"), start = wdEl("wdStartBtn"), stop = wdEl("wdStopBtn");
+    if(!run) return;
+    if(wdRunning()){
+        const left = new Date(wdCycle.phase_ends_at).getTime() - (Date.now() + wdOffset);
+        const open = wdCycle.phase === "open";
+        run.className = "wday-run " + (open ? "open" : "closed");
+        run.innerHTML = (open ? "Running: OPEN now" : "Running: CLOSED now") +
+            '<small>' + (open ? "Closes in " : "Opens in ") + wdFmt(left) + '</small>' +
+            '<small>Open ' + wdLen(wdCycle.open_secs) + ' · Closed ' + wdLen(wdCycle.closed_secs) + '</small>';
+        if(start) start.textContent = "Restart";
+        if(stop) stop.style.display = "";
+    } else {
+        run.className = "wday-run";
+        run.textContent = "Not running. Users follow the per user timers.";
+        if(start) start.textContent = "Start";
+        if(stop) stop.style.display = "none";
+    }
+}
+
+function wdStartTimer(){
+    wdStopTimer();
+    let lastAsk = 0;
+    wdTimer = setInterval(function(){
+        const modal = wdEl("withdrawalDaysModal");
+        if(!modal || modal.style.display === "none"){ wdStopTimer(); return; }
+        wdPaintRun();
+        if(wdRunning() && new Date(wdCycle.phase_ends_at).getTime() <= Date.now() + wdOffset && Date.now() - lastAsk > 2000){
+            lastAsk = Date.now();
+            wdLoadCycle(false);
+        }
+    }, 1000);
+}
+
+function wdApplyCycle(c, fillFields){
+    wdCycle = c;
+    wdOffset = new Date(c.server_now).getTime() - Date.now();
+    withdrawalDaysLoaded = Number(c.interval_days) || 0;
+    if(fillFields){
+        wdEl("withdrawalDaysInput").value = String(withdrawalDaysLoaded);
+        wdSetFields("wdO", c.open_secs);
+        wdSetFields("wdC", c.closed_secs);
+    }
+    wdPaintRun();
+    wdPaintStatus();
+    wdStartTimer();
+}
+
+function wdLoadCycle(fillFields){
+    const token = ++wdToken;
+    return sb.rpc("admin_get_withdrawal_cycle").then(({ data, error }) => {
+        if(token !== wdToken) return;
+        if(error) return Promise.reject(error);
+        wdApplyCycle(data, fillFields);
+    });
+}
+
+function wdLockInputs(lock){
+    ["withdrawalDaysInput", "wdOD", "wdOH", "wdOM", "wdOS", "wdCD", "wdCH", "wdCM", "wdCS"].forEach(id => {
+        const el = wdEl(id); if(el) el.disabled = lock;
+    });
+    const save = wdEl("withdrawalDaysSaveBtn"), start = wdEl("wdStartBtn");
+    if(save) save.disabled = lock;
+    if(start) start.disabled = lock;
+}
 
 function openWithdrawalDays(){
 
-    const modal = document.getElementById("withdrawalDaysModal");
-    const input = document.getElementById("withdrawalDaysInput");
-    const save = document.getElementById("withdrawalDaysSaveBtn");
-    const status = document.getElementById("withdrawalDaysStatus");
+    const modal = wdEl("withdrawalDaysModal");
+    const body = wdEl("wdBody");
+    const status = wdEl("withdrawalDaysStatus");
 
-    if(!modal || !input || !save || !status) return;
+    if(!modal || !body || !status) return;
 
     modal.style.display = "flex";
 
-    input.value = "";
-    input.disabled = true;
-    save.disabled = true;
+    wdCycle = null;
+    withdrawalDaysLoaded = null;
+    wdLegacy = false;
+    wdEl("withdrawalDaysInput").value = "";
+    ["wdO", "wdC"].forEach(p => ["D", "H", "M", "S"].forEach(k => { wdEl(p + k).value = ""; }));
+    wdLockInputs(true);
     status.textContent = "";
     status.className = "wday-status";
-    if(input.parentElement) input.parentElement.classList.add("wday-loading");
+    wdEl("wdSeg").style.display = "";
+    wdSetView("per_user");
+    wdEl("wdRun").textContent = "Loading…";
+    body.classList.add("wday-loading");
 
-    sb.rpc("admin_get_withdrawal_interval")
+    wdLoadCycle(true)
 
-        .then(({ data, error }) => {
-
-            if(input.parentElement) input.parentElement.classList.remove("wday-loading");
-
-            if(error){
-
-                status.textContent = "Failed to load: " + error.message;
-                status.className = "wday-status wday-status-error";
-
-                return;
-
-            }
-
-            withdrawalDaysLoaded = Number(data) || 0;
-
-            input.value = String(withdrawalDaysLoaded);
-            input.disabled = false;
-            save.disabled = false;
-
-            status.textContent = withdrawalDaysLoaded === 0
-                ? "Currently: no waiting period."
-                : "Currently: " + withdrawalDaysLoaded + (withdrawalDaysLoaded === 1 ? " day" : " days") + " between withdrawals.";
-
+        .then(() => {
+            body.classList.remove("wday-loading");
+            wdLockInputs(false);
+            wdSetView(wdRunning() ? "shared" : "per_user");
             // no input.focus(): it would pop the phone keyboard open by itself
+        })
 
+        .catch(error => {
+            // the shared-timer SQL is not installed yet: fall back to the per user setting only
+            sb.rpc("admin_get_withdrawal_interval").then(({ data, error: err2 }) => {
+                body.classList.remove("wday-loading");
+                if(err2){
+                    status.textContent = "Failed to load: " + err2.message;
+                    status.className = "wday-status wday-status-error";
+                    return;
+                }
+                wdLegacy = true;
+                withdrawalDaysLoaded = Number(data) || 0;
+                wdEl("withdrawalDaysInput").value = String(withdrawalDaysLoaded);
+                wdEl("wdSeg").style.display = "none";
+                wdLockInputs(true);
+                wdEl("withdrawalDaysInput").disabled = false;
+                wdEl("withdrawalDaysSaveBtn").disabled = false;
+                wdSetView("per_user");
+            });
         });
 
 }
 
 function closeWithdrawalDays(){
 
-    const modal = document.getElementById("withdrawalDaysModal");
+    const modal = wdEl("withdrawalDaysModal");
+
+    wdStopTimer();
+    wdToken++;
 
     if(modal){
         modal.style.display = "none";
@@ -6120,8 +6287,8 @@ function saveWithdrawalDays(button){
 
     if(window.KTPerm && !KTPerm.require("change the withdrawal interval")) return;
 
-    const input = document.getElementById("withdrawalDaysInput");
-    const status = document.getElementById("withdrawalDaysStatus");
+    const input = wdEl("withdrawalDaysInput");
+    const status = wdEl("withdrawalDaysStatus");
 
     if(!input) return;
 
@@ -6159,23 +6326,95 @@ function saveWithdrawalDays(button){
             }
 
             withdrawalDaysLoaded = days;
-
-            if(status){
-                status.className = "wday-status";
-                status.textContent = days === 0
-                    ? "Currently: no waiting period."
-                    : "Currently: " + days + (days === 1 ? " day" : " days") + " between withdrawals.";
-            }
+            if(wdCycle) wdCycle.interval_days = days;
 
             closeWithdrawalDays();
 
             KTUI.success(
-                days === 0
-                    ? "Saved. Users can withdraw without waiting (one request at a time)."
-                    : "Saved. Users wait " + days + (days === 1 ? " day" : " days") + " after an approved withdrawal."
+                wdRunning()
+                    ? "Saved. It will be used when you stop the shared timer."
+                    : (days === 0
+                        ? "Saved. Users can withdraw without waiting (one request at a time)."
+                        : "Saved. Users wait " + days + (days === 1 ? " day" : " days") + " after an approved withdrawal.")
             );
 
         });
+
+}
+
+function wdStart(button){
+
+    if(window.KTPerm && !KTPerm.require("change the withdrawal schedule")) return;
+
+    const open = wdReadFields("wdO");
+    const closed = wdReadFields("wdC");
+
+    if(open === null || closed === null){
+        KTUI.warning("Use whole numbers only (0 or more) in the time boxes.");
+        return;
+    }
+    if(open < 1 || closed < 1){
+        KTUI.warning("Open time and closed time must each be at least 1 second.");
+        return;
+    }
+    if(open > 31536000 || closed > 31536000){
+        KTUI.warning("Open time and closed time can each be at most 365 days.");
+        return;
+    }
+
+    const again = wdRunning();
+
+    KTUI.confirm(
+        (again ? "Restart the shared timer for everyone?" : "Start the shared timer for everyone?") +
+        "\n\nOpen: " + wdLen(open) + "\nClosed: " + wdLen(closed) +
+        "\n\nWithdrawals open for all users right now. After the open time they close for everyone, and the cycle repeats. " +
+        "In each open period a user can make one request. This replaces the per user timers until you stop it.",
+        {
+            title: again ? "Restart shared timer" : "Start shared timer",
+            confirmText: again ? "Restart" : "Start",
+            busyText: again ? "Restarting..." : "Starting...",
+            run: function(){
+                return sb.rpc("admin_start_withdrawal_cycle", { p_open_secs: open, p_closed_secs: closed })
+                    .then(function(res){
+                        if(res.error) return res.error.message;
+                        wdApplyCycle(res.data, false);
+                        wdSetView("shared");
+                        return null;
+                    });
+            }
+        }
+    ).then(function(ok){
+        if(ok) KTUI.success(again ? "Shared timer restarted. Withdrawals are open now." : "Shared timer started. Withdrawals are open now.");
+    });
+
+}
+
+function wdStop(button){
+
+    if(window.KTPerm && !KTPerm.require("change the withdrawal schedule")) return;
+
+    KTUI.confirm(
+        "Stop the shared timer?\n\nThe per user timers are used again (" +
+        (withdrawalDaysLoaded === 0 ? "no waiting" : withdrawalDaysLoaded + (withdrawalDaysLoaded === 1 ? " day" : " days") + " between withdrawals") +
+        "). Users can make requests under those rules straight away.",
+        {
+            title: "Stop shared timer",
+            confirmText: "Stop",
+            busyText: "Stopping...",
+            danger: true,
+            run: function(){
+                return sb.rpc("admin_stop_withdrawal_cycle")
+                    .then(function(res){
+                        if(res.error) return res.error.message;
+                        wdApplyCycle(res.data, false);
+                        wdSetView("per_user");
+                        return null;
+                    });
+            }
+        }
+    ).then(function(ok){
+        if(ok) KTUI.success("Shared timer stopped. Per user timers are used again.");
+    });
 
 }
 
@@ -10795,9 +11034,15 @@ if(verifyBtn){
         withdrawWaitActions.innerHTML = '<button class="cancel-btn">Close</button>';
         bindWithdrawWaitClose();
 
-        sb.rpc("admin_get_user_withdrawal_gate", { p_user_id: userId })
+        Promise.all([
+            sb.rpc("admin_get_user_withdrawal_gate", { p_user_id: userId }),
+            sb.rpc("admin_get_withdrawal_cycle").then(function(r){ return r; }, function(){ return { data: null }; })
+        ])
 
-            .then(({ data, error }) => {
+            .then(([gateRes, cycleRes]) => {
+
+                const data = gateRes.data, error = gateRes.error;
+                const shared = !!(cycleRes && cycleRes.data && cycleRes.data.mode === "shared" && cycleRes.data.phase);
 
                 if(token !== withdrawWaitToken) return;
 
@@ -10817,8 +11062,9 @@ if(verifyBtn){
                 }
 
                 if(state !== "waiting"){
-                    withdrawWaitStatus.textContent =
-                        "No waiting period. This user can make a withdrawal now.";
+                    withdrawWaitStatus.textContent = shared
+                        ? "Withdrawals are open for everyone now. This user can make one request in this open period."
+                        : "No waiting period. This user can make a withdrawal now.";
                     return;
                 }
 
@@ -10837,12 +11083,22 @@ if(verifyBtn){
                         renderWithdrawWaitModal();
                         return;
                     }
-                    withdrawWaitStatus.textContent =
-                        "This user is waiting to withdraw again. Time left: " + formatWithdrawWaitLeft(left);
+                    withdrawWaitStatus.textContent = shared
+                        ? (cycleRes.data.phase === "closed"
+                            ? "Withdrawals are closed for everyone. Opens in: "
+                            : "This user already withdrew in this open period. Opens again in: ") + formatWithdrawWaitLeft(left)
+                        : "This user is waiting to withdraw again. Time left: " + formatWithdrawWaitLeft(left);
                 };
 
                 paint();
                 withdrawWaitTimer = setInterval(paint, 1000);
+
+                if(shared){
+                    // the shared timer decides for everyone: nothing to reset for one user
+                    withdrawWaitActions.innerHTML = '<button class="cancel-btn">Close</button>';
+                    bindWithdrawWaitClose();
+                    return;
+                }
 
                 withdrawWaitActions.innerHTML =
                     '<button class="cancel-btn">Close</button>' +
@@ -22631,8 +22887,8 @@ var KT_MANUAL_TOPICS = [
       a: "Sign in with your admin email and password. To install the app, use your browser's Install or Add to Home screen option." },
     { k: [["not","authorized"],["not","allowed"],["cant"],["can't"],["cannot"]],
       a: "If the app says you are not authorized to do something, that action is not available to your account." },
-    { k: [["withdrawal","day"],["days","between","withdrawals"],["waiting","days"],["withdrawal","wait"]],
-      a: "Withdrawal Day sets how many days a user must wait after an approved withdrawal before the next one.\n1. Open Finance > Withdrawals.\n2. Tap Withdrawal Day.\n3. Enter the number of days (0 to 365). 0 means no waiting, but a user can still send only one request at a time.\n4. Tap Save.\nCountdowns already running are not changed. The new number applies from each user's next approved withdrawal." },
+    { k: [["withdrawal","day"],["days","between","withdrawals"],["waiting","days"],["withdrawal","wait"],["same","for","everyone"],["shared","timer"],["open","closed","timer"],["withdrawal","timer"],["withdrawal","schedule"],["open","time"],["closed","time"]],
+      a: "Withdrawal Day (Finance > Withdrawals > Withdrawal Day) has two modes:\n\nPer user: each user has their own timer. After a user's withdrawal is approved, that user waits the number of days you set (0 to 365) before the next one. Enter the days and tap Save. 0 means no waiting, but a user can still send only one request at a time.\n\nSame for everyone: one shared timer for all users, not tied to anyone's withdrawal. Enter an Open time and a Closed time (days, hours, minutes, seconds), then tap Start. Withdrawals open for everyone right away for the open time, then close for everyone for the closed time, and this repeats. In each open period a user can make one request (a rejected request can be sent again). Start replaces the per user timers. To change the times, enter new ones and tap Restart (it starts again with an open period). Tap Stop to go back to the per user timers.\n\nChanging the per user days does not affect countdowns already running. Only the main admin can change this." },
     { k: [["method","switch"],["close","method"],["open","method"],["turn","method"],["disable","method"],["enable","method"],["switch","off","method"],["method","button"],["method","closed"],["switch","off"],["turn","off","deposits"],["turn","off","withdrawals"],["close","deposits"],["close","withdrawals"]],
       a: "To open or close a method (USDT, M-Pesa, EcoCash):\n1. Open Finance > Withdrawals or Finance > Deposits.\n2. Tap Method.\n3. Use the switch next to the method. On means open, off means closed.\nThe withdrawal and deposit switches are separate. When a method is off, users see that it is closed and cannot continue with it. Requests already sent are not affected." },
     { k: [["payment","details"],["payments","button"],["change","address"],["usdt","address"],["till","number"],["merchant","code"],["change","title"],["edit","payment"],["deposit","details"]],
