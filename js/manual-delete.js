@@ -18,6 +18,10 @@
         { k: "security",      label: "Security log",  one: "security event", note: "Only the Security log in Settings." },
         { k: "activity",      label: "Activity log",  one: "activity record", note: "Only the Activity log page. Notifications are not touched." }
     ];
+    var DASH_KINDS = [
+        { k: "withdrawals", label: "Total withdrawals" },
+        { k: "deposits",    label: "Total deposits" }
+    ];
     var HOLD_MS = 500;
     var PAGE_SIZE = 40;
 
@@ -37,7 +41,8 @@
     function mount(el, helpers){
         root = el;
         api = helpers;
-        M = { page: "deposits", rows: [], hasMore: false, selecting: false, picked: {}, loading: false, last: null };
+        M = { page: "deposits", rows: [], hasMore: false, selecting: false, picked: {}, loading: false, last: null,
+              dash: { kind: null, totals: null, total: null, rows: null, err: null, busy: false } };
         paintShell();
         bind();
         loadList(true);
@@ -45,7 +50,7 @@
 
     function paintShell(){
         root.innerHTML =
-            '<div class="kt-set-card muted"><p class="kt-set-hint" style="margin:0">Delete records of one page at a time. ' +
+            '<div class="kt-set-card muted" id="mdIntro"><p class="kt-set-hint" style="margin:0">Delete records of one page at a time. ' +
             'Deleting records here <b>never</b> changes another page, wallet balances or the Dashboard totals. Deleted records cannot be restored.</p></div>' +
             '<div id="mdTabs" class="md-tabs"></div>' +
             '<div id="mdBody"></div>';
@@ -54,12 +59,15 @@
     }
 
     function paintTabs(){
-        $("#mdTabs").innerHTML = PAGES.map(function(p){
+        $("#mdTabs").innerHTML = PAGES.concat([{ k: "dashboard", label: "Dashboard" }]).map(function(p){
             return '<button type="button" class="md-tab' + (p.k === M.page ? ' on' : '') + '" data-md="tab" data-k="' + p.k + '">' + p.label + '</button>';
         }).join("");
     }
 
     function paintBody(){
+        var intro = $("#mdIntro");
+        if(intro) intro.style.display = M.page === "dashboard" ? "none" : "";
+        if(M.page === "dashboard"){ paintDash(); return; }
         var p = page();
         $("#mdBody").innerHTML =
             '<div class="kt-set-card">' +
@@ -211,8 +219,12 @@
         var act = t.getAttribute("data-md");
         if(act === "tab"){
             M.page = t.getAttribute("data-k");
-            paintTabs(); paintBody(); loadList(true);
+            paintTabs(); paintBody();
+            if(M.page === "dashboard"){ M.selecting = false; M.picked = {}; loadDash(); }
+            else loadList(true);
         }
+        else if(act === "dkind"){ M.dash.kind = t.getAttribute("data-k"); M.dash.rows = null; M.dash.err = null; paintDash(); loadDash(); }
+        else if(act === "dded"){ deductDash(t); }
         else if(act === "days"){ var i = $("#mdDays"); if(i) i.value = t.getAttribute("data-d"); }
         else if(act === "bydays"){ deleteByDays(t); }
         else if(act === "more"){ loadList(false); }
@@ -229,6 +241,103 @@
         ["pointerup", "pointercancel", "pointerleave"].forEach(function(ev){ root.addEventListener(ev, clearHold); });
         root.addEventListener("contextmenu", function(e){ if(e.target.closest(".md-row")) e.preventDefault(); });
         root.addEventListener("click", onClick);
+    }
+
+
+    // -------------------------------------------------------
+    // DASHBOARD (reduce the Dashboard totals by an amount)
+    // -------------------------------------------------------
+    function dashLabel(k){ return k === "deposits" ? "deposits" : "withdrawals"; }
+
+    function paintDash(){
+        var D = M.dash;
+        var html =
+            '<div class="kt-set-card muted"><p class="kt-set-hint" style="margin:0">Reduce the <b>Total Deposits</b> or <b>Total Withdrawals</b> shown on the Dashboard by an amount. ' +
+            'Only the Dashboard totals change. Deposits, withdrawals, transactions and wallets are not touched. A reduction cannot be undone.</p></div>' +
+            '<div class="md-tabs">' + DASH_KINDS.map(function(x){
+                return '<button type="button" class="md-tab' + (D.kind === x.k ? ' on' : '') + '" data-md="dkind" data-k="' + x.k + '">' + x.label + '</button>';
+            }).join("") + '</div>';
+        if(!D.kind){
+            html += '<div class="kt-set-card"><p class="kt-set-hint" style="margin:0">Choose <b>Total withdrawals</b> or <b>Total deposits</b> above.</p>' +
+                (D.totals ? '<p class="kt-set-hint" style="margin:8px 0 0">Withdrawals now: <b>' + api.esc(api.rand(D.totals.withdrawals)) + '</b><br>Deposits now: <b>' + api.esc(api.rand(D.totals.deposits)) + '</b></p>' : '') +
+                (D.err ? '<p class="kt-set-error">' + api.esc(D.err) + '</p>' : '') + '</div>';
+        } else {
+            var nm = dashLabel(D.kind);
+            html +=
+                '<div class="kt-set-card">' +
+                    '<h3><i class="fa-solid fa-minus-circle"></i> Reduce total ' + nm + '</h3>' +
+                    '<p class="kt-set-hint" style="margin:0 0 6px">Current Dashboard total: <b>' + (D.total === null ? '...' : api.esc(api.rand(D.total))) + '</b></p>' +
+                    '<label>Amount to deduct</label>' +
+                    '<input class="kt-set-input" id="mdDedAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00">' +
+                    '<p class="kt-set-hint" style="margin:6px 0 10px">It must be more than 0 and cannot be more than the current total.</p>' +
+                    (D.err ? '<p class="kt-set-error">' + api.esc(D.err) + '</p>' : '') +
+                    '<button class="kt-set-btn danger" id="mdDedBtn" data-md="dded"' + (D.total === null ? ' disabled' : '') + '><i class="fa-solid fa-minus"></i> Check and deduct</button>' +
+                '</div>' +
+                '<div class="kt-set-card">' +
+                    '<h3><i class="fa-solid fa-clock-rotate-left"></i> History</h3>' +
+                    '<div id="mdDedHist">' + dashHistory() + '</div>' +
+                '</div>';
+        }
+        $("#mdBody").innerHTML = html;
+        var b = $("#mdBar"); if(b) b.innerHTML = '';
+    }
+
+    function dashHistory(){
+        var D = M.dash;
+        if(D.rows === null) return '<div class="kt-set-empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading...</p></div>';
+        if(!D.rows.length) return '<div class="kt-set-empty"><i class="fa-regular fa-folder-open"></i><p>No deductions yet.</p></div>';
+        return D.rows.map(function(r){
+            return '<div class="md-row" style="cursor:default">' +
+                '<span class="md-main"><b style="text-transform:none">- ' + api.esc(api.rand(r.amount)) + '</b>' +
+                '<small>' + api.esc(api.rand(r.total_before)) + ' to ' + api.esc(api.rand(r.total_after)) + '</small>' +
+                '<small>' + api.esc(r.admin_name || 'Admin') + ' · ' + api.esc(api.dt(r.created_at)) + '</small></span>' +
+            '</div>';
+        }).join("");
+    }
+
+    function loadDash(){
+        var D = M.dash, kind = D.kind;
+        if(!kind){
+            api.guarded("admin_dashboard_totals").then(function(d){
+                if(M.page !== "dashboard" || M.dash.kind) return;
+                D.totals = d; D.err = null; paintDash();
+            }).catch(function(e){ if(M.page !== "dashboard" || M.dash.kind) return; D.err = e.message; paintDash(); });
+            return;
+        }
+        D.total = null; D.rows = null; paintDash();
+        api.guarded("admin_dashboard_deductions", { p_kind: kind }).then(function(d){
+            if(M.page !== "dashboard" || M.dash.kind !== kind) return;
+            D.total = Number(d.total) || 0; D.rows = d.rows || []; D.err = null; paintDash();
+        }).catch(function(e){
+            if(M.page !== "dashboard" || M.dash.kind !== kind) return;
+            D.rows = []; D.total = null; D.err = e.message; paintDash();
+        });
+    }
+
+    function deductDash(btn){
+        if(window.KTPerm && !KTPerm.require("reduce the Dashboard totals")) return;
+        var D = M.dash, kind = D.kind;
+        if(!kind || D.total === null) return;
+        var inp = $("#mdDedAmt");
+        var amt = Math.round(parseFloat(inp && inp.value) * 100) / 100;
+        if(!(amt > 0)){ KTUI.warning("Enter an amount bigger than 0."); return; }
+        if(amt > D.total){ KTUI.warning("The amount cannot be more than the current total (" + api.rand(D.total) + ")."); return; }
+        var nm = dashLabel(kind);
+        var msg = "Reduce the Dashboard total " + nm + "?\n\nCurrent total: " + api.rand(D.total) +
+            "\nDeduct: " + api.rand(amt) + "\nNew total: " + api.rand(Math.round((D.total - amt) * 100) / 100) +
+            "\n\nOnly the Dashboard number changes. This cannot be undone.";
+        KTUI.confirm(msg, {
+            title: "Reduce total " + nm, danger: true, confirmText: "Deduct", busyText: "Deducting...",
+            run: function(){
+                return api.guarded("admin_dashboard_deduct", { p_kind: kind, p_amount: amt }).then(function(res){
+                    M.dedResult = res; return null;
+                }, function(e){ return e.message; });
+            }
+        }).then(function(ok){
+            if(!ok) return;
+            KTUI.success("Dashboard total " + nm + " reduced by " + api.rand(M.dedResult.amount) + ".");
+            if(M.page === "dashboard" && M.dash.kind === kind) loadDash();
+        });
     }
 
     // -------------------------------------------------------

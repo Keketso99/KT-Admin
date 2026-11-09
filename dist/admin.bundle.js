@@ -20642,6 +20642,10 @@ document.addEventListener("click", function(event) {
         { k: "security",      label: "Security log",  one: "security event", note: "Only the Security log in Settings." },
         { k: "activity",      label: "Activity log",  one: "activity record", note: "Only the Activity log page. Notifications are not touched." }
     ];
+    var DASH_KINDS = [
+        { k: "withdrawals", label: "Total withdrawals" },
+        { k: "deposits",    label: "Total deposits" }
+    ];
     var HOLD_MS = 500;
     var PAGE_SIZE = 40;
 
@@ -20661,7 +20665,8 @@ document.addEventListener("click", function(event) {
     function mount(el, helpers){
         root = el;
         api = helpers;
-        M = { page: "deposits", rows: [], hasMore: false, selecting: false, picked: {}, loading: false, last: null };
+        M = { page: "deposits", rows: [], hasMore: false, selecting: false, picked: {}, loading: false, last: null,
+              dash: { kind: null, totals: null, total: null, rows: null, err: null, busy: false } };
         paintShell();
         bind();
         loadList(true);
@@ -20669,7 +20674,7 @@ document.addEventListener("click", function(event) {
 
     function paintShell(){
         root.innerHTML =
-            '<div class="kt-set-card muted"><p class="kt-set-hint" style="margin:0">Delete records of one page at a time. ' +
+            '<div class="kt-set-card muted" id="mdIntro"><p class="kt-set-hint" style="margin:0">Delete records of one page at a time. ' +
             'Deleting records here <b>never</b> changes another page, wallet balances or the Dashboard totals. Deleted records cannot be restored.</p></div>' +
             '<div id="mdTabs" class="md-tabs"></div>' +
             '<div id="mdBody"></div>';
@@ -20678,12 +20683,15 @@ document.addEventListener("click", function(event) {
     }
 
     function paintTabs(){
-        $("#mdTabs").innerHTML = PAGES.map(function(p){
+        $("#mdTabs").innerHTML = PAGES.concat([{ k: "dashboard", label: "Dashboard" }]).map(function(p){
             return '<button type="button" class="md-tab' + (p.k === M.page ? ' on' : '') + '" data-md="tab" data-k="' + p.k + '">' + p.label + '</button>';
         }).join("");
     }
 
     function paintBody(){
+        var intro = $("#mdIntro");
+        if(intro) intro.style.display = M.page === "dashboard" ? "none" : "";
+        if(M.page === "dashboard"){ paintDash(); return; }
         var p = page();
         $("#mdBody").innerHTML =
             '<div class="kt-set-card">' +
@@ -20835,8 +20843,12 @@ document.addEventListener("click", function(event) {
         var act = t.getAttribute("data-md");
         if(act === "tab"){
             M.page = t.getAttribute("data-k");
-            paintTabs(); paintBody(); loadList(true);
+            paintTabs(); paintBody();
+            if(M.page === "dashboard"){ M.selecting = false; M.picked = {}; loadDash(); }
+            else loadList(true);
         }
+        else if(act === "dkind"){ M.dash.kind = t.getAttribute("data-k"); M.dash.rows = null; M.dash.err = null; paintDash(); loadDash(); }
+        else if(act === "dded"){ deductDash(t); }
         else if(act === "days"){ var i = $("#mdDays"); if(i) i.value = t.getAttribute("data-d"); }
         else if(act === "bydays"){ deleteByDays(t); }
         else if(act === "more"){ loadList(false); }
@@ -20853,6 +20865,103 @@ document.addEventListener("click", function(event) {
         ["pointerup", "pointercancel", "pointerleave"].forEach(function(ev){ root.addEventListener(ev, clearHold); });
         root.addEventListener("contextmenu", function(e){ if(e.target.closest(".md-row")) e.preventDefault(); });
         root.addEventListener("click", onClick);
+    }
+
+
+    // -------------------------------------------------------
+    // DASHBOARD (reduce the Dashboard totals by an amount)
+    // -------------------------------------------------------
+    function dashLabel(k){ return k === "deposits" ? "deposits" : "withdrawals"; }
+
+    function paintDash(){
+        var D = M.dash;
+        var html =
+            '<div class="kt-set-card muted"><p class="kt-set-hint" style="margin:0">Reduce the <b>Total Deposits</b> or <b>Total Withdrawals</b> shown on the Dashboard by an amount. ' +
+            'Only the Dashboard totals change. Deposits, withdrawals, transactions and wallets are not touched. A reduction cannot be undone.</p></div>' +
+            '<div class="md-tabs">' + DASH_KINDS.map(function(x){
+                return '<button type="button" class="md-tab' + (D.kind === x.k ? ' on' : '') + '" data-md="dkind" data-k="' + x.k + '">' + x.label + '</button>';
+            }).join("") + '</div>';
+        if(!D.kind){
+            html += '<div class="kt-set-card"><p class="kt-set-hint" style="margin:0">Choose <b>Total withdrawals</b> or <b>Total deposits</b> above.</p>' +
+                (D.totals ? '<p class="kt-set-hint" style="margin:8px 0 0">Withdrawals now: <b>' + api.esc(api.rand(D.totals.withdrawals)) + '</b><br>Deposits now: <b>' + api.esc(api.rand(D.totals.deposits)) + '</b></p>' : '') +
+                (D.err ? '<p class="kt-set-error">' + api.esc(D.err) + '</p>' : '') + '</div>';
+        } else {
+            var nm = dashLabel(D.kind);
+            html +=
+                '<div class="kt-set-card">' +
+                    '<h3><i class="fa-solid fa-minus-circle"></i> Reduce total ' + nm + '</h3>' +
+                    '<p class="kt-set-hint" style="margin:0 0 6px">Current Dashboard total: <b>' + (D.total === null ? '...' : api.esc(api.rand(D.total))) + '</b></p>' +
+                    '<label>Amount to deduct</label>' +
+                    '<input class="kt-set-input" id="mdDedAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00">' +
+                    '<p class="kt-set-hint" style="margin:6px 0 10px">It must be more than 0 and cannot be more than the current total.</p>' +
+                    (D.err ? '<p class="kt-set-error">' + api.esc(D.err) + '</p>' : '') +
+                    '<button class="kt-set-btn danger" id="mdDedBtn" data-md="dded"' + (D.total === null ? ' disabled' : '') + '><i class="fa-solid fa-minus"></i> Check and deduct</button>' +
+                '</div>' +
+                '<div class="kt-set-card">' +
+                    '<h3><i class="fa-solid fa-clock-rotate-left"></i> History</h3>' +
+                    '<div id="mdDedHist">' + dashHistory() + '</div>' +
+                '</div>';
+        }
+        $("#mdBody").innerHTML = html;
+        var b = $("#mdBar"); if(b) b.innerHTML = '';
+    }
+
+    function dashHistory(){
+        var D = M.dash;
+        if(D.rows === null) return '<div class="kt-set-empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading...</p></div>';
+        if(!D.rows.length) return '<div class="kt-set-empty"><i class="fa-regular fa-folder-open"></i><p>No deductions yet.</p></div>';
+        return D.rows.map(function(r){
+            return '<div class="md-row" style="cursor:default">' +
+                '<span class="md-main"><b style="text-transform:none">- ' + api.esc(api.rand(r.amount)) + '</b>' +
+                '<small>' + api.esc(api.rand(r.total_before)) + ' to ' + api.esc(api.rand(r.total_after)) + '</small>' +
+                '<small>' + api.esc(r.admin_name || 'Admin') + ' · ' + api.esc(api.dt(r.created_at)) + '</small></span>' +
+            '</div>';
+        }).join("");
+    }
+
+    function loadDash(){
+        var D = M.dash, kind = D.kind;
+        if(!kind){
+            api.guarded("admin_dashboard_totals").then(function(d){
+                if(M.page !== "dashboard" || M.dash.kind) return;
+                D.totals = d; D.err = null; paintDash();
+            }).catch(function(e){ if(M.page !== "dashboard" || M.dash.kind) return; D.err = e.message; paintDash(); });
+            return;
+        }
+        D.total = null; D.rows = null; paintDash();
+        api.guarded("admin_dashboard_deductions", { p_kind: kind }).then(function(d){
+            if(M.page !== "dashboard" || M.dash.kind !== kind) return;
+            D.total = Number(d.total) || 0; D.rows = d.rows || []; D.err = null; paintDash();
+        }).catch(function(e){
+            if(M.page !== "dashboard" || M.dash.kind !== kind) return;
+            D.rows = []; D.total = null; D.err = e.message; paintDash();
+        });
+    }
+
+    function deductDash(btn){
+        if(window.KTPerm && !KTPerm.require("reduce the Dashboard totals")) return;
+        var D = M.dash, kind = D.kind;
+        if(!kind || D.total === null) return;
+        var inp = $("#mdDedAmt");
+        var amt = Math.round(parseFloat(inp && inp.value) * 100) / 100;
+        if(!(amt > 0)){ KTUI.warning("Enter an amount bigger than 0."); return; }
+        if(amt > D.total){ KTUI.warning("The amount cannot be more than the current total (" + api.rand(D.total) + ")."); return; }
+        var nm = dashLabel(kind);
+        var msg = "Reduce the Dashboard total " + nm + "?\n\nCurrent total: " + api.rand(D.total) +
+            "\nDeduct: " + api.rand(amt) + "\nNew total: " + api.rand(Math.round((D.total - amt) * 100) / 100) +
+            "\n\nOnly the Dashboard number changes. This cannot be undone.";
+        KTUI.confirm(msg, {
+            title: "Reduce total " + nm, danger: true, confirmText: "Deduct", busyText: "Deducting...",
+            run: function(){
+                return api.guarded("admin_dashboard_deduct", { p_kind: kind, p_amount: amt }).then(function(res){
+                    M.dedResult = res; return null;
+                }, function(e){ return e.message; });
+            }
+        }).then(function(ok){
+            if(!ok) return;
+            KTUI.success("Dashboard total " + nm + " reduced by " + api.rand(M.dedResult.amount) + ".");
+            if(M.page === "dashboard" && M.dash.kind === kind) loadDash();
+        });
     }
 
     // -------------------------------------------------------
@@ -22481,7 +22590,7 @@ var KT_MANUAL_TOPICS = [
     { k: [["edit","user"],["change","request"],["personal","information"],["payment","method"]],
       a: "To handle a user's change request (personal info or payment methods): Users > set the filter to Requests > tap the user > Approve Changes or Reject. To edit a user yourself: tap the user > Edit User > Save." },
     { k: [["delete","user"],["remove","user"]],
-      a: "To delete a user: Users > tap the user > Delete > confirm. If the app says you are not authorized, this action is not available to your account." },
+      a: "To delete a user: Users > tap the user > Delete > confirm. The user is moved to the Trash, nothing is erased yet. Their deposits, withdrawals, transactions and plans stay in the other pages and in the Dashboard totals. To bring them back or erase them for good, open Settings > Trash. If the app says you are not authorized, this action is not available to your account." },
     { k: [["find","user"],["search","user"],["filter","user"],["users","page"]],
       a: "Users page: use the search box and the filter (All, Active, Blocked, Requests). Tap Refresh to reload. Tap any user to open their window with all actions." },
     { k: [["verify","user"],["kyc"],["verification"],["approve","verification"],["documents"]],
@@ -22508,22 +22617,44 @@ var KT_MANUAL_TOPICS = [
       a: "Settings opens with the settings password. If it has not been created yet, you will see a message saying so. To change it: Settings > Safety > Change password." },
     { k: [["sound"],["alert"],["push"],["notifications","off"],["notifications","on"],["mute"]],
       a: "To turn alert sound or device notifications on or off: Settings > Sound & Notifications." },
-    { k: [["login","history"],["audit"],["login","record"]],
-      a: "Settings > Audit shows login history. Delete options may not be available to your account." },
+    { k: [["login","history"],["audit"],["login","record"],["profit","loss"]],
+      a: "Settings > Audit has profit and loss balancing, a spreadsheet download, and delete audit records. Deleting audit records only affects the audit, not deposits, withdrawals or wallets. Sign-ins and security events are in Settings > Security log. Delete options may not be available to your account." },
     { k: [["activity"],["log"],["history"]],
       a: "Activity Logs lists the actions taken in the app. Tap an entry to see Activity Details. Use search and filters to find entries." },
     { k: [["media"],["video"],["guide"],["download"],["upload"]],
-      a: "Media has tabs: Overview, Videos, Guides and Downloads. Use the Add button in a tab to upload an item, tap an item to edit or delete it, and use the search and filters to find items." },
+      a: "Media has tabs: Overview, Videos, Guides and Downloads. In Guides and Downloads, use the Add button to upload an item, tap an item to edit or delete it, and use the search and filters to find items. The Videos tab is read-only: videos can no longer be added, edited or deleted, because the lessons in the user app are now built into the app." },
     { k: [["dashboard"],["total","users"],["overview"]],
-      a: "The Dashboard shows overview cards. Total users counts users only (admins are not included)." },
+      a: "The Dashboard shows overview cards: total users (users only, admins are not included), active plans, Total Deposits and Total Withdrawals. The two money totals keep counting approved deposits and withdrawals even after you delete those records. To lower a total by an amount, use Settings > Manual delete > Dashboard." },
     { k: [["logout"],["log","out"],["sign","out"]],
       a: "To log out: open the menu and tap Logout at the bottom of the sidebar, then tap Confirm." },
     { k: [["login"],["sign","in"],["forgot","my"],["install"],["home","screen"]],
       a: "Sign in with your admin email and password. To install the app, use your browser's Install or Add to Home screen option." },
     { k: [["not","authorized"],["not","allowed"],["cant"],["can't"],["cannot"]],
       a: "If the app says you are not authorized to do something, that action is not available to your account." },
+    { k: [["withdrawal","day"],["days","between","withdrawals"],["waiting","days"],["withdrawal","wait"]],
+      a: "Withdrawal Day sets how many days a user must wait after an approved withdrawal before the next one.\n1. Open Finance > Withdrawals.\n2. Tap Withdrawal Day.\n3. Enter the number of days (0 to 365). 0 means no waiting, but a user can still send only one request at a time.\n4. Tap Save.\nCountdowns already running are not changed. The new number applies from each user's next approved withdrawal." },
+    { k: [["method","switch"],["close","method"],["open","method"],["turn","method"],["disable","method"],["enable","method"],["switch","off","method"],["method","button"],["method","closed"],["switch","off"],["turn","off","deposits"],["turn","off","withdrawals"],["close","deposits"],["close","withdrawals"]],
+      a: "To open or close a method (USDT, M-Pesa, EcoCash):\n1. Open Finance > Withdrawals or Finance > Deposits.\n2. Tap Method.\n3. Use the switch next to the method. On means open, off means closed.\nThe withdrawal and deposit switches are separate. When a method is off, users see that it is closed and cannot continue with it. Requests already sent are not affected." },
+    { k: [["payment","details"],["payments","button"],["change","address"],["usdt","address"],["till","number"],["merchant","code"],["change","title"],["edit","payment"],["deposit","details"]],
+      a: "To change what users see and copy on the Deposit page:\n1. Open Finance > Deposits.\n2. Tap Payments.\n3. For each method (USDT, M-Pesa, EcoCash) edit the Title and the Details. For USDT the details are the address, and any text is accepted, it is not checked.\n4. Tap Save on that method and confirm.\nUsers see the new details straight away. They are not notified." },
+    { k: [["usdt","network"],["trc","20"],["network","brackets"],["change","network"],["erc","20"],["bep","20"]],
+      a: "The USDT network is the part in brackets in the USDT title, for example USDT ADDRESS (TRC-20). In Finance > Deposits > Payments, USDT has two fields: Title (the part outside the brackets) and Network (the part inside). The network shows everywhere users and admins see USDT, for deposits and withdrawals.\nImportant:\n- You cannot change the USDT title, network or address while there are pending USDT deposits or withdrawals. Approve or reject them first.\n- When you change the address or network, every user's linked USDT method is removed and they must link a new one. The app shows you this before you confirm." },
+    { k: [["usdt","pending"],["cannot","change","usdt"],["usdt","blocked"],["linked","usdt"]],
+      a: "USDT payment details cannot be changed while any USDT deposit or withdrawal is pending, so nobody pays to a changed address by mistake. Handle the pending requests first (Finance > Deposits and Finance > Withdrawals), then change it in Payments. After a change, users must link their USDT method again." },
+    { k: [["manual","delete"],["delete","records"],["delete","old"],["delete","deposits"],["delete","withdrawals"],["delete","notifications"],["delete","logs"],["clear","records"]],
+      a: "Settings > Manual delete removes records of one page at a time: Deposits, Withdrawals, Transactions, Notifications, Security log or Activity log.\n1. Open Settings, enter the settings password, tap Manual delete.\n2. Choose the page.\n3. Delete by days (older than, or the last N days) with Check and delete, or press and hold a record to select the ones you want and tap Delete.\nPending deposits and withdrawals are never deleted. Deleting never changes other pages, wallet balances or the Dashboard totals. Deleted records cannot be restored. Only the main admin can use it." },
+    { k: [["reduce","dashboard"],["lower","dashboard"],["deduct","dashboard"],["reduce","total"],["lower","total"],["deduct","total"],["total","deposits"],["total","withdrawals"],["dashboard","amount"]],
+      a: "To lower the Dashboard totals by an amount:\n1. Open Settings, enter the settings password, tap Manual delete, then the Dashboard button.\n2. Choose Total withdrawals or Total deposits.\n3. Enter the amount to deduct. It must be more than 0 and cannot be more than the current total.\n4. Tap Check and deduct and confirm.\nOnly the Dashboard number changes. Deposits, withdrawals, transactions and wallets stay as they are. It cannot be undone, but every deduction is kept in the History list of that section and in the activity log. Later approved deposits and withdrawals still add to the total." },
+    { k: [["trash"],["restore","user"],["erase","user"],["deleted","users"],["bring","back","user"]],
+      a: "Settings > Trash holds users you deleted from the Users page. Open Settings, enter the settings password, tap Trash. You can restore a user, or erase them for good. Erasing removes their personal data, but their deposits, withdrawals, transactions and plans stay in the other pages and in the Dashboard totals, shown as Deleted user. Erasing cannot be undone, so download the spreadsheet offered first if you need a copy." },
+    { k: [["trusted","device"],["new","device"],["approve","device"],["remove","device"]],
+      a: "Settings > Trusted Devices lists the devices admins sign in from. Approve a new device or remove one you no longer trust." },
+    { k: [["security","log"],["wrong","code"],["locked","admin"],["sign","out","everywhere"],["sign","ins"]],
+      a: "Settings > Security log shows sign-ins, wrong codes, new devices and locked admins, and has a sign out everywhere option. Open Settings and enter the settings password first." },
+    { k: [["lessons"],["educational"],["film","icon"],["add","video"],["upload","video"],["video","lessons"]],
+      a: "The film icon page in the user app now shows 15 educational lessons (crypto basics up to futures and margin trading) that are part of the app itself. They do not affect user earnings. Because of this, Media > Videos is read-only: videos can no longer be added, edited or deleted there." },
     { k: [["hello"],["hi"],["help"],["manual"],["what","can","you"]],
-      a: "I can show you how to do things in the admin app: withdrawals, deposits, users, verification, plans, exchange rates, notifications, support chat, media and settings. Ask me a how-to question." }
+      a: "I can show you how to do things in the admin app: withdrawals, deposits, payment methods and details, users, verification, plans, exchange rates, notifications, support chat, media and settings. Ask me a how-to question." }
 ];
 
 function ktManualAnswer(text){
