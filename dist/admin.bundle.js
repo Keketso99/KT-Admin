@@ -19903,6 +19903,8 @@ function showMediaTab(tabName) {
    ========================================================= */
 
 function openAddVideoModal() {
+    /* Videos section is read-only: uploads disabled (educational lessons now live in the user app). */
+    return;
     if(window.KTPerm && !KTPerm.require("add a video")) return;
 
     const modal = document.getElementById("mediaVideoModal");
@@ -19928,6 +19930,8 @@ function closeVideoModal() {
 }
 
 function editMediaVideo(id) {
+    /* Videos read-only: editing disabled. */
+    return;
     if(window.KTPerm && !KTPerm.require("edit a video")) return;
 
     const video = mediaVideos.find(v => v.id === id);
@@ -19948,6 +19952,9 @@ function editMediaVideo(id) {
 }
 
 function saveMediaVideo(event) {
+    /* Videos read-only: saving disabled. */
+    if (event && event.preventDefault) event.preventDefault();
+    return;
 
     event.preventDefault();
     if(window.KTPerm && !KTPerm.require("save a video")) return;
@@ -20527,6 +20534,7 @@ function filterMediaDownloads() {
    ========================================================= */
 
 function openMediaDeleteModal(id, type) {
+    if (type === "video") return; /* Videos read-only: deleting disabled. */
     if(window.KTPerm && !KTPerm.require("delete media")) return;
 
     document.getElementById("mediaDeleteId").value = id;
@@ -20557,6 +20565,7 @@ const MEDIA_DELETE_TABLES = {
 };
 
 function confirmMediaDelete() {
+    { const _t = document.getElementById("mediaDeleteType"); if (_t && _t.value === "video") return; } /* Videos read-only */
     if(window.KTPerm && !KTPerm.require("delete media")) return;
 
     const id = document.getElementById("mediaDeleteId").value;
