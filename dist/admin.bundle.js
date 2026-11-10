@@ -22908,7 +22908,7 @@ var KT_MANUAL_TOPICS = [
     { k: [["security","log"],["wrong","code"],["locked","admin"],["sign","out","everywhere"],["sign","ins"]],
       a: "Settings > Security log shows sign-ins, wrong codes, new devices and locked admins, and has a sign out everywhere option. Open Settings and enter the settings password first." },
     { k: [["lessons"],["educational"],["film","icon"],["add","video"],["upload","video"],["video","lessons"]],
-      a: "The film icon page in the user app now shows 15 educational lessons (crypto basics up to futures and margin trading) that are part of the app itself. They do not affect user earnings. Because of this, Media > Videos is read-only: videos can no longer be added, edited or deleted there." },
+      a: "The film icon page in the user app now shows 16 educational lessons, each 10 pages (crypto basics up to futures, margin trading and trading bots) that are part of the app itself. They do not affect user earnings. Because of this, Media > Videos is read-only: videos can no longer be added, edited or deleted there." },
     { k: [["hello"],["hi"],["help"],["manual"],["what","can","you"]],
       a: "I can show you how to do things in the admin app: withdrawals, deposits, payment methods and details, users, verification, plans, exchange rates, notifications, support chat, media and settings. Ask me a how-to question." }
 ];
