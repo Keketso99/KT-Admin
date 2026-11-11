@@ -452,18 +452,69 @@ function filterMediaVideos() {
    that switches between a photo picker and a video picker.
    ========================================================= */
 
+// Takes a picture of the video (first second) and returns it as a JPEG file, or null if the
+// browser cannot do it. "src" is a local File (new video) or a public URL (video already saved).
+function captureVideoThumbnail(src) {
+    return new Promise(resolve => {
+        let objectUrl = null;
+        const v = document.createElement("video");
+        let finished = false;
+        const finish = file => {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timer);
+            try { v.removeAttribute("src"); v.load(); } catch (e) {}
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            resolve(file);
+        };
+        const timer = setTimeout(() => finish(null), 20000);
+        v.muted = true;
+        v.playsInline = true;
+        v.preload = "auto";
+        if (typeof src === "string") {
+            v.crossOrigin = "anonymous";
+            v.src = src;
+        } else {
+            objectUrl = URL.createObjectURL(src);
+            v.src = objectUrl;
+        }
+        v.addEventListener("error", () => finish(null));
+        v.addEventListener("loadedmetadata", () => {
+            const d = isFinite(v.duration) ? v.duration : 0;
+            try { v.currentTime = Math.min(1, Math.max(0.1, d * 0.1)); } catch (e) { finish(null); }
+        });
+        v.addEventListener("seeked", () => {
+            try {
+                const w = v.videoWidth, h = v.videoHeight;
+                if (!w || !h) return finish(null);
+                const scale = Math.min(1, 960 / w);
+                const c = document.createElement("canvas");
+                c.width = Math.round(w * scale);
+                c.height = Math.round(h * scale);
+                c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+                c.toBlob(b => finish(b ? new File([b], "thumbnail.jpg", { type: "image/jpeg" }) : null), "image/jpeg", 0.85);
+            } catch (e) {
+                finish(null);
+            }
+        });
+    });
+}
+
 function toggleGuideMediaField() {
 
     const status = document.getElementById("guideStatus").value;
     const photoField = document.getElementById("guidePhotoField");
     const videoField = document.getElementById("guideVideoField");
+    const thumbField = document.getElementById("guideThumbField");
 
     if (status === "video") {
         photoField.style.display = "none";
         videoField.style.display = "";
+        if (thumbField) thumbField.style.display = "";
     } else {
         photoField.style.display = "";
         videoField.style.display = "none";
+        if (thumbField) thumbField.style.display = "none";
     }
 
 }
@@ -481,6 +532,7 @@ function openAddGuideModal() {
     document.getElementById("guideModalTitle").textContent = "Add Guide";
     mediaCurrentNote("guideImage", "");
     mediaCurrentNote("guideVideoFile", "");
+    mediaCurrentNote("guideThumb", "");
     document.getElementById("guideStatus").value = "photo";
     toggleGuideMediaField();
 
@@ -513,6 +565,7 @@ function editMediaGuide(id) {
     document.getElementById("guideModalTitle").textContent = "Edit Guide";
     mediaCurrentNote("guideImage", guide.image ? "A photo is set. Choose a new photo only to replace it." : "No photo yet.");
     mediaCurrentNote("guideVideoFile", guide.video ? "A video is set. Choose a new video only to replace it." : "No video yet.");
+    mediaCurrentNote("guideThumb", guide.status === "video" ? (guide.image ? "A thumbnail is set. Choose a new image only to replace it." : "No thumbnail yet. Saving will create one from the video automatically.") : "");
     mediaOpenModal("mediaGuideModal");
 
 }
@@ -581,6 +634,33 @@ function saveMediaGuide(event) {
         })
 
         .then(() => {
+
+            // Video guides: the user app shows a thumbnail before the video is played.
+            if (status !== "video") return;
+
+            const thumbInput = document.getElementById("guideThumb");
+            const newVideo = videoInput && videoInput.files.length > 0 ? videoInput.files[0] : null;
+            const chosen = thumbInput && thumbInput.files.length > 0 ? thumbInput.files[0] : null;
+            const hasThumb = !!(oldGuide && oldGuide.image);
+            const existingVideoUrl = oldGuide && oldGuide.video ? oldGuide.video : null;
+
+            let getFile = null;
+            if (chosen) getFile = Promise.resolve(chosen);
+            else if (newVideo) getFile = captureVideoThumbnail(newVideo);
+            else if (!hasThumb && existingVideoUrl) getFile = captureVideoThumbnail(existingVideoUrl);
+            if (!getFile) return;
+
+            return getFile.then(file => {
+                if (!file) return; // could not take a picture: keep going without a thumbnail
+                return uploadContentFile(file, "guides").then(url => {
+                    payload.image_url = url;
+                    if (oldGuide && oldGuide.image) oldFiles.push(oldGuide.image);
+                });
+            });
+
+        })
+
+        .then(() => {
             if (editId) {
                 return sb.from("content_guides").update(payload).eq("id", editId);
             } else {
@@ -633,7 +713,7 @@ function renderMediaGuides(guides) {
         item.className = "media-content-item";
 
         const thumbnail = guide.status === "video"
-            ? '<i class="fa-solid fa-circle-play"></i>'
+            ? (guide.image ? '<img src="' + guide.image + '" alt="Video thumbnail">' : '<i class="fa-solid fa-circle-play"></i>')
             : (guide.image ? '<img src="' + guide.image + '" alt="Guide photo">' : '<i class="fa-solid fa-image"></i>');
 
         item.innerHTML =

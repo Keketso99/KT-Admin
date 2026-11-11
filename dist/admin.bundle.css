@@ -13738,6 +13738,14 @@ body.activity-modal-open{
 
 }
 
+.media-form-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #6b7280;
+}
+
 
 /* ===== css/settings.css ===== */
 /* =========================================================

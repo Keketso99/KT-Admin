@@ -96,7 +96,7 @@ var KT_MANUAL_TOPICS = [
     { k: [["activity"],["log"],["history"]],
       a: "Activity Logs lists the actions taken in the app. Tap an entry to see Activity Details. Use search and filters to find entries." },
     { k: [["media"],["video"],["guide"],["download"],["upload"]],
-      a: "Media has tabs: Overview, Videos, Guides and Downloads. In Guides and Downloads, use the Add button to upload an item, tap an item to edit or delete it, and use the search and filters to find items. The Videos tab is read-only: videos can no longer be added, edited or deleted, because the lessons in the user app are now built into the app." },
+      a: "Media has tabs: Overview, Videos, Guides and Downloads. In Guides and Downloads, use the Add button to upload an item, tap an item to edit or delete it, and use the search and filters to find items. The Videos tab is read-only: videos can no longer be added, edited or deleted, because the lessons in the user app are now built into the app. Video guides (Help & Support and Home) show a thumbnail in the user app before the video is played: when you add a video guide you can choose a thumbnail image, or leave it empty and the first picture of the video is used automatically. For a video guide that has no thumbnail yet, open it and tap Save once to create one." },
     { k: [["dashboard"],["total","users"],["overview"]],
       a: "The Dashboard shows overview cards: total users (users only, admins are not included), active plans, Total Deposits and Total Withdrawals. The two money totals keep counting approved deposits and withdrawals even after you delete those records. To lower a total by an amount, use Settings > Manual delete > Dashboard." },
     { k: [["logout"],["log","out"],["sign","out"]],
