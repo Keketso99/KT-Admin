@@ -1,6 +1,6 @@
 // =========================================================
 // KT ADMIN — SETTINGS PAGE
-//   Sound & notifications | Admins | Audit | Safety
+//   Sound & notifications | Admins | Audit | Referrals | Safety
 //
 // Every category except Safety asks for the settings password each time it
 // is opened. The password is kept in memory only while a category is open
@@ -10,9 +10,9 @@
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "trash", "mdel", "devices", "seclog"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "referrals", "trash", "mdel", "devices", "seclog"];
 
-    var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
+    var S = { password: null, view: "loading", idle: null, users: null, audit: null, referrals: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
     // ---------------------------------------------------------
     // tiny helpers
@@ -98,7 +98,7 @@
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", referrals: "setReferrals", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -126,6 +126,7 @@
         S.users = null;
         S.audit = null;
         S.trash = null;
+        S.referrals = null;
         clearTimeout(S.idle);
         if(S.view !== "create" && S.view !== "loading"){
             show("menu");
@@ -135,7 +136,7 @@
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", referrals: "Referrals", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -160,6 +161,7 @@
         if(cat === "sound") renderSound();
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
+        else if(cat === "referrals") renderReferrals();
         else if(cat === "trash") renderTrash();
         else if(cat === "mdel") renderMdel();
         else if(cat === "devices") renderDevices();
@@ -579,6 +581,78 @@
     // ---------------------------------------------------------
     // TRUSTED DEVICES (main admin only; the database checks this too)
     // ---------------------------------------------------------
+    // ---------------------------------------------------------
+    // REFERRALS — the reward per referral (same for every user) and the
+    // total of all rewards paid. Anyone who can open Settings can look;
+    // only the main admin can change the reward (checked here and in the database).
+    // ---------------------------------------------------------
+    function renderReferrals(){
+        var body = $("setReferralsBody");
+        body.innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+        rpc("admin_get_referral_overview").then(function(d){
+            S.referrals = d || {};
+            if(S.view === "referrals") paintReferrals();
+        }).catch(function(e){
+            body.innerHTML = '<div class="kt-set-card"><p class="kt-set-error">' + esc(e.message) + '</p></div>';
+        });
+    }
+
+    function paintReferrals(){
+        var d = S.referrals || {};
+        var count = Number(d.rewards_count || 0);
+        $("setReferralsBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<div class="kt-set-row head">' +
+                    '<div><h3><i class="fa-solid fa-gift"></i> Referral reward</h3>' +
+                    '<p class="kt-set-hint">What a user earns for each referral, in ZAR. It is the same for every user. It is paid once, when the invited person\'s first deposit is approved.</p></div>' +
+                    '<button class="kt-set-mini" data-act="ref-edit" title="Change referral reward" aria-label="Change referral reward"><i class="fa-solid fa-pen"></i> Change</button>' +
+                '</div>' +
+                '<div class="kt-set-big plain"><small>Reward per referral</small><b>' + rand(d.reward_zar) + '</b></div>' +
+                '<p class="kt-set-hint">A new amount only applies to rewards paid from then on. Rewards already paid do not change. Only the main admin can change it.</p>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-coins"></i> Total distributed</h3>' +
+                '<p class="kt-set-hint">All referral rewards paid to all users so far.</p>' +
+                '<div class="kt-set-big good"><small>Total distributed</small><b>' + rand(d.total_distributed_zar) + '</b></div>' +
+                '<div class="kt-set-line"><span>Rewards paid</span><b>' + count.toLocaleString("en-US") + '</b></div>' +
+            '</div>';
+    }
+
+    function onReferralsClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t || t.getAttribute("data-act") !== "ref-edit") return;
+        if(window.KTPerm && !KTPerm.require("change the referral reward")) return;
+
+        var current = Number((S.referrals && S.referrals.reward_zar) || 0);
+
+        KTUI.prompt("Enter how much a user earns for each referral, in ZAR. This is the same for all users and applies from the next reward on. Rewards already paid do not change.", {
+            title: "Referral reward",
+            placeholder: "0.00",
+            inputMode: "decimal",
+            value: String(current),
+            confirmText: "Save",
+            busyText: "Saving...",
+            validate: function(v){
+                var s = String(v == null ? "" : v).trim();
+                var n = Number(s);
+                if(s === "" || isNaN(n) || n < 0) return "Enter a valid amount (0 or more).";
+                if(n > 1000000) return "That amount is too large.";
+                return null;
+            },
+            run: function(v){
+                return guarded("admin_set_referral_reward", { p_amount: Number(String(v).trim()) }).then(function(d){
+                    if(!S.referrals) S.referrals = {};
+                    S.referrals.reward_zar = d.reward_zar;
+                    return null;
+                }, function(err){ return err.message; });
+            }
+        }).then(function(v){
+            if(v === null) return;
+            KTUI.success("Referral reward updated.");
+            if(S.view === "referrals") paintReferrals();
+        });
+    }
+
     function renderDevices(){
         $("setDevicesBody").innerHTML =
             '<div class="kt-set-card">' +
@@ -1413,6 +1487,7 @@
             if(S.view === "sound") onSoundClick(e);
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
+            else if(S.view === "referrals") onReferralsClick(e);
             else if(S.view === "trash") onTrashClick(e);
             else if(S.view === "devices") onDevicesClick(e);
             else if(S.view === "seclog") onSeclogClick(e);

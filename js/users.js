@@ -3252,8 +3252,7 @@ if(withdrawBtn){
     // ===============================
     // REFERRALS (real — admin_get_user_referrals / admin_set_referral_reward)
     // Shows one user's referral code, total earned and referral list.
-    // The reward per referral is ONE setting for everyone: changing it here
-    // updates every user's app instantly (the user app listens live).
+    // (The reward per referral is set in Settings > Referrals, main admin only.)
     // ===============================
 
     const referralBtn = document.querySelector(".referral-btn");
@@ -3261,8 +3260,6 @@ if(withdrawBtn){
 
     if(referralBtn && referralsModal){
 
-        const refRewardValue = document.getElementById("refRewardValue");
-        const refRewardEditBtn = document.getElementById("refRewardEditBtn");
         const refTotalEarned = document.getElementById("refTotalEarned");
         const refCode = document.getElementById("refCode");
         const refCopyBtn = document.getElementById("refCopyBtn");
@@ -3330,7 +3327,6 @@ if(withdrawBtn){
         }
 
         function paintReferrals(){
-            refRewardValue.textContent = refMoney(refData.reward_zar);
             refTotalEarned.textContent = refMoney(refData.total_earned_zar);
             refCode.textContent = refData.code || "—";
             refCopyBtn.disabled = !refData.code;
@@ -3344,7 +3340,6 @@ if(withdrawBtn){
             const token = ++refToken;
 
             refData = null;
-            refRewardValue.textContent = "—";
             refTotalEarned.textContent = "—";
             refCode.textContent = "—";
             refCopyBtn.disabled = true;
@@ -3417,54 +3412,6 @@ if(withdrawBtn){
             }catch(e){
                 done(false);
             }
-
-        };
-
-        refRewardEditBtn.onclick = function(){
-
-            if(!refData) return;
-
-            KTUI.prompt("Enter how much a user earns for each referral. This is the same for all users and applies from the next reward on. Rewards already paid do not change.", {
-                title: "Referral reward",
-                placeholder: "0.00",
-                inputMode: "decimal",
-                value: String(Number(refData.reward_zar || 0)),
-                confirmText: "Save",
-                busyText: "Saving...",
-                validate: function(value){
-                    const s = String(value).trim();
-                    const n = Number(s);
-                    if(s === "" || isNaN(n) || n < 0){
-                        return "Enter a valid amount (0 or more).";
-                    }
-                    if(n > 1000000){
-                        return "That amount is too large.";
-                    }
-                    return null;
-                },
-                run: function(value){
-
-                    return sb.rpc("admin_set_referral_reward", {
-                        p_amount: Number(String(value).trim())
-                    }).then(function(res){
-
-                        if(res.error){
-                            return "Failed to change the reward: " + res.error.message;
-                        }
-
-                        if(refData){
-                            refData.reward_zar = res.data;
-                            if(referralsModal.style.display !== "none") paintReferrals();
-                        }
-
-                        KTUI.success("Referral reward updated");
-
-                        return null;
-
-                    });
-
-                }
-            });
 
         };
 

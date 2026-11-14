@@ -12168,8 +12168,7 @@ if(withdrawBtn){
     // ===============================
     // REFERRALS (real — admin_get_user_referrals / admin_set_referral_reward)
     // Shows one user's referral code, total earned and referral list.
-    // The reward per referral is ONE setting for everyone: changing it here
-    // updates every user's app instantly (the user app listens live).
+    // (The reward per referral is set in Settings > Referrals, main admin only.)
     // ===============================
 
     const referralBtn = document.querySelector(".referral-btn");
@@ -12177,8 +12176,6 @@ if(withdrawBtn){
 
     if(referralBtn && referralsModal){
 
-        const refRewardValue = document.getElementById("refRewardValue");
-        const refRewardEditBtn = document.getElementById("refRewardEditBtn");
         const refTotalEarned = document.getElementById("refTotalEarned");
         const refCode = document.getElementById("refCode");
         const refCopyBtn = document.getElementById("refCopyBtn");
@@ -12246,7 +12243,6 @@ if(withdrawBtn){
         }
 
         function paintReferrals(){
-            refRewardValue.textContent = refMoney(refData.reward_zar);
             refTotalEarned.textContent = refMoney(refData.total_earned_zar);
             refCode.textContent = refData.code || "—";
             refCopyBtn.disabled = !refData.code;
@@ -12260,7 +12256,6 @@ if(withdrawBtn){
             const token = ++refToken;
 
             refData = null;
-            refRewardValue.textContent = "—";
             refTotalEarned.textContent = "—";
             refCode.textContent = "—";
             refCopyBtn.disabled = true;
@@ -12333,54 +12328,6 @@ if(withdrawBtn){
             }catch(e){
                 done(false);
             }
-
-        };
-
-        refRewardEditBtn.onclick = function(){
-
-            if(!refData) return;
-
-            KTUI.prompt("Enter how much a user earns for each referral. This is the same for all users and applies from the next reward on. Rewards already paid do not change.", {
-                title: "Referral reward",
-                placeholder: "0.00",
-                inputMode: "decimal",
-                value: String(Number(refData.reward_zar || 0)),
-                confirmText: "Save",
-                busyText: "Saving...",
-                validate: function(value){
-                    const s = String(value).trim();
-                    const n = Number(s);
-                    if(s === "" || isNaN(n) || n < 0){
-                        return "Enter a valid amount (0 or more).";
-                    }
-                    if(n > 1000000){
-                        return "That amount is too large.";
-                    }
-                    return null;
-                },
-                run: function(value){
-
-                    return sb.rpc("admin_set_referral_reward", {
-                        p_amount: Number(String(value).trim())
-                    }).then(function(res){
-
-                        if(res.error){
-                            return "Failed to change the reward: " + res.error.message;
-                        }
-
-                        if(refData){
-                            refData.reward_zar = res.data;
-                            if(referralsModal.style.display !== "none") paintReferrals();
-                        }
-
-                        KTUI.success("Referral reward updated");
-
-                        return null;
-
-                    });
-
-                }
-            });
 
         };
 
@@ -21584,7 +21531,7 @@ document.addEventListener("click", function(event) {
 /* ===== js/settings.js ===== */
 // =========================================================
 // KT ADMIN — SETTINGS PAGE
-//   Sound & notifications | Admins | Audit | Safety
+//   Sound & notifications | Admins | Audit | Referrals | Safety
 //
 // Every category except Safety asks for the settings password each time it
 // is opened. The password is kept in memory only while a category is open
@@ -21594,9 +21541,9 @@ document.addEventListener("click", function(event) {
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "trash", "mdel", "devices", "seclog"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "referrals", "trash", "mdel", "devices", "seclog"];
 
-    var S = { password: null, view: "loading", idle: null, users: null, audit: null, adminName: "Admin", bound: false, lastDeleted: 0 };
+    var S = { password: null, view: "loading", idle: null, users: null, audit: null, referrals: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
     // ---------------------------------------------------------
     // tiny helpers
@@ -21682,7 +21629,7 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", referrals: "setReferrals", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -21710,6 +21657,7 @@ document.addEventListener("click", function(event) {
         S.users = null;
         S.audit = null;
         S.trash = null;
+        S.referrals = null;
         clearTimeout(S.idle);
         if(S.view !== "create" && S.view !== "loading"){
             show("menu");
@@ -21719,7 +21667,7 @@ document.addEventListener("click", function(event) {
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", referrals: "Referrals", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -21744,6 +21692,7 @@ document.addEventListener("click", function(event) {
         if(cat === "sound") renderSound();
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
+        else if(cat === "referrals") renderReferrals();
         else if(cat === "trash") renderTrash();
         else if(cat === "mdel") renderMdel();
         else if(cat === "devices") renderDevices();
@@ -22163,6 +22112,78 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // TRUSTED DEVICES (main admin only; the database checks this too)
     // ---------------------------------------------------------
+    // ---------------------------------------------------------
+    // REFERRALS — the reward per referral (same for every user) and the
+    // total of all rewards paid. Anyone who can open Settings can look;
+    // only the main admin can change the reward (checked here and in the database).
+    // ---------------------------------------------------------
+    function renderReferrals(){
+        var body = $("setReferralsBody");
+        body.innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+        rpc("admin_get_referral_overview").then(function(d){
+            S.referrals = d || {};
+            if(S.view === "referrals") paintReferrals();
+        }).catch(function(e){
+            body.innerHTML = '<div class="kt-set-card"><p class="kt-set-error">' + esc(e.message) + '</p></div>';
+        });
+    }
+
+    function paintReferrals(){
+        var d = S.referrals || {};
+        var count = Number(d.rewards_count || 0);
+        $("setReferralsBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<div class="kt-set-row head">' +
+                    '<div><h3><i class="fa-solid fa-gift"></i> Referral reward</h3>' +
+                    '<p class="kt-set-hint">What a user earns for each referral, in ZAR. It is the same for every user. It is paid once, when the invited person\'s first deposit is approved.</p></div>' +
+                    '<button class="kt-set-mini" data-act="ref-edit" title="Change referral reward" aria-label="Change referral reward"><i class="fa-solid fa-pen"></i> Change</button>' +
+                '</div>' +
+                '<div class="kt-set-big plain"><small>Reward per referral</small><b>' + rand(d.reward_zar) + '</b></div>' +
+                '<p class="kt-set-hint">A new amount only applies to rewards paid from then on. Rewards already paid do not change. Only the main admin can change it.</p>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<h3><i class="fa-solid fa-coins"></i> Total distributed</h3>' +
+                '<p class="kt-set-hint">All referral rewards paid to all users so far.</p>' +
+                '<div class="kt-set-big good"><small>Total distributed</small><b>' + rand(d.total_distributed_zar) + '</b></div>' +
+                '<div class="kt-set-line"><span>Rewards paid</span><b>' + count.toLocaleString("en-US") + '</b></div>' +
+            '</div>';
+    }
+
+    function onReferralsClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t || t.getAttribute("data-act") !== "ref-edit") return;
+        if(window.KTPerm && !KTPerm.require("change the referral reward")) return;
+
+        var current = Number((S.referrals && S.referrals.reward_zar) || 0);
+
+        KTUI.prompt("Enter how much a user earns for each referral, in ZAR. This is the same for all users and applies from the next reward on. Rewards already paid do not change.", {
+            title: "Referral reward",
+            placeholder: "0.00",
+            inputMode: "decimal",
+            value: String(current),
+            confirmText: "Save",
+            busyText: "Saving...",
+            validate: function(v){
+                var s = String(v == null ? "" : v).trim();
+                var n = Number(s);
+                if(s === "" || isNaN(n) || n < 0) return "Enter a valid amount (0 or more).";
+                if(n > 1000000) return "That amount is too large.";
+                return null;
+            },
+            run: function(v){
+                return guarded("admin_set_referral_reward", { p_amount: Number(String(v).trim()) }).then(function(d){
+                    if(!S.referrals) S.referrals = {};
+                    S.referrals.reward_zar = d.reward_zar;
+                    return null;
+                }, function(err){ return err.message; });
+            }
+        }).then(function(v){
+            if(v === null) return;
+            KTUI.success("Referral reward updated.");
+            if(S.view === "referrals") paintReferrals();
+        });
+    }
+
     function renderDevices(){
         $("setDevicesBody").innerHTML =
             '<div class="kt-set-card">' +
@@ -22997,6 +23018,7 @@ document.addEventListener("click", function(event) {
             if(S.view === "sound") onSoundClick(e);
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
+            else if(S.view === "referrals") onReferralsClick(e);
             else if(S.view === "trash") onTrashClick(e);
             else if(S.view === "devices") onDevicesClick(e);
             else if(S.view === "seclog") onSeclogClick(e);
@@ -23201,8 +23223,14 @@ var KT_MANUAL_TOPICS = [
       a: "Settings > Security log shows sign-ins, wrong codes, new devices and locked admins, and has a sign out everywhere option. Open Settings and enter the settings password first." },
     { k: [["lessons"],["educational"],["film","icon"],["add","video"],["upload","video"],["video","lessons"]],
       a: "The film icon page in the user app now shows 16 educational lessons, each 10 pages (crypto basics up to futures, margin trading and trading bots) that are part of the app itself. They do not affect user earnings. Because of this, Media > Videos is read-only: videos can no longer be added, edited or deleted there." },
+    { k: [["referral"],["referrals"],["invite"],["invited"]],
+      a: "Referrals let a verified user invite friends for extra earning. It never affects withdrawals.\n- A user gets a 6-digit referral code automatically when their verification (KYC) is approved. Friends type it in the optional Referral code field when they sign up.\n- To see a user's referrals: Users > tap the user > Referrals. You see their Total earned, their code (with a copy button), a search box and the list of people they invited. A green tick means the reward was earned, three gray dots mean not yet.\n- The reward is paid once, when the invited person's first deposit is approved. It goes to the referrer's balance and shows in their History > Mining as Referral reward.\n- Referred users stay in the list until they are deleted for good. Total earned never goes down.\n- The reward amount is set in Settings > Referrals." },
+    { k: [["referral","reward"],["referral","amount"],["change","referral"],["set","referral"],["referral","settings"],["referral","pay"],["referral","earn"]],
+      a: "The referral reward is one amount for everyone, set in Settings > Referrals (enter your settings password first). It shows the Referral reward and the Total distributed.\nOnly the main admin can change it: tap the pen (Change), enter the amount and save. Other admins can see it but get a not authorised message if they try to change it.\nThe new amount applies from the next reward onward and shows instantly in every user's app. Rewards already paid keep their old amount. The reward is paid once per referred person, on their first approved deposit, so if the amount is 0 at that moment that person never earns a reward." },
+    { k: [["total","distributed"],["rewards","distributed"],["referral","total"],["referral","paid"],["referral","distributed"]],
+      a: "Settings > Referrals (enter your settings password) shows Total distributed: all referral rewards paid to all users so far, with the number of rewards paid. It never goes down, even when a user is deleted for good. To see one user's total, open Users > tap the user > Referrals." },
     { k: [["hello"],["hi"],["help"],["manual"],["what","can","you"]],
-      a: "I can show you how to do things in the admin app: withdrawals, deposits, payment methods and details, users, verification, plans, exchange rates, notifications, support chat, media and settings. Ask me a how-to question." }
+      a: "I can show you how to do things in the admin app: withdrawals, deposits, payment methods and details, users, verification, plans, exchange rates, notifications, support chat, media, referrals and settings. Ask me a how-to question." }
 ];
 
 function ktManualAnswer(text){
