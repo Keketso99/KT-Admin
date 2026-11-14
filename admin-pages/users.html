@@ -324,6 +324,12 @@
 
             </button>
 
+            <button class="action-btn referral-btn">
+
+                Referrals
+
+            </button>
+
  <button id = "adminactionsactionbtapprovebtn"
        class="action-btn approve-btn">
                 Approve Changes
@@ -895,6 +901,78 @@
         <div class="confirm-buttons" id="activateActions">
 
             <button class="cancel-btn">
+
+                Close
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Referrals -->
+
+<div class="reset-password-modal" id="referralsModal">
+
+    <div class="reset-password-content referrals-content">
+
+        <h2>
+
+            Referrals
+
+        </h2>
+
+        <!-- 1. Referral reward (same for everyone) + pen to change it -->
+        <div class="ref-box ref-reward-row">
+
+            <div class="ref-box-text">
+                <span class="ref-label">Referral reward (per referral)</span>
+                <strong id="refRewardValue">—</strong>
+            </div>
+
+            <button type="button" class="ref-icon-btn" id="refRewardEditBtn" title="Change referral reward" aria-label="Change referral reward">
+                <i class="fa-solid fa-pen"></i>
+            </button>
+
+        </div>
+
+        <!-- 2. Total earned (left) + referral code with copy (right) -->
+        <div class="ref-box ref-summary-row">
+
+            <div class="ref-box-text">
+                <span class="ref-label">Total earned</span>
+                <strong id="refTotalEarned">—</strong>
+            </div>
+
+            <div class="ref-box-text ref-box-right">
+                <span class="ref-label">Referral code</span>
+                <span class="ref-code-line">
+                    <strong id="refCode">—</strong>
+                    <button type="button" class="ref-icon-btn" id="refCopyBtn" title="Copy referral code" aria-label="Copy referral code">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </span>
+            </div>
+
+        </div>
+
+        <!-- 3. Search -->
+        <input type="text" id="refSearch" class="ref-search" placeholder="Search by name or phone number" autocomplete="off" maxlength="40">
+
+        <!-- 4. List with count -->
+        <div class="ref-list-head">
+            <span>Referrals</span>
+            <span class="ref-count" id="refCount">0</span>
+        </div>
+
+        <div class="ref-list" id="refList"></div>
+
+        <div class="confirm-buttons">
+
+            <button class="cancel-btn" id="refCloseBtn">
 
                 Close
 

@@ -5026,6 +5026,207 @@ button{
 .ph-bar-btn:disabled{ opacity:.5; }
 
 
+/* ===========================
+   REFERRALS MODAL (user management)
+   Only new "ref-" classes + .referrals-content; nothing existing is changed.
+=========================== */
+
+.reset-password-content.referrals-content{
+    width:460px;
+    text-align:left;
+}
+
+.referrals-content h2{
+    text-align:center;
+}
+
+.ref-box{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background:#f5f9ff;
+    border:1px solid #dbe8fb;
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:10px;
+}
+
+.ref-box-text{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    min-width:0;
+}
+
+.ref-box-right{
+    align-items:flex-end;
+    text-align:right;
+}
+
+.ref-label{
+    font-size:11px;
+    font-weight:600;
+    color:#64748b;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+}
+
+.ref-box-text strong{
+    font-size:17px;
+    color:#0f2a55;
+    word-break:break-word;
+}
+
+.ref-code-line{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.ref-code-line strong{
+    letter-spacing:.08em;
+}
+
+.ref-icon-btn{
+    flex-shrink:0;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:50%;
+    background:#e3efff;
+    color:#1b8ef2;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+}
+
+.ref-icon-btn:hover{
+    opacity:.8;
+}
+
+.ref-icon-btn:disabled{
+    opacity:.45;
+    cursor:default;
+}
+
+.ref-search{
+    width:100%;
+    box-sizing:border-box;
+    padding:11px 14px;
+    border:1px solid #d5dfee;
+    border-radius:10px;
+    font-size:14px;
+    margin:4px 0 12px;
+    outline:none;
+}
+
+.ref-search:focus{
+    border-color:#1b8ef2;
+}
+
+.ref-list-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-weight:700;
+    color:#0f2a55;
+    margin-bottom:8px;
+}
+
+.ref-count{
+    background:#e3efff;
+    color:#1b8ef2;
+    border-radius:999px;
+    padding:2px 10px;
+    font-size:13px;
+}
+
+.ref-list{
+    border:1px solid #e5edf8;
+    border-radius:12px;
+    max-height:300px;
+    overflow-y:auto;
+    margin-bottom:18px;
+}
+
+.ref-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 14px;
+    border-bottom:1px solid #eef3fa;
+}
+
+.ref-item:last-child{
+    border-bottom:none;
+}
+
+.ref-item-text{
+    flex:1;
+    min-width:0;
+}
+
+.ref-item-name{
+    font-weight:600;
+    color:#0f2a55;
+    font-size:14px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.ref-item-phone{
+    color:#64748b;
+    font-size:13px;
+    margin-top:2px;
+}
+
+.ref-tick{
+    flex-shrink:0;
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    background:#dcfce7;
+    color:#16a34a;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+}
+
+.ref-dots{
+    flex-shrink:0;
+    display:inline-flex;
+    align-items:center;
+    gap:3px;
+    padding:0 4px;
+}
+
+.ref-dots i{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#b6bfcc;
+    display:block;
+}
+
+.ref-empty{
+    padding:26px 14px;
+    text-align:center;
+    color:#94a3b8;
+    font-size:14px;
+}
+
+@media(max-width:600px){
+    .reset-password-content.referrals-content{
+        width:100%;
+    }
+}
+
+
 /* ===== css/verification.css ===== */
 /* =================================
 VERIFICATION PAGE

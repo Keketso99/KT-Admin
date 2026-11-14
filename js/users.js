@@ -3249,13 +3249,225 @@ if(withdrawBtn){
 
     // ===============================
 
-    const referralBtn = document.querySelector(".referral-btn");
+    // ===============================
+    // REFERRALS (real — admin_get_user_referrals / admin_set_referral_reward)
+    // Shows one user's referral code, total earned and referral list.
+    // The reward per referral is ONE setting for everyone: changing it here
+    // updates every user's app instantly (the user app listens live).
+    // ===============================
 
-    if(referralBtn){
-        referralBtn.onclick=function(){
+    const referralBtn = document.querySelector(".referral-btn");
+    const referralsModal = document.getElementById("referralsModal");
+
+    if(referralBtn && referralsModal){
+
+        const refRewardValue = document.getElementById("refRewardValue");
+        const refRewardEditBtn = document.getElementById("refRewardEditBtn");
+        const refTotalEarned = document.getElementById("refTotalEarned");
+        const refCode = document.getElementById("refCode");
+        const refCopyBtn = document.getElementById("refCopyBtn");
+        const refSearch = document.getElementById("refSearch");
+        const refCount = document.getElementById("refCount");
+        const refList = document.getElementById("refList");
+        const refCloseBtn = document.getElementById("refCloseBtn");
+
+        let refUserId = null;
+        let refToken = 0;
+        let refData = null;
+
+        function refMoney(v){
+            return "M " + Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function refEsc(v){
+            return String(v == null ? "" : v)
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function closeReferralsModal(){
+            refToken++;
+            refUserId = null;
+            referralsModal.style.display = "none";
+        }
+
+        function renderReferralList(){
+
+            const all = (refData && refData.referrals) || [];
+
+            refCount.textContent = String(all.length);
+
+            const q = refSearch.value.trim().toLowerCase();
+            const qDigits = q.replace(/\D/g, "");
+
+            const rows = !q ? all : all.filter(function(r){
+                return String(r.name || "").toLowerCase().indexOf(q) !== -1 ||
+                    (qDigits !== "" && String(r.phone || "").replace(/\D/g, "").indexOf(qDigits) !== -1);
+            });
+
+            if(all.length === 0){
+                refList.innerHTML = '<div class="ref-empty">No referrals yet.</div>';
+                return;
+            }
+
+            if(rows.length === 0){
+                refList.innerHTML = '<div class="ref-empty">No referrals match your search.</div>';
+                return;
+            }
+
+            refList.innerHTML = rows.map(function(r){
+                const mark = r.rewarded
+                    ? '<span class="ref-tick" title="Reward earned"><i class="fa-solid fa-check"></i></span>'
+                    : '<span class="ref-dots" title="No reward yet"><i></i><i></i><i></i></span>';
+                return '<div class="ref-item">' +
+                    '<div class="ref-item-text">' +
+                        '<div class="ref-item-name">' + refEsc(r.name || "—") + '</div>' +
+                        '<div class="ref-item-phone">' + refEsc(r.phone || "") + '</div>' +
+                    '</div>' + mark +
+                '</div>';
+            }).join("");
+
+        }
+
+        function paintReferrals(){
+            refRewardValue.textContent = refMoney(refData.reward_zar);
+            refTotalEarned.textContent = refMoney(refData.total_earned_zar);
+            refCode.textContent = refData.code || "—";
+            refCopyBtn.disabled = !refData.code;
+            renderReferralList();
+        }
+
+        function loadReferrals(){
+
+            if(!refUserId) return;
+
+            const token = ++refToken;
+
+            refData = null;
+            refRewardValue.textContent = "—";
+            refTotalEarned.textContent = "—";
+            refCode.textContent = "—";
+            refCopyBtn.disabled = true;
+            refCount.textContent = "0";
+            refList.innerHTML = '<div class="ref-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+
+            sb.rpc("admin_get_user_referrals", { p_user_id: refUserId }).then(function(res){
+
+                if(token !== refToken) return;
+
+                if(res.error){
+                    refList.innerHTML = '<div class="ref-empty">Failed to load referrals.</div>';
+                    KTUI.error("Failed to load referrals: " + res.error.message);
+                    return;
+                }
+
+                refData = res.data || { referrals: [] };
+                paintReferrals();
+
+            });
+
+        }
+
+        referralBtn.onclick = function(){
+
             if(!currentRow) return;
-            KTUI.notify("Referral list feature is not available yet");
+
+            refUserId = currentRow.dataset.userid;
+            refSearch.value = "";
+
+            referralsModal.style.display = "flex";
+
+            loadReferrals();
+
         };
+
+        refCloseBtn.onclick = closeReferralsModal;
+
+        refSearch.oninput = function(){
+            if(refData) renderReferralList();
+        };
+
+        refCopyBtn.onclick = function(){
+
+            if(!refData || !refData.code) return;
+
+            const code = String(refData.code);
+
+            function done(ok){
+                if(ok) KTUI.success("Referral code copied");
+                else KTUI.error("Couldn't copy the code. Please copy it manually.");
+            }
+
+            if(navigator.clipboard && navigator.clipboard.writeText){
+                navigator.clipboard.writeText(code).then(function(){ done(true); }, function(){ done(false); });
+                return;
+            }
+
+            try{
+                const t = document.createElement("textarea");
+                t.value = code;
+                t.setAttribute("readonly", "");
+                t.style.position = "fixed";
+                t.style.opacity = "0";
+                document.body.appendChild(t);
+                t.select();
+                const ok = document.execCommand("copy");
+                document.body.removeChild(t);
+                done(ok);
+            }catch(e){
+                done(false);
+            }
+
+        };
+
+        refRewardEditBtn.onclick = function(){
+
+            if(!refData) return;
+
+            KTUI.prompt("Enter how much a user earns for each referral. This is the same for all users and applies from the next reward on. Rewards already paid do not change.", {
+                title: "Referral reward",
+                placeholder: "0.00",
+                inputMode: "decimal",
+                value: String(Number(refData.reward_zar || 0)),
+                confirmText: "Save",
+                busyText: "Saving...",
+                validate: function(value){
+                    const s = String(value).trim();
+                    const n = Number(s);
+                    if(s === "" || isNaN(n) || n < 0){
+                        return "Enter a valid amount (0 or more).";
+                    }
+                    if(n > 1000000){
+                        return "That amount is too large.";
+                    }
+                    return null;
+                },
+                run: function(value){
+
+                    return sb.rpc("admin_set_referral_reward", {
+                        p_amount: Number(String(value).trim())
+                    }).then(function(res){
+
+                        if(res.error){
+                            return "Failed to change the reward: " + res.error.message;
+                        }
+
+                        if(refData){
+                            refData.reward_zar = res.data;
+                            if(referralsModal.style.display !== "none") paintReferrals();
+                        }
+
+                        KTUI.success("Referral reward updated");
+
+                        return null;
+
+                    });
+
+                }
+            });
+
+        };
+
     }
 
     
