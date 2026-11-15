@@ -7509,8 +7509,11 @@ function copyDepositTransaction(){
 // KT ADMIN — PAYMENT METHOD SWITCHES (Withdrawals + Deposits)
 // One shared window used by the "Method" button on both pages.
 // kind = "withdrawal" or "deposit"; the two never affect each other.
-// Data: public.method_settings (read) / admin_set_method_enabled (write,
-// main admin only). Switches apply immediately; no Save button.
+// Data: public.method_settings (read) / admin_set_method_enabled and
+// admin_set_method_visible (write, main admin only). Switches apply immediately;
+// no Save button.
+// Two switches per method: "On/Off" (open or closed) and "Show to users"
+// (hidden completely in the user app).
 // =========================================================
 
 (function(){
@@ -7521,7 +7524,7 @@ function copyDepositTransaction(){
         { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" }
     ];
 
-    var state = { kind: null, values: {}, channel: null, busy: {}, loaded: false, failed: false, network: "" };
+    var state = { kind: null, values: {}, shown: {}, channel: null, busy: {}, loaded: false, failed: false, network: "" };
 
     function kindWord(kind){ return kind === "deposit" ? "Deposit" : "Withdrawal"; }
 
@@ -7591,8 +7594,11 @@ function copyDepositTransaction(){
 
             var on = state.values[m.id] === true;
             var busy = !!state.busy[m.id];
+            var shown = state.shown[m.id] !== false;
+            var busyV = !!state.busy["v_" + m.id];
 
             return '' +
+              '<div class="mth-card' + (shown ? "" : " mth-hidden") + '">' +
                 '<div class="mth-row">' +
                     '<div class="mth-ico"><i class="' + m.icon + '"></i></div>' +
                     '<div class="mth-info">' +
@@ -7606,7 +7612,21 @@ function copyDepositTransaction(){
                         'class="mth-switch' + (on ? " mth-on" : "") + '" ' +
                         (busy || !state.loaded ? "disabled " : "") +
                         'onclick="toggleMethod(\'' + m.id + '\')"><span></span></button>' +
-                '</div>';
+                '</div>' +
+                '<div class="mth-row mth-row2">' +
+                    '<div class="mth-info">' +
+                        '<div class="mth-name mth-name2">Show to users</div>' +
+                        '<div class="mth-sub ' + (shown ? "mth-open" : "mth-closed") + '">' +
+                            (shown ? "Shown in the user app" : "Hidden from the user app") +
+                        '</div>' +
+                    '</div>' +
+                    '<button type="button" role="switch" aria-checked="' + shown + '" ' +
+                        'aria-label="' + m.label + ' ' + word + ' show to users switch" ' +
+                        'class="mth-switch' + (shown ? " mth-on" : "") + '" ' +
+                        (busyV || !state.loaded ? "disabled " : "") +
+                        'onclick="toggleMethodVisible(\'' + m.id + '\')"><span></span></button>' +
+                '</div>' +
+              '</div>';
 
         }).join("");
 
@@ -7618,7 +7638,7 @@ function copyDepositTransaction(){
         var kind = state.kind;
 
         return Promise.all([
-            sb.from("method_settings").select("method, enabled").eq("kind", kind),
+            sb.from("method_settings").select("method, enabled, visible").eq("kind", kind),
             sb.from("deposit_payment_details").select("network").eq("method", "usdt")
         ])
 
@@ -7645,10 +7665,12 @@ function copyDepositTransaction(){
                 }
 
                 var v = {};
-                METHODS.forEach(function(m){ v[m.id] = false; });
-                (res.data || []).forEach(function(r){ v[r.method] = r.enabled === true; });
+                var sh = {};
+                METHODS.forEach(function(m){ v[m.id] = false; sh[m.id] = true; });
+                (res.data || []).forEach(function(r){ v[r.method] = r.enabled === true; sh[r.method] = r.visible !== false; });
 
                 state.values = v;
+                state.shown = sh;
                 state.network = (nres && nres.data && nres.data[0] && nres.data[0].network) || "";
                 state.loaded = true;
                 state.failed = false;
@@ -7696,6 +7718,7 @@ function copyDepositTransaction(){
 
         state.kind = kind === "deposit" ? "deposit" : "withdrawal";
         state.values = {};
+        state.shown = {};
         state.busy = {};
         state.loaded = false;
         state.failed = false;
@@ -7706,6 +7729,7 @@ function copyDepositTransaction(){
         document.getElementById("methodsIntro").innerHTML =
             "Turn a method <b>on</b> to let users make " + word.toLowerCase() + "s with it. " +
             "When it is <b>off</b>, users see that it is closed and cannot continue. " +
+            "<b>Show to users</b> is a second switch: when it is off, the method is <b>hidden completely</b> in the user app (linking page and " + word.toLowerCase() + " page, no closed message). Linked accounts are kept. " +
             "Changes apply instantly. These switches only affect " + word.toLowerCase() + "s.";
 
         var status = document.getElementById("methodsStatus");
@@ -7776,6 +7800,44 @@ function copyDepositTransaction(){
 
                 if(state.kind === kind) render();
                 if(window.KTUI) KTUI.toast(meta.label + " " + word + "s " + (after ? "enabled" : "disabled"), "success");
+
+            });
+
+    };
+
+    window.toggleMethodVisible = function(id){
+
+        var bk = "v_" + id;
+        if(!state.kind || !state.loaded || state.busy[bk]) return;
+
+        if(window.KTPerm && !KTPerm.require("change payment methods")) return;
+
+        var kind = state.kind;
+        var word = kindWord(kind).toLowerCase();
+        var meta = METHODS.filter(function(m){ return m.id === id; })[0];
+        var before = state.shown[id] !== false;
+        var after = !before;
+
+        state.shown[id] = after;
+        state.busy[bk] = true;
+        render();
+
+        sb.rpc("admin_set_method_visible", { p_kind: kind, p_method: id, p_visible: after })
+
+            .then(function(res){
+
+                state.busy[bk] = false;
+
+                if(res.error){
+
+                    if(state.kind === kind){ state.shown[id] = before; render(); }
+                    if(window.KTUI) KTUI.toast("Could not change " + meta.label + ": " + res.error.message, "error");
+                    return;
+
+                }
+
+                if(state.kind === kind) render();
+                if(window.KTUI) KTUI.toast(meta.label + " " + word + "s " + (after ? "shown to users" : "hidden from users"), "success");
 
             });
 
