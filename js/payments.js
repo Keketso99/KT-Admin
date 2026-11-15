@@ -12,8 +12,8 @@
         { id: "usdt",    label: "USDT",    icon: "fa-brands fa-bitcoin",     detailsLabel: "Address (users copy this)", mono: true, network: true },
         { id: "mpesa",   label: "M-Pesa",  icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" },
         { id: "ecocash", label: "EcoCash", icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" },
-        { id: "standard_bank", label: "Standard Bank", icon: "fa-solid fa-building-columns", detailsLabel: "Bank details (users copy this whole text)" },
-        { id: "fnb_bank",      label: "FNB Bank",      icon: "fa-solid fa-building-columns", detailsLabel: "Bank details (users copy this whole text)" }
+        { id: "standard_bank", label: "Standard Bank", icon: "fa-solid fa-building-columns", titleLabel: "Account name (shown as Name)", detailsLabel: "Account number (users copy this)" },
+        { id: "fnb_bank",      label: "FNB Bank",      icon: "fa-solid fa-building-columns", titleLabel: "Account name (shown as Name)", detailsLabel: "Account number (users copy this)" }
     ];
 
     var state = { saved: {}, loaded: false, failed: false, channel: null, busy: {}, preview: null };
@@ -80,7 +80,7 @@
                 '<div class="pay-card">' +
                     '<div class="pay-head"><div class="mth-ico"><i class="' + f.icon + '"></i></div>' +
                         '<div class="mth-name">' + f.label + '</div></div>' +
-                    '<label class="pay-label" for="pay-' + f.id + '-title">' + (f.network ? 'Title (the part outside the brackets)' : 'Title') + '</label>' +
+                    '<label class="pay-label" for="pay-' + f.id + '-title">' + (f.network ? 'Title (the part outside the brackets)' : (f.titleLabel || 'Title')) + '</label>' +
                     '<input type="text" id="pay-' + f.id + '-title" class="pay-input" maxlength="60" ' +
                         'value="' + esc(s.title) + '" autocomplete="off" spellcheck="false" oninput="payDirty(\'' + f.id + '\')">' +
                     (f.network ?
