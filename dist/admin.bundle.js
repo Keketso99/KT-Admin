@@ -5052,7 +5052,7 @@ window.KTNetwork = {
     // "USDT (TRC-20)" for a USDT record, the plain label for the others
     label: function(method, recordNetwork){
 
-        var plain = { mpesa: "M-Pesa", ecocash: "EcoCash" };
+        var plain = { mpesa: "M-Pesa", ecocash: "EcoCash", standard_bank: "Standard Bank", fnb_bank: "FNB Bank" };
 
         if(method === "usdt_trc20"){
             return "USDT (" + (String(recordNetwork || "").trim() || this.LEGACY) + ")";
@@ -7521,7 +7521,9 @@ function copyDepositTransaction(){
     var METHODS = [
         { id: "usdt",    label: "USDT",    sub: "",               icon: "fa-brands fa-bitcoin" },
         { id: "mpesa",   label: "M-Pesa",  sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" },
-        { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" }
+        { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" },
+        { id: "standard_bank", label: "Standard Bank", sub: "Bank account", icon: "fa-solid fa-building-columns" },
+        { id: "fnb_bank",      label: "FNB Bank",      sub: "Bank account", icon: "fa-solid fa-building-columns" }
     ];
 
     var state = { kind: null, values: {}, shown: {}, channel: null, busy: {}, loaded: false, failed: false, network: "" };
@@ -7860,7 +7862,9 @@ function copyDepositTransaction(){
     var FIELDS = [
         { id: "usdt",    label: "USDT",    icon: "fa-brands fa-bitcoin",     detailsLabel: "Address (users copy this)", mono: true, network: true },
         { id: "mpesa",   label: "M-Pesa",  icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" },
-        { id: "ecocash", label: "EcoCash", icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" }
+        { id: "ecocash", label: "EcoCash", icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" },
+        { id: "standard_bank", label: "Standard Bank", icon: "fa-solid fa-building-columns", detailsLabel: "Bank details (users copy this whole text)" },
+        { id: "fnb_bank",      label: "FNB Bank",      icon: "fa-solid fa-building-columns", detailsLabel: "Bank details (users copy this whole text)" }
     ];
 
     var state = { saved: {}, loaded: false, failed: false, channel: null, busy: {}, preview: null };
@@ -23265,10 +23269,12 @@ var KT_MANUAL_TOPICS = [
       a: "If the app says you are not authorized to do something, that action is not available to your account." },
     { k: [["withdrawal","day"],["days","between","withdrawals"],["waiting","days"],["withdrawal","wait"],["same","for","everyone"],["shared","timer"],["open","closed","timer"],["withdrawal","timer"],["withdrawal","schedule"],["open","time"],["closed","time"]],
       a: "Withdrawal Day (Finance > Withdrawals > Withdrawal Day) has two modes:\n\nPer user: each user has their own timer. After a user's withdrawal is approved, that user waits the number of days you set (0 to 365) before the next one. Enter the days and tap Save. 0 means no waiting, but a user can still send only one request at a time.\n\nSame for everyone: one shared timer for all users, not tied to anyone's withdrawal. Enter an Open time and a Closed time (days, hours, minutes, seconds), then tap Start. Withdrawals open for everyone right away for the open time, then close for everyone for the closed time, and this repeats. In each open period a user can make one request (a rejected request can be sent again). Start replaces the per user timers. To change the times, enter new ones and tap Restart (it starts again with an open period). Tap Stop to go back to the per user timers.\n\nChanging the per user days does not affect countdowns already running. Only the main admin can change this." },
-    { k: [["method","switch"],["close","method"],["open","method"],["turn","method"],["disable","method"],["enable","method"],["switch","off","method"],["method","button"],["method","closed"],["switch","off"],["turn","off","deposits"],["turn","off","withdrawals"],["close","deposits"],["close","withdrawals"]],
-      a: "To open or close a method (USDT, M-Pesa, EcoCash):\n1. Open Finance > Withdrawals or Finance > Deposits.\n2. Tap Method.\n3. Use the switch next to the method. On means open, off means closed.\nThe withdrawal and deposit switches are separate. When a method is off, users see that it is closed and cannot continue with it. Requests already sent are not affected." },
+    { k: [["method","switch"],["close","method"],["open","method"],["turn","method"],["disable","method"],["enable","method"],["switch","off","method"],["method","button"],["method","closed"],["switch","off"],["turn","off","deposits"],["turn","off","withdrawals"],["close","deposits"],["close","withdrawals"],["show","to","users"],["hide","method"],["hidden","method"],["hide","payment"],["hide","bank"],["method","visible"]],
+      a: "Each method (USDT, M-Pesa, EcoCash, Standard Bank, FNB Bank) has two switches:\n1. Open Finance > Withdrawals or Finance > Deposits.\n2. Tap Method.\n3. On/Off: on means open, off means closed. When it is off, users still see the method but it says it is closed and they cannot continue with it.\n4. Show to users (under it): when it is off, the method is hidden completely in the user app (no closed message). On the Payment Methods page a method is hidden only when it is hidden in both Deposits and Withdrawals. Users' linked accounts are kept and come back when you show the method again.\nThe withdrawal and deposit switches are separate. Requests already sent are not affected and can still be approved or rejected. Changes show to users straight away." },
     { k: [["payment","details"],["payments","button"],["change","address"],["usdt","address"],["till","number"],["merchant","code"],["change","title"],["edit","payment"],["deposit","details"]],
-      a: "To change what users see and copy on the Deposit page:\n1. Open Finance > Deposits.\n2. Tap Payments.\n3. For each method (USDT, M-Pesa, EcoCash) edit the Title and the Details. For USDT the details are the address, and any text is accepted, it is not checked.\n4. Tap Save on that method and confirm.\nUsers see the new details straight away. They are not notified." },
+      a: "To change what users see and copy on the Deposit page:\n1. Open Finance > Deposits.\n2. Tap Payments.\n3. For each method (USDT, M-Pesa, EcoCash, Standard Bank, FNB Bank) edit the Title and the Details. For USDT the details are the address; for a bank, type the account details users must pay into (for example the account holder, account number and branch). Any text is accepted, it is not checked.\n4. Tap Save on that method and confirm.\nUsers see the new details straight away. They are not notified." },
+    { k: [["bank"],["standard","bank"],["fnb"],["link","bank"],["add","bank"],["bank","account"],["bank","method"],["bank","deposit"],["bank","withdrawal"]],
+      a: "Bank is a payment method with two banks: Standard Bank and FNB Bank. Users can link one or both under Profile > Payment Methods by entering their bank account number. Bank deposits and withdrawals are in ZAR only.\nTo set it up:\n1. Finance > Deposits > Payments: for Standard Bank and FNB Bank enter the Title and the bank details users must pay into, then Save.\n2. Finance > Deposits > Method and Finance > Withdrawals > Method: for each bank turn on Show to users and On.\nThe banks start hidden and closed, so users see nothing until you do this. On the Deposit and Withdraw pages users choose Bank, then their bank if they linked both (if they linked one it is chosen for them). Their names and bank account are filled in automatically and cannot be edited." },
     { k: [["usdt","network"],["trc","20"],["network","brackets"],["change","network"],["erc","20"],["bep","20"]],
       a: "The USDT network is the part in brackets in the USDT title, for example USDT ADDRESS (TRC-20). In Finance > Deposits > Payments, USDT has two fields: Title (the part outside the brackets) and Network (the part inside). The network shows everywhere users and admins see USDT, for deposits and withdrawals.\nImportant:\n- You cannot change the USDT title, network or address while there are pending USDT deposits or withdrawals. Approve or reject them first.\n- When you change the address or network, every user's linked USDT method is removed and they must link a new one. The app shows you this before you confirm." },
     { k: [["usdt","pending"],["cannot","change","usdt"],["usdt","blocked"],["linked","usdt"]],

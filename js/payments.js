@@ -11,7 +11,9 @@
     var FIELDS = [
         { id: "usdt",    label: "USDT",    icon: "fa-brands fa-bitcoin",     detailsLabel: "Address (users copy this)", mono: true, network: true },
         { id: "mpesa",   label: "M-Pesa",  icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" },
-        { id: "ecocash", label: "EcoCash", icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" }
+        { id: "ecocash", label: "EcoCash", icon: "fa-solid fa-mobile-screen", detailsLabel: "Details (users copy this whole text)" },
+        { id: "standard_bank", label: "Standard Bank", icon: "fa-solid fa-building-columns", detailsLabel: "Bank details (users copy this whole text)" },
+        { id: "fnb_bank",      label: "FNB Bank",      icon: "fa-solid fa-building-columns", detailsLabel: "Bank details (users copy this whole text)" }
     ];
 
     var state = { saved: {}, loaded: false, failed: false, channel: null, busy: {}, preview: null };

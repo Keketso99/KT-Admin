@@ -14,7 +14,9 @@
     var METHODS = [
         { id: "usdt",    label: "USDT",    sub: "",               icon: "fa-brands fa-bitcoin" },
         { id: "mpesa",   label: "M-Pesa",  sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" },
-        { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" }
+        { id: "ecocash", label: "EcoCash", sub: "Mobile money",   icon: "fa-solid fa-mobile-screen" },
+        { id: "standard_bank", label: "Standard Bank", sub: "Bank account", icon: "fa-solid fa-building-columns" },
+        { id: "fnb_bank",      label: "FNB Bank",      sub: "Bank account", icon: "fa-solid fa-building-columns" }
     ];
 
     var state = { kind: null, values: {}, shown: {}, channel: null, busy: {}, loaded: false, failed: false, network: "" };

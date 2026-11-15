@@ -13,7 +13,7 @@ window.KTNetwork = {
     // "USDT (TRC-20)" for a USDT record, the plain label for the others
     label: function(method, recordNetwork){
 
-        var plain = { mpesa: "M-Pesa", ecocash: "EcoCash" };
+        var plain = { mpesa: "M-Pesa", ecocash: "EcoCash", standard_bank: "Standard Bank", fnb_bank: "FNB Bank" };
 
         if(method === "usdt_trc20"){
             return "USDT (" + (String(recordNetwork || "").trim() || this.LEGACY) + ")";
