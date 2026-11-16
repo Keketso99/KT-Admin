@@ -665,10 +665,30 @@ function openWithdrawalReview(id){
     const rEmail = document.getElementById("review-email");
     if(rEmail) rEmail.textContent = withdrawal.email || "—";
 
+    // VERIFICATION (KYC) STATUS: the user's latest KYC submission —
+    // Pending / Approved / Rejected, "Reset" when it was reset for resubmission, "Not submitted" when none.
     const rStatus = document.getElementById("review-status");
     if(rStatus){
-        rStatus.textContent = withdrawal.status;
-        rStatus.className = "review-status review-status-" + String(withdrawal.status).toLowerCase();
+        const setKyc = function(label){
+            rStatus.textContent = label;
+            rStatus.className = "review-status review-status-" + label.toLowerCase().replace(/\s+/g, "-");
+        };
+        setKyc("Loading...");
+        const kycWanted = id;
+        sb.from("kyc_submissions")
+            .select("status, needs_resubmission, created_at")
+            .eq("user_id", withdrawal.userId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .then(function(res){
+                if(window.__wReviewOpenId !== kycWanted) return;   // another request was opened meanwhile
+                if(res.error){ setKyc("—"); return; }
+                const k = res.data && res.data[0];
+                if(!k){ setKyc("Not submitted"); return; }
+                setKyc(k.needs_resubmission ? "Reset" : (k.status.charAt(0).toUpperCase() + k.status.slice(1)));
+            }, function(){
+                if(window.__wReviewOpenId === kycWanted) setKyc("—");
+            });
     }
 
     // MINING PLAN: the user's current active plan (looked up when the modal opens)

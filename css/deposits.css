@@ -382,3 +382,5 @@
 .review-status-approved{ background:#dff5e7; color:#0a7a3d !important; }
 .review-status-rejected{ background:#fde2e2; color:#b42318 !important; }
 @media(max-width:768px){ .detail-row span,.wdetail-row span{ text-align:left; } .review-status{ align-self:flex-start; } }
+.review-status-reset{ background:#e3ebff; color:#2a4db5 !important; }
+.review-status-not-submitted{ background:#eef0f4; color:#666 !important; }
