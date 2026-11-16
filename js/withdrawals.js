@@ -28,7 +28,7 @@ function formatWithdrawalMethodLabel(method, network){
 function loadWithdrawals(){
 
     sb.from("withdrawals")
-        .select("id, amount_zar, status, created_at, network, profiles(username), payment_methods(method)")
+        .select("id, user_id, amount_zar, status, created_at, network, profiles(username, surname, phone, email), payment_methods(method)")
         .order("created_at", { ascending: false })
 
         .then(({ data, error }) => {
@@ -50,6 +50,16 @@ function loadWithdrawals(){
                     id: row.id,
 
                     user: row.profiles ? row.profiles.username : "Unknown",
+
+                    userId: row.user_id,
+
+                    fullName: row.profiles
+                        ? ((row.profiles.username || "") + " " + (row.profiles.surname || "")).trim() || "Unknown"
+                        : "Unknown",
+
+                    phone: (row.profiles && row.profiles.phone) || "—",
+
+                    email: (row.profiles && row.profiles.email) || "—",
 
                     method: row.payment_methods
                         ? formatWithdrawalMethodLabel(row.payment_methods.method, row.network)
@@ -613,6 +623,7 @@ function showWithdrawalTab(
 // =====================================
 
 function openWithdrawalReview(id){
+    window.__wReviewOpenId = id;
 
     const withdrawal =
         withdrawals[id];
@@ -644,9 +655,42 @@ function openWithdrawalReview(id){
     if(user){
 
         user.textContent =
-            withdrawal.user;
+            withdrawal.fullName || withdrawal.user;
 
     }
+    // PHONE / EMAIL / VERIFICATION STATUS
+    const rPhone = document.getElementById("review-phone");
+    if(rPhone) rPhone.textContent = withdrawal.phone || "—";
+
+    const rEmail = document.getElementById("review-email");
+    if(rEmail) rEmail.textContent = withdrawal.email || "—";
+
+    const rStatus = document.getElementById("review-status");
+    if(rStatus){
+        rStatus.textContent = withdrawal.status;
+        rStatus.className = "review-status review-status-" + String(withdrawal.status).toLowerCase();
+    }
+
+    // MINING PLAN: the user's current active plan (looked up when the modal opens)
+    const rPlan = document.getElementById("review-plan");
+    if(rPlan){
+        rPlan.textContent = "Loading...";
+        const wantedId = id;
+        sb.from("mining_subscriptions")
+            .select("started_at, plans(name)")
+            .eq("user_id", withdrawal.userId)
+            .eq("status", "active")
+            .order("started_at", { ascending: false })
+            .limit(1)
+            .then(function(res){
+                if(window.__wReviewOpenId !== wantedId) return;   // another request was opened meanwhile
+                const row = res && res.data && res.data[0];
+                rPlan.textContent = res.error ? "—" : (row && row.plans && row.plans.name ? row.plans.name : "No active plan");
+            }, function(){
+                if(window.__wReviewOpenId === wantedId) rPlan.textContent = "—";
+            });
+    }
+
 
 
 

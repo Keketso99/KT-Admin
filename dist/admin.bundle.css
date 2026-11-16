@@ -1478,6 +1478,14 @@ button{
 .wday-loading .wday-run{ visibility:hidden; }
 .wday-loading .wday-num{ color:transparent; border-color:transparent; background:linear-gradient(90deg,#eceff3 25%,#f7f8fa 50%,#eceff3 75%); background-size:200% 100%; animation:mthShimmer 1.2s linear infinite; }
 
+/* Review modal: phone / email / verification status */
+.detail-row span,.wdetail-row span{ text-align:right; word-break:break-word; min-width:0; }
+.review-status{ display:inline-block; padding:3px 12px; border-radius:999px; font-size:12px; font-weight:700; background:#eef0f4; }
+.review-status-pending{ background:#fff3cf; color:#8a6100 !important; }
+.review-status-approved{ background:#dff5e7; color:#0a7a3d !important; }
+.review-status-rejected{ background:#fde2e2; color:#b42318 !important; }
+@media(max-width:768px){ .detail-row span,.wdetail-row span{ text-align:left; } .review-status{ align-self:flex-start; } }
+
 
 /* ===== css/deposits.css ===== */
 /* ==================================
@@ -1857,6 +1865,14 @@ button{
     width:100%;
 }
 }
+/* Review modal: phone / email / verification status */
+.detail-row span,.wdetail-row span{ text-align:right; word-break:break-word; min-width:0; }
+.review-status{ display:inline-block; padding:3px 12px; border-radius:999px; font-size:12px; font-weight:700; background:#eef0f4; }
+.review-status-pending{ background:#fff3cf; color:#8a6100 !important; }
+.review-status-approved{ background:#dff5e7; color:#0a7a3d !important; }
+.review-status-rejected{ background:#fde2e2; color:#b42318 !important; }
+@media(max-width:768px){ .detail-row span,.wdetail-row span{ text-align:left; } .review-status{ align-self:flex-start; } }
+
 
 /* ===== css/methods.css ===== */
 /* ==================================

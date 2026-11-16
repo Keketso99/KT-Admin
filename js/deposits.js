@@ -28,7 +28,7 @@ function formatDepositMethodLabel(method, network){
 function loadDeposits(){
 
     sb.from("deposits")
-        .select("id, amount_zar, method, network, transaction_ref, proof_url, status, created_at, profiles(username)")
+        .select("id, amount_zar, method, network, transaction_ref, proof_url, status, created_at, profiles(username, surname, phone, email)")
         .order("created_at", { ascending: false })
 
         .then(({ data, error }) => {
@@ -50,6 +50,14 @@ function loadDeposits(){
                     id: row.id,
 
                     user: row.profiles ? row.profiles.username : "Unknown",
+
+                    fullName: row.profiles
+                        ? ((row.profiles.username || "") + " " + (row.profiles.surname || "")).trim() || "Unknown"
+                        : "Unknown",
+
+                    phone: (row.profiles && row.profiles.phone) || "—",
+
+                    email: (row.profiles && row.profiles.email) || "—",
 
                     method: formatDepositMethodLabel(row.method, row.network),
 
@@ -608,9 +616,22 @@ function openDepositReview(id){
     if(user){
 
         user.textContent =
-            deposit.user;
+            deposit.fullName || deposit.user;
 
     }
+    // PHONE / EMAIL / VERIFICATION STATUS
+    const rPhone = document.getElementById("review-phone");
+    if(rPhone) rPhone.textContent = deposit.phone || "—";
+
+    const rEmail = document.getElementById("review-email");
+    if(rEmail) rEmail.textContent = deposit.email || "—";
+
+    const rStatus = document.getElementById("review-status");
+    if(rStatus){
+        rStatus.textContent = deposit.status;
+        rStatus.className = "review-status review-status-" + String(deposit.status).toLowerCase();
+    }
+
 
 
 
