@@ -22501,11 +22501,21 @@ document.addEventListener("click", function(event) {
                 '</div>' +
                 '<div class="kt-set-big plain"><small>1 point =</small><b>' + rand(d.point_value_zar) + '</b></div>' +
                 '<p class="kt-set-hint">A new value only applies to check-ins claimed from then on. Points users already earned keep the value they had. Allowed: R0.01 to R1,000, up to 2 decimals. Only the main admin can change it.</p>' +
+            '</div>' +
+            '<div class="kt-set-card">' +
+                '<div class="kt-set-row head">' +
+                    '<div><h3><i class="fa-solid fa-coins"></i> Points per check-in</h3>' +
+                    '<p class="kt-set-hint">How many points a user gets each time they check in. It is the same for every user.</p></div>' +
+                    '<button class="kt-set-mini" data-act="checkin-points-edit" title="Change points per check-in" aria-label="Change points per check-in"><i class="fa-solid fa-pen"></i> Change</button>' +
+                '</div>' +
+                '<div class="kt-set-big plain"><small>Each check-in gives</small><b>' + Number(d.points_per_checkin || 0).toLocaleString("en-US") + (Number(d.points_per_checkin) === 1 ? ' point' : ' points') + '</b></div>' +
+                '<p class="kt-set-hint">A new number only applies to check-ins claimed from then on. Points users already earned do not change. Allowed: a whole number from 1 to 100. Only the main admin can change it.</p>' +
             '</div>';
     }
 
     function onCheckinClick(e){
         var t = e.target.closest("[data-act]");
+        if(t && t.getAttribute("data-act") === "checkin-points-edit"){ return editCheckinPoints(); }
         if(!t || t.getAttribute("data-act") !== "checkin-edit") return;
         if(window.KTPerm && !KTPerm.require("change the check-in point value")) return;
 
@@ -22536,6 +22546,40 @@ document.addEventListener("click", function(event) {
         }).then(function(v){
             if(v === null) return;
             KTUI.success("Point value updated.");
+            if(S.view === "checkin") paintCheckin();
+        });
+    }
+
+    function editCheckinPoints(){
+        if(window.KTPerm && !KTPerm.require("change the points per check-in")) return;
+
+        var current = Number((S.checkin && S.checkin.points_per_checkin) || 3);
+
+        KTUI.prompt("Enter how many points a user gets for each daily check-in (a whole number from 1 to 100). It applies to check-ins claimed from now on. Points already earned do not change.", {
+            title: "Points per check-in",
+            placeholder: "3",
+            inputMode: "numeric",
+            value: String(current),
+            confirmText: "Save",
+            busyText: "Saving...",
+            validate: function(v){
+                var s = String(v == null ? "" : v).trim();
+                if(!/^\d+$/.test(s)) return "Enter a whole number.";
+                var n = Number(s);
+                if(n < 1) return "The smallest number is 1.";
+                if(n > 100) return "The largest number is 100.";
+                return null;
+            },
+            run: function(v){
+                return guarded("admin_set_checkin_points_per_checkin", { p_points: Number(String(v).trim()) }).then(function(d){
+                    if(!S.checkin) S.checkin = {};
+                    S.checkin.points_per_checkin = d.points_per_checkin;
+                    return null;
+                }, function(err){ return err.message; });
+            }
+        }).then(function(v){
+            if(v === null) return;
+            KTUI.success("Points per check-in updated.");
             if(S.view === "checkin") paintCheckin();
         });
     }
