@@ -21827,9 +21827,9 @@ document.addEventListener("click", function(event) {
 (function(){
 
     var IDLE_MS = 10 * 60 * 1000;              // auto-lock after 10 minutes without use
-    var LOCKED_VIEWS = ["sound", "admin", "audit", "referrals", "trash", "mdel", "devices", "seclog"];
+    var LOCKED_VIEWS = ["sound", "admin", "audit", "referrals", "checkin", "trash", "mdel", "devices", "seclog"];
 
-    var S = { password: null, view: "loading", idle: null, users: null, audit: null, referrals: null, adminName: "Admin", bound: false, lastDeleted: 0 };
+    var S = { password: null, view: "loading", idle: null, users: null, audit: null, referrals: null, checkin: null, adminName: "Admin", bound: false, lastDeleted: 0 };
 
     // ---------------------------------------------------------
     // tiny helpers
@@ -21915,7 +21915,7 @@ document.addEventListener("click", function(event) {
     // ---------------------------------------------------------
     // views, locking
     // ---------------------------------------------------------
-    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", referrals: "setReferrals", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
+    var VIEW_IDS = { loading: "setLoading", create: "setCreate", menu: "setMenu", sound: "setSound", admin: "setAdmin", audit: "setAudit", referrals: "setReferrals", checkin: "setCheckin", trash: "setTrash", mdel: "setMdel", devices: "setDevices", seclog: "setSeclog", safety: "setSafety" };
 
     function show(view){
         S.view = view;
@@ -21944,6 +21944,7 @@ document.addEventListener("click", function(event) {
         S.audit = null;
         S.trash = null;
         S.referrals = null;
+        S.checkin = null;
         clearTimeout(S.idle);
         if(S.view !== "create" && S.view !== "loading"){
             show("menu");
@@ -21953,7 +21954,7 @@ document.addEventListener("click", function(event) {
     function openCategory(cat){
         if(cat === "safety"){ openView("safety"); return; }
 
-        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", referrals: "Referrals", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
+        var titles = { sound: "Sound & Notifications", admin: "Admins", audit: "Audit", referrals: "Referrals", checkin: "Check-in rewards", trash: "Trash", mdel: "Manual delete", devices: "Trusted Devices", seclog: "Security log" };
 
         KTUI.prompt("Enter the settings password to open " + titles[cat] + ".", {
             title: "Settings password",
@@ -21979,6 +21980,7 @@ document.addEventListener("click", function(event) {
         else if(cat === "admin") renderAdmin();
         else if(cat === "audit") renderAudit();
         else if(cat === "referrals") renderReferrals();
+        else if(cat === "checkin") renderCheckin();
         else if(cat === "trash") renderTrash();
         else if(cat === "mdel") renderMdel();
         else if(cat === "devices") renderDevices();
@@ -22467,6 +22469,74 @@ document.addEventListener("click", function(event) {
             if(v === null) return;
             KTUI.success("Referral reward updated.");
             if(S.view === "referrals") paintReferrals();
+        });
+    }
+
+    // ---------------------------------------------------------
+    // CHECK-IN REWARDS — the rand value of 1 daily check-in point. Users see it
+    // in their own currency straight away. A new value only applies to check-ins
+    // claimed from then on; points already earned keep the value they had.
+    // Anyone who can open Settings can look; only the main admin can change it
+    // (checked here and in the database).
+    // ---------------------------------------------------------
+    function renderCheckin(){
+        var body = $("setCheckinBody");
+        body.innerHTML = '<div class="kt-set-loading small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+        rpc("admin_get_checkin_settings").then(function(d){
+            S.checkin = d || {};
+            if(S.view === "checkin") paintCheckin();
+        }).catch(function(e){
+            body.innerHTML = '<div class="kt-set-card"><p class="kt-set-error">' + esc(e.message) + '</p></div>';
+        });
+    }
+
+    function paintCheckin(){
+        var d = S.checkin || {};
+        $("setCheckinBody").innerHTML =
+            '<div class="kt-set-card">' +
+                '<div class="kt-set-row head">' +
+                    '<div><h3><i class="fa-solid fa-calendar-check"></i> Value of 1 point</h3>' +
+                    '<p class="kt-set-hint">What one daily check-in point is worth, in ZAR. It is the same for every user, and users see it in the currency they chose.</p></div>' +
+                    '<button class="kt-set-mini" data-act="checkin-edit" title="Change point value" aria-label="Change point value"><i class="fa-solid fa-pen"></i> Change</button>' +
+                '</div>' +
+                '<div class="kt-set-big plain"><small>1 point =</small><b>' + rand(d.point_value_zar) + '</b></div>' +
+                '<p class="kt-set-hint">A new value only applies to check-ins claimed from then on. Points users already earned keep the value they had. Allowed: R0.01 to R1,000, up to 2 decimals. Only the main admin can change it.</p>' +
+            '</div>';
+    }
+
+    function onCheckinClick(e){
+        var t = e.target.closest("[data-act]");
+        if(!t || t.getAttribute("data-act") !== "checkin-edit") return;
+        if(window.KTPerm && !KTPerm.require("change the check-in point value")) return;
+
+        var current = Number((S.checkin && S.checkin.point_value_zar) || 1);
+
+        KTUI.prompt("Enter what 1 point is worth, in ZAR (R0.01 to R1,000, up to 2 decimals). It applies to check-ins claimed from now on. Points already earned keep their value.", {
+            title: "Value of 1 point",
+            placeholder: "0.00",
+            inputMode: "decimal",
+            value: String(current),
+            confirmText: "Save",
+            busyText: "Saving...",
+            validate: function(v){
+                var s = String(v == null ? "" : v).trim();
+                if(!/^\d+(\.\d{1,2})?$/.test(s)) return "Enter a valid amount with at most 2 decimals.";
+                var n = Number(s);
+                if(n < 0.01) return "The smallest value is R0.01.";
+                if(n > 1000) return "The largest value is R1,000.";
+                return null;
+            },
+            run: function(v){
+                return guarded("admin_set_checkin_point_value", { p_value: Number(String(v).trim()) }).then(function(d){
+                    if(!S.checkin) S.checkin = {};
+                    S.checkin.point_value_zar = d.point_value_zar;
+                    return null;
+                }, function(err){ return err.message; });
+            }
+        }).then(function(v){
+            if(v === null) return;
+            KTUI.success("Point value updated.");
+            if(S.view === "checkin") paintCheckin();
         });
     }
 
@@ -23305,6 +23375,7 @@ document.addEventListener("click", function(event) {
             else if(S.view === "admin") onAdminClick(e);
             else if(S.view === "audit") onAuditClick(e);
             else if(S.view === "referrals") onReferralsClick(e);
+            else if(S.view === "checkin") onCheckinClick(e);
             else if(S.view === "trash") onTrashClick(e);
             else if(S.view === "devices") onDevicesClick(e);
             else if(S.view === "seclog") onSeclogClick(e);

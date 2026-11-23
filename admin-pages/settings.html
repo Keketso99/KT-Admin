@@ -59,6 +59,12 @@
                 <i class="fa-solid fa-lock kt-set-cat-lock"></i>
             </button>
 
+            <button class="kt-set-cat" data-cat="checkin">
+                <span class="kt-set-cat-icon"><i class="fa-solid fa-calendar-check"></i></span>
+                <span class="kt-set-cat-text"><b>Check-in rewards</b><small>Rand value of 1 daily check-in point</small></span>
+                <i class="fa-solid fa-lock kt-set-cat-lock"></i>
+            </button>
+
             <button class="kt-set-cat" data-cat="mdel" id="setMdelCard" hidden>
                 <span class="kt-set-cat-icon"><i class="fa-solid fa-eraser"></i></span>
                 <span class="kt-set-cat-text"><b>Manual delete</b><small>Delete deposits, withdrawals, transactions, notifications and logs by days or one by one</small></span>
@@ -125,6 +131,15 @@
             <h2>Referrals</h2>
         </div>
         <div id="setReferralsBody"></div>
+    </section>
+
+    <!-- Check-in rewards -->
+    <section class="kt-set-view" id="setCheckin" hidden>
+        <div class="kt-set-topbar">
+            <button class="kt-set-back" data-back><i class="fa-solid fa-arrow-left"></i> Settings</button>
+            <h2>Check-in rewards</h2>
+        </div>
+        <div id="setCheckinBody"></div>
     </section>
 
     <!-- Manual delete (main admin only) -->
