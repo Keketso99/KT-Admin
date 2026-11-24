@@ -178,7 +178,8 @@
             setBadge("users",        (r.password_resets_pending || 0) +
                                      (r.pin_resets_pending || 0) +
                                      (r.change_requests_pending || 0) +
-                                     (r.unblock_requests_pending || 0));
+                                     (r.unblock_requests_pending || 0) +
+                                     (r.two_factor_resets_pending || 0));
         });
 
         var notifQuery = sb.from("activity_log")
@@ -306,6 +307,7 @@
         personal_info_change_requested: "users",
         payment_methods_change_requested: "users",
         unblock_requested: "users",
+        two_factor_reset_requested: "users",
         support_message_received: "support-chat"
     };
 

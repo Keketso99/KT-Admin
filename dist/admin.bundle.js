@@ -3023,7 +3023,8 @@ var KTSecurity = (function(){
             setBadge("users",        (r.password_resets_pending || 0) +
                                      (r.pin_resets_pending || 0) +
                                      (r.change_requests_pending || 0) +
-                                     (r.unblock_requests_pending || 0));
+                                     (r.unblock_requests_pending || 0) +
+                                     (r.two_factor_resets_pending || 0));
         });
 
         var notifQuery = sb.from("activity_log")
@@ -3151,6 +3152,7 @@ var KTSecurity = (function(){
         personal_info_change_requested: "users",
         payment_methods_change_requested: "users",
         unblock_requested: "users",
+        two_factor_reset_requested: "users",
         support_message_received: "support-chat"
     };
 
@@ -9307,7 +9309,7 @@ function initUsers(){
     // ===============================
 
     // A user "has a request" when any of these is open:
-    //   - password / PIN / KYC reset or reactivation request (account_reset_requests, pending)
+    //   - password / PIN / KYC / two-factor reset or reactivation request (account_reset_requests, pending)
     //   - personal information change request
     //   - payment methods change request
     function markRequests(row, user, resetKinds){
@@ -9319,6 +9321,7 @@ function initUsers(){
             else if(kind === "pin") labels.push("PIN reset");
             else if(kind === "kyc") labels.push("KYC reset");
             else if(kind === "unblock") labels.push("Reactivation");
+            else if(kind === "2fa") labels.push("Two-factor reset");
         });
 
         if(user.change_requested) labels.push("Personal info change");
@@ -11251,6 +11254,112 @@ if(verifyBtn){
 
             renderResetPinModal();
             resetPinModal.style.display="flex";
+        };
+
+    }
+
+    // ===============================
+    // RESET TWO-FACTOR AUTHENTICATION (real — request/reset/reject flow)
+    // ===============================
+    // Reset removes the user's authenticator and trusted device, so they can
+    // sign in with their password and turn two-factor on again with a new secret.
+
+    const twoFactorResetBtn = document.querySelector(".two-factor-reset-btn");
+
+    const resetTwoFactorModal = document.getElementById("resetTwoFactorModal");
+
+    const resetTwoFactorStatus = document.getElementById("resetTwoFactorStatus");
+
+    const resetTwoFactorActions = document.getElementById("resetTwoFactorActions");
+
+    function bindResetTwoFactorClose(){
+        const closeBtn = resetTwoFactorActions.querySelector(".cancel-btn");
+        if(closeBtn){
+            closeBtn.onclick = function(){ resetTwoFactorModal.style.display = "none"; };
+        }
+    }
+
+    function renderResetTwoFactorModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        resetTwoFactorStatus.textContent = "Checking for a pending request…";
+        resetTwoFactorActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindResetTwoFactorClose();
+
+        sb.from("account_reset_requests").select("id").eq("user_id", userId).eq("kind","2fa").eq("status","pending").maybeSingle()
+
+            .then(({ data, error }) => {
+
+                if(error){
+                    resetTwoFactorStatus.textContent = "Failed to check request: " + error.message;
+                    return;
+                }
+
+                const pending = data;
+
+                resetTwoFactorStatus.textContent = pending
+                    ? "This user has requested a two-factor authentication reset. Confirm who they are in Support Chat before approving."
+                    : "No pending two-factor reset request for this user.";
+
+                let buttonsHtml = '<button class="cancel-btn">Close</button>';
+                if(pending){
+                    buttonsHtml += '<button class="reset-btn tf-reset-confirm-btn">Reset</button>';
+                    buttonsHtml += '<button class="reset-btn reject-btn tf-reset-reject-btn">Reject</button>';
+                }
+                resetTwoFactorActions.innerHTML = buttonsHtml;
+                bindResetTwoFactorClose();
+
+                const confirmBtn = resetTwoFactorActions.querySelector(".tf-reset-confirm-btn");
+                if(confirmBtn){
+                    confirmBtn.onclick = function(){
+                        if(window.KTPerm && !KTPerm.require("reset a user's two-factor authentication")) return;
+                        const rejectOther = resetTwoFactorActions.querySelector(".tf-reset-reject-btn");
+                        const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
+                        sb.rpc("admin_reset_two_factor", { p_user_id: userId })
+                            .then(({ error }) => {
+                                done();
+                                if(error){
+                                    KTUI.notify("Failed to reset two-factor: " + error.message);
+                                    return;
+                                }
+                                KTUI.notify("Two-factor reset — the user can sign in with their password and turn it on again.");
+                                renderResetTwoFactorModal();
+                            });
+                    };
+                }
+
+                const rejectBtn = resetTwoFactorActions.querySelector(".tf-reset-reject-btn");
+                if(rejectBtn){
+                    rejectBtn.onclick = function(){
+                        const confirmOther = resetTwoFactorActions.querySelector(".tf-reset-confirm-btn");
+                        const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
+                        sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "2fa" })
+                            .then(({ error }) => {
+                                done();
+                                if(error){
+                                    KTUI.notify("Failed to reject request: " + error.message);
+                                    return;
+                                }
+                                KTUI.success("Two-factor reset request rejected.");
+                                renderResetTwoFactorModal();
+                            });
+                    };
+                }
+
+            });
+
+    }
+
+    if(twoFactorResetBtn){
+
+        twoFactorResetBtn.onclick=function(){
+            if(!currentRow) return;
+
+            renderResetTwoFactorModal();
+            resetTwoFactorModal.style.display="flex";
         };
 
     }
@@ -13850,6 +13959,7 @@ const NOTIFICATION_ICONS = {
     kyc_verification_requested: "fa-solid fa-id-card",
     kyc_resubmission_requested: "fa-solid fa-file-circle-question",
     unblock_requested: "fa-solid fa-user-check",
+    two_factor_reset_requested: "fa-solid fa-shield-halved",
     support_message_received: "fa-solid fa-comments"
 };
 
@@ -13864,6 +13974,7 @@ const NOTIFICATION_LABELS = {
     kyc_verification_requested: "KYC Verification Request",
     kyc_resubmission_requested: "KYC Resubmission Request",
     unblock_requested: "Account Reactivation Request",
+    two_factor_reset_requested: "Two-Factor Reset Request",
     support_message_received: "New Support Message"
 };
 
@@ -13974,6 +14085,9 @@ function messageForEntry(row, name){
 
         case "unblock_requested":
             return who + " requested account reactivation.";
+
+        case "two_factor_reset_requested":
+            return who + " requested a two-factor authentication reset.";
 
         case "support_message_received":
             return who + ": " + (meta.preview || "sent you a message") +
@@ -23879,6 +23993,9 @@ function renderPendingCounts(counts){
     document.getElementById("pendingUnblockRequests").textContent =
         formatNumber(counts.unblockRequestsPending);
 
+    var tfCell = document.getElementById("pendingTwoFactorResets");
+    if(tfCell) tfCell.textContent = formatNumber(counts.twoFactorResetsPending || 0);
+
 }
 
 
@@ -23942,7 +24059,8 @@ function loadPendingCounts(){
                 pinResetsPending: row.pin_resets_pending,
                 changeRequestsPending: row.change_requests_pending,
                 kycResetsPending: row.kyc_resets_pending,
-                unblockRequestsPending: row.unblock_requests_pending
+                unblockRequestsPending: row.unblock_requests_pending,
+                twoFactorResetsPending: row.two_factor_resets_pending
             });
 
         })

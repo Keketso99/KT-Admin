@@ -25,6 +25,7 @@ const NOTIFICATION_ICONS = {
     kyc_verification_requested: "fa-solid fa-id-card",
     kyc_resubmission_requested: "fa-solid fa-file-circle-question",
     unblock_requested: "fa-solid fa-user-check",
+    two_factor_reset_requested: "fa-solid fa-shield-halved",
     support_message_received: "fa-solid fa-comments"
 };
 
@@ -39,6 +40,7 @@ const NOTIFICATION_LABELS = {
     kyc_verification_requested: "KYC Verification Request",
     kyc_resubmission_requested: "KYC Resubmission Request",
     unblock_requested: "Account Reactivation Request",
+    two_factor_reset_requested: "Two-Factor Reset Request",
     support_message_received: "New Support Message"
 };
 
@@ -149,6 +151,9 @@ function messageForEntry(row, name){
 
         case "unblock_requested":
             return who + " requested account reactivation.";
+
+        case "two_factor_reset_requested":
+            return who + " requested a two-factor authentication reset.";
 
         case "support_message_received":
             return who + ": " + (meta.preview || "sent you a message") +

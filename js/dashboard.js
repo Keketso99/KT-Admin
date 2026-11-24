@@ -137,6 +137,9 @@ function renderPendingCounts(counts){
     document.getElementById("pendingUnblockRequests").textContent =
         formatNumber(counts.unblockRequestsPending);
 
+    var tfCell = document.getElementById("pendingTwoFactorResets");
+    if(tfCell) tfCell.textContent = formatNumber(counts.twoFactorResetsPending || 0);
+
 }
 
 
@@ -200,7 +203,8 @@ function loadPendingCounts(){
                 pinResetsPending: row.pin_resets_pending,
                 changeRequestsPending: row.change_requests_pending,
                 kycResetsPending: row.kyc_resets_pending,
-                unblockRequestsPending: row.unblock_requests_pending
+                unblockRequestsPending: row.unblock_requests_pending,
+                twoFactorResetsPending: row.two_factor_resets_pending
             });
 
         })
