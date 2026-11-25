@@ -336,6 +336,12 @@
 
             </button>
 
+            <button class="action-btn full-records-btn">
+
+                Full Records
+
+            </button>
+
  <button id = "adminactionsactionbtapprovebtn"
        class="action-btn approve-btn">
                 Approve Changes
@@ -950,6 +956,68 @@
 
 </div>
 
+
+<!-- Full Records (every record that added money to / took money from the user's balance) -->
+
+<div class="user-history-modal" id="fullRecordsModal">
+
+    <div class="user-history-content">
+
+        <div class="user-history-header">
+
+            <div>
+                <h2>Full Records</h2>
+                <p id="fullRecordsUser"></p>
+            </div>
+
+            <button type="button" class="user-history-close" id="fullRecordsClose" aria-label="Close full records">&times;</button>
+
+        </div>
+
+        <div class="fr-totals">
+            <div class="fr-total add"><span>Total added</span><strong id="frTotalAdded">—</strong></div>
+            <div class="fr-total ded"><span>Total deducted</span><strong id="frTotalDeducted">—</strong></div>
+            <div class="fr-total bal"><span>Current balance</span><strong id="frBalance">—</strong></div>
+        </div>
+
+        <p class="fr-held" id="frHeld" style="display:none"></p>
+
+        <div class="fr-tabs" id="frTabs">
+            <button type="button" class="fr-tab active" data-tab="all">All</button>
+            <button type="button" class="fr-tab" data-tab="added">Added</button>
+            <button type="button" class="fr-tab" data-tab="deducted">Deducted</button>
+        </div>
+
+        <div class="user-history-body" id="fullRecordsBody">
+            <div class="user-history-loading">Loading records...</div>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="user-history-modal fr-detail-modal" id="recordDetailsModal">
+
+    <div class="user-history-content fr-detail-content">
+
+        <div class="user-history-header">
+
+            <div>
+                <h2 id="recordDetailsTitle">Record</h2>
+                <p id="recordDetailsSub"></p>
+            </div>
+
+            <button type="button" class="user-history-close" id="recordDetailsClose" aria-label="Close details">&times;</button>
+
+        </div>
+
+        <div class="user-history-body" id="recordDetailsBody">
+            <div class="user-history-loading">Loading details...</div>
+        </div>
+
+    </div>
+
+</div>
 
 <!-- Referrals -->
 

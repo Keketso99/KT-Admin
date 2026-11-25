@@ -12559,6 +12559,362 @@ if(withdrawBtn){
     }
 
     // ===============================
+    // FULL RECORDS (real - admin_user_full_records / admin_user_record_details)
+    // Every record that added money to / took money from this user's balance, with a View button
+    // for the full details of one record. Read only: nothing here changes any data.
+    // ===============================
+
+    const fullRecordsBtn = document.querySelector(".full-records-btn");
+    const fullRecordsModal = document.getElementById("fullRecordsModal");
+    const recordDetailsModal = document.getElementById("recordDetailsModal");
+
+    if(fullRecordsBtn && fullRecordsModal && recordDetailsModal){
+
+        const frBody = document.getElementById("fullRecordsBody");
+        const frUserEl = document.getElementById("fullRecordsUser");
+        const frHeld = document.getElementById("frHeld");
+        const frTabs = document.getElementById("frTabs");
+        const detBody = document.getElementById("recordDetailsBody");
+
+        let frUserId = null;
+        let frData = null;
+        let frTab = "all";
+        let frToken = 0;
+        let frChannel = null, frPoll = null, frLiveTimer = null;
+        let frDetailToken = 0;
+
+        function frEsc(v){
+            return String(v == null ? "" : v)
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function frMoney(v){
+            return "M " + Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function frSigned(v){
+            const n = Number(v || 0);
+            if(n === 0) return frMoney(0);
+            return (n > 0 ? "+ " : "- ") + frMoney(Math.abs(n));
+        }
+
+        function frDate(v){
+            if(!v) return "—";
+            const d = new Date(v);
+            if(Number.isNaN(d.getTime())) return "—";
+            return d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        }
+
+        function frDateLong(v){
+            if(!v) return "—";
+            const d = new Date(v);
+            if(Number.isNaN(d.getTime())) return "—";
+            return d.toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        }
+
+        function frMethod(method, network){
+            if(!method) return "—";
+            try{ return KTNetwork.label(method, network); }catch(e){ return method; }
+        }
+
+        function frPlanText(r){
+            return r.plan_name ? " (" + r.plan_name + ")" : "";
+        }
+
+        function frLabel(r){
+            switch(r.kind){
+                case "deposit_approved": return "Deposit approved";
+                case "deposit_rejected": return "Deposit rejected";
+                case "credit_by_admin": return "Credit by admin";
+                case "debit_by_admin": return "Debit by admin";
+                case "bonus_by_admin": return "Bonus by admin";
+                case "referral_reward": return "Referral reward";
+                case "points_conversion": return "Points conversion";
+                case "mining_payout":
+                    return "Mining payout" + (r.day_no && r.day_total ? " (day " + r.day_no + " of " + r.day_total + ")" : "");
+                case "plan_refund": return "Plan refund" + frPlanText(r);
+                case "plan_purchase": return "Plan purchase" + frPlanText(r);
+                case "plan_upgrade": return "Plan upgrade" + frPlanText(r);
+                case "withdrawal_approved": return "Withdrawal approved";
+                case "withdrawal_rejected": return "Withdrawal rejected – refunded";
+                default: return String(r.kind || "Record").replace(/_/g, " ");
+            }
+        }
+
+        const FR_GENERIC_NOTES = ["Admin credit", "Admin debit", "Bonus added by admin"];
+
+        function frRowNote(r){
+            if(r.kind === "credit_by_admin" || r.kind === "debit_by_admin" || r.kind === "bonus_by_admin"){
+                const n = String(r.note || "").trim();
+                return n && FR_GENERIC_NOTES.indexOf(n) === -1 ? n : "";
+            }
+            return "";
+        }
+
+        function frDateLine(r){
+            if(r.kind === "withdrawal_approved"){
+                return "Requested " + frDate(r.at) + (r.reviewed_at ? " · Approved " + frDate(r.reviewed_at) : "");
+            }
+            if(r.kind === "withdrawal_rejected"){
+                return "Rejected " + frDate(r.reviewed_at || r.at);
+            }
+            return frDate(r.at);
+        }
+
+        function frPaintTotals(){
+            const d = frData || {};
+            document.getElementById("frTotalAdded").textContent = frData ? frMoney(d.total_added) : "—";
+            document.getElementById("frTotalDeducted").textContent = frData ? frMoney(d.total_deducted) : "—";
+            document.getElementById("frBalance").textContent = frData ? frMoney(d.balance) : "—";
+            const held = Number(d.held_pending_withdrawal || 0);
+            if(frData && held > 0){
+                frHeld.style.display = "";
+                frHeld.textContent = "Held in a pending withdrawal: " + frMoney(held) + " (already taken from the balance, not final yet)";
+            }else{
+                frHeld.style.display = "none";
+            }
+        }
+
+        function frPaintList(){
+            const all = (frData && frData.records) || [];
+            const rows = all.filter(function(r){
+                const a = Number(r.amount || 0);
+                if(frTab === "added") return a > 0;
+                if(frTab === "deducted") return a < 0;
+                return true;
+            });
+            if(!rows.length){
+                frBody.innerHTML = '<div class="user-history-empty">' + (all.length ? "No records in this tab." : "No records yet.") + '</div>';
+                return;
+            }
+            frBody.innerHTML = rows.map(function(r){
+                const a = Number(r.amount || 0);
+                const cls = a > 0 ? "pos" : (a < 0 ? "neg" : "zero");
+                const note = frRowNote(r);
+                const returned = r.kind === "withdrawal_rejected" && r.returned != null
+                    ? '<div class="fr-returned">' + frEsc(frMoney(r.returned)) + ' returned</div>' : "";
+                const bal = r.balance_after != null ? '<div class="fr-bal">Balance: ' + frEsc(frMoney(r.balance_after)) + '</div>' : "";
+                return '<div class="fr-row">' +
+                    '<div class="fr-main">' +
+                        '<div class="fr-label">' + frEsc(frLabel(r)) + '</div>' +
+                        '<div class="fr-date">' + frEsc(frDateLine(r)) + '</div>' +
+                        (note ? '<div class="fr-note">' + frEsc(note) + '</div>' : "") +
+                    '</div>' +
+                    '<div class="fr-side">' +
+                        '<div class="fr-amount ' + cls + '">' + frEsc(frSigned(a)) + '</div>' +
+                        returned + bal +
+                        '<button type="button" class="fr-view" data-kind="' + frEsc(r.kind) + '" data-id="' + frEsc(r.id) + '">View</button>' +
+                    '</div>' +
+                '</div>';
+            }).join("");
+        }
+
+        async function frLoad(silent){
+            const userId = frUserId;
+            const token = ++frToken;
+            if(!silent){
+                frData = null;
+                frPaintTotals();
+                frBody.innerHTML = '<div class="user-history-loading">Loading records...</div>';
+            }
+            const { data, error } = await sb.rpc("admin_user_full_records", { p_user_id: userId });
+            if(token !== frToken || userId !== frUserId || fullRecordsModal.style.display === "none") return;
+            if(error || !data){
+                if(!silent){
+                    frBody.innerHTML = '<div class="user-history-error">Could not load records' + (error && error.message ? ": " + frEsc(error.message) : ".") + '</div>';
+                }
+                return;
+            }
+            frData = data;
+            frPaintTotals();
+            frPaintList();
+        }
+
+        function frLiveStart(){
+            frLiveStop();
+            const uid = frUserId;
+            const reload = function(){
+                clearTimeout(frLiveTimer);
+                frLiveTimer = setTimeout(function(){ frLoad(true); }, 300);
+            };
+            try{
+                frChannel = sb.channel("full-records-" + uid + "-" + Date.now())
+                    .on("postgres_changes", { event: "*", schema: "public", table: "transactions", filter: "user_id=eq." + uid }, reload)
+                    .on("postgres_changes", { event: "*", schema: "public", table: "withdrawals", filter: "user_id=eq." + uid }, reload)
+                    .subscribe();
+            }catch(e){ frChannel = null; }
+            // safety net in case the live connection drops
+            frPoll = setInterval(function(){ if(!document.hidden) frLoad(true); }, 12000);
+        }
+
+        function frLiveStop(){
+            clearTimeout(frLiveTimer);
+            if(frPoll){ clearInterval(frPoll); frPoll = null; }
+            if(frChannel){ try{ sb.removeChannel(frChannel); }catch(e){} frChannel = null; }
+        }
+
+        function frClose(){
+            frToken++;
+            frDetailToken++;
+            frLiveStop();
+            recordDetailsModal.style.display = "none";
+            fullRecordsModal.style.display = "none";
+            frUserId = null;
+            frData = null;
+        }
+
+        // ---------- details window ----------
+
+        function frDetailRows(r, d){
+            const rows = [];
+            const add = function(label, value){
+                if(value === null || value === undefined || value === "") return;
+                rows.push([label, value]);
+            };
+            const k = r.kind;
+            const amt = Number(r.amount || 0);
+
+            if(k === "deposit_approved" || k === "deposit_rejected"){
+                add("Method", frMethod(d.method, d.network));
+                add("Transaction reference", d.transaction_ref);
+                add(k === "deposit_rejected" ? "Amount requested" : "Amount added", frMoney(k === "deposit_rejected" ? d.requested_amount : amt));
+                add("Date requested", d.requested_at ? frDateLong(d.requested_at) : "");
+                add(k === "deposit_rejected" ? "Date rejected" : "Date approved", d.reviewed_at ? frDateLong(d.reviewed_at) : frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+                add("Admin note", d.admin_note);
+            }else if(k === "withdrawal_approved" || k === "withdrawal_rejected"){
+                add("Payment method", frMethod(d.method, d.network));
+                add("Account details", d.account_details);
+                add(k === "withdrawal_rejected" ? "Amount requested" : "Amount paid out", frMoney(d.amount));
+                if(k === "withdrawal_rejected") add("Amount returned to balance", frMoney(d.amount));
+                add("Date requested", frDateLong(d.requested_at));
+                add(k === "withdrawal_rejected" ? "Date rejected" : "Date approved", d.reviewed_at ? frDateLong(d.reviewed_at) : "");
+                if(d.wait_days !== null && d.wait_days !== undefined) add("Waiting days set", String(d.wait_days));
+                add("Balance after", r.balance_after != null ? frMoney(r.balance_after) : "");
+                add("Admin note", d.admin_note);
+            }else if(k === "mining_payout"){
+                add("Plan", d.plan_name);
+                add("Day", d.day_no && d.day_total ? "Day " + d.day_no + " of " + d.day_total : "");
+                add("Plan price", d.plan_price != null ? frMoney(d.plan_price) : "");
+                add("Daily payout", frMoney(amt));
+                add("Date and time", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else if(k === "plan_purchase"){
+                add("Plan", d.plan_name);
+                add("Price paid", frMoney(Math.abs(amt)));
+                add("Start date", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else if(k === "plan_upgrade"){
+                add("New plan", d.plan_name);
+                add("Amount paid for the upgrade", frMoney(Math.abs(amt)));
+                add("Date and time", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else if(k === "plan_refund"){
+                add("Plan", d.plan_name);
+                add("Price returned", frMoney(amt));
+                add("Plan completed on", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else if(k === "referral_reward"){
+                add("Referred user", d.referred_name);
+                add("Phone", d.referred_phone);
+                add("Joined on", d.joined_at ? frDateLong(d.joined_at) : "");
+                add("First deposit on", d.first_deposit_at ? frDateLong(d.first_deposit_at) : "");
+                add("Reward", frMoney(amt));
+                add("Date and time", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else if(k === "credit_by_admin" || k === "debit_by_admin" || k === "bonus_by_admin"){
+                const n = String(d.description || "").trim();
+                add("Note", n);
+                add("Done by", d.done_by);
+                add("Amount", frSigned(amt));
+                add("Date and time", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else if(k === "points_conversion"){
+                add("Amount added", frMoney(amt));
+                add("Date and time", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }else{
+                add("Amount", frSigned(amt));
+                add("Date and time", frDateLong(r.at));
+                add("Balance after", frMoney(r.balance_after));
+            }
+            return rows;
+        }
+
+        function frOpenDetails(kind, id){
+            const list = (frData && frData.records) || [];
+            const r = list.filter(function(x){ return x.id === id && x.kind === kind; })[0];
+            if(!r) return;
+            const token = ++frDetailToken;
+            const a = Number(r.amount || 0);
+            const cls = a > 0 ? "pos" : (a < 0 ? "neg" : "zero");
+            document.getElementById("recordDetailsTitle").textContent = frLabel(r);
+            document.getElementById("recordDetailsSub").textContent = frDateLong(r.at);
+            detBody.innerHTML = '<span class="fr-chip ' + cls + '">' + frEsc(frSigned(a)) + '</span>' +
+                '<div class="user-history-loading">Loading details...</div>';
+            recordDetailsModal.style.display = "flex";
+
+            sb.rpc("admin_user_record_details", { p_user_id: frUserId, p_kind: kind, p_id: id }).then(function(res){
+                if(token !== frDetailToken || recordDetailsModal.style.display === "none") return;
+                if(res.error || !res.data){
+                    detBody.innerHTML = '<span class="fr-chip ' + cls + '">' + frEsc(frSigned(a)) + '</span>' +
+                        '<div class="user-history-error">Could not load the details.</div>';
+                    return;
+                }
+                const rows = frDetailRows(r, res.data);
+                detBody.innerHTML = '<span class="fr-chip ' + cls + '">' + frEsc(frSigned(a)) + '</span>' +
+                    rows.map(function(x){
+                        return '<div class="fr-drow"><span>' + frEsc(x[0]) + '</span><b>' + frEsc(x[1]) + '</b></div>';
+                    }).join("");
+            }, function(){
+                if(token !== frDetailToken) return;
+                detBody.innerHTML = '<div class="user-history-error">Could not load the details.</div>';
+            });
+        }
+
+        function frCloseDetails(){
+            frDetailToken++;
+            recordDetailsModal.style.display = "none";
+        }
+
+        // ---------- wiring ----------
+
+        fullRecordsBtn.onclick = function(){
+            if(!currentRow) return;
+            frUserId = currentRow.dataset.userid;
+            frUserEl.textContent = (currentRow.querySelector("h4") || {}).textContent || "User";
+            frTab = "all";
+            Array.prototype.forEach.call(frTabs.querySelectorAll(".fr-tab"), function(b){
+                b.classList.toggle("active", b.getAttribute("data-tab") === "all");
+            });
+            fullRecordsModal.style.display = "flex";
+            frLoad(false);
+            frLiveStart();
+        };
+
+        document.getElementById("fullRecordsClose").onclick = frClose;
+        fullRecordsModal.addEventListener("click", function(e){ if(e.target === fullRecordsModal) frClose(); });
+        document.getElementById("recordDetailsClose").onclick = frCloseDetails;
+        recordDetailsModal.addEventListener("click", function(e){ if(e.target === recordDetailsModal) frCloseDetails(); });
+
+        frTabs.addEventListener("click", function(e){
+            const b = e.target.closest(".fr-tab");
+            if(!b) return;
+            frTab = b.getAttribute("data-tab");
+            Array.prototype.forEach.call(frTabs.querySelectorAll(".fr-tab"), function(x){ x.classList.toggle("active", x === b); });
+            frPaintList();
+        });
+
+        frBody.addEventListener("click", function(e){
+            const b = e.target.closest(".fr-view");
+            if(!b) return;
+            frOpenDetails(b.getAttribute("data-kind"), b.getAttribute("data-id"));
+        });
+
+    }
+
+    // ===============================
 
     // ===============================
     // REFERRALS (real — admin_get_user_referrals / admin_set_referral_reward)
