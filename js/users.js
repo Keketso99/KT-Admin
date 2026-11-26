@@ -1824,7 +1824,167 @@ if(verifyBtn){
 // RESET PASSWORD
 // ===============================
 
-      // ===============================
+  
+    // ===============================
+    // VERIFICATION PANEL (inside Reset Password / Reset Two-Factor)
+    // ===============================
+    // Shows who is asking: email on file + verified, phone match, which answers
+    // matched the account (only ✓ / ✗ / not provided, never the answers), the
+    // secret check result and a score. Only the main admin gets the
+    // "View full answers" button (the server enforces it too).
+
+    const VERIFY_LABELS = [
+        ["phone", "Phone number"], ["email", "Email"], ["first_name", "First name"], ["surname", "Surname"],
+        ["gender", "Gender"], ["country", "Country"], ["joined", "Joined (month/year)"], ["plan", "Plan"],
+        ["balance", "Approx. balance"], ["has_pin", "Withdrawal PIN set"], ["referral_code", "Referral code"],
+        ["last_deposit_amount", "Last deposit amount"], ["last_deposit_method", "Last deposit method"], ["last_deposit_date", "Last deposit date"],
+        ["last_withdrawal_amount", "Last withdrawal amount"], ["last_withdrawal_method", "Last withdrawal method"], ["last_withdrawal_date", "Last withdrawal date"],
+        ["id_number", "ID / passport number"], ["payment_account", "Payment account number"],
+        ["device_model", "Phone model"], ["last_signin", "Last sign-in"]
+    ];
+
+    function vEsc(v){
+        return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
+            return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+        });
+    }
+
+    function renderVerificationPanel(box, userId, kind){
+
+        box.innerHTML = '<div class="vp-loading">Loading verification details…</div>';
+
+        sb.rpc("admin_get_reset_summary", { p_user_id: userId, p_kind: kind }).then(function(res){
+
+            if(res.error){ box.innerHTML = '<div class="vp-loading">Could not load verification details: ' + vEsc(res.error.message) + '</div>'; return; }
+
+            const d = res.data;
+            if(!d){ box.innerHTML = ""; return; }
+
+            const r = d.results || {};
+            const phoneOk = r.phone === true;
+            const warns = [];
+
+            if(!d.email_verified) warns.push("The email on file is NOT verified.");
+            if(d.has_answers && r.phone === false) warns.push("The phone number typed does not match the account.");
+            if(d.has_answers && d.score_total > 0 && d.score_matched / d.score_total < 0.6) warns.push("Low score: fewer than 60% of the answers matched.");
+            if(d.secret_result === "wrong") warns.push("The secret they typed was WRONG.");
+            if(!d.has_answers) warns.push("No answers were submitted with this request.");
+
+            let h = "";
+            if(warns.length) h += '<div class="vp-warn">' + warns.map(vEsc).join("<br>") + "</div>";
+
+            h += '<div class="vp-row"><span>Email on file</span><strong>' + vEsc(d.email_on_file || "—") + "</strong></div>";
+            h += '<div class="vp-row"><span>Email &amp; phone verified</span><strong class="' + (d.email_verified ? "vp-ok" : "vp-bad") + '">' + (d.email_verified ? "Yes" : "No") + "</strong></div>";
+            h += '<div class="vp-row"><span>Phone on account</span><strong>' + vEsc(d.phone_on_file || "—") + "</strong></div>";
+
+            if(d.has_answers){
+                h += '<div class="vp-row"><span>Answers matched</span><strong>' + d.score_matched + " of " + d.score_total + "</strong></div>";
+                if(d.secret_result){
+                    const sl = d.secret_result === "matched" ? ["Correct", "vp-ok"] : d.secret_result === "wrong" ? ["Wrong", "vp-bad"] : ["Not provided", ""];
+                    h += '<div class="vp-row"><span>Secret</span><strong class="' + sl[1] + '">' + sl[0] + "</strong></div>";
+                }
+                if(typeof r.device_known === "boolean"){
+                    h += '<div class="vp-row"><span>Request sent from a known device</span><strong class="' + (r.device_known ? "vp-ok" : "vp-bad") + '">' + (r.device_known ? "Yes" : "No") + "</strong></div>";
+                }
+                h += '<div class="vp-grid">';
+                VERIFY_LABELS.forEach(function(p){
+                    const v = r[p[0]];
+                    const mark = v === true ? '<b class="vp-ok">✓</b>' : v === false ? '<b class="vp-bad">✗</b>' : '<i class="vp-none">not provided</i>';
+                    h += "<div><span>" + vEsc(p[1]) + "</span>" + mark + "</div>";
+                });
+                h += "</div>";
+                h += '<p class="vp-note">' + vEsc(d.age_note || "") + "</p>";
+                if(d.can_view_full && d.request_id){
+                    h += '<button class="vp-full-btn" type="button">View full answers</button>';
+                } else if(!d.can_view_full){
+                    h += '<p class="vp-note">Only the main admin can open the full answers.</p>';
+                }
+            }
+
+            box.innerHTML = h;
+
+            const fb = box.querySelector(".vp-full-btn");
+            if(fb) fb.onclick = function(){ openFullAnswers(d.request_id, fb); };
+
+        });
+
+    }
+
+    function fmtAns(v){
+        if(v == null || v === "") return "—";
+        if(typeof v === "object"){
+            if("amount" in v || "method" in v || "at" in v){
+                return [v.amount != null ? "M" + v.amount : "", v.method || "", v.at ? String(v.at).slice(0,10) : ""].filter(Boolean).join(" · ") || "—";
+            }
+            return JSON.stringify(v);
+        }
+        if(v === true) return "Yes";
+        if(v === false) return "No";
+        return String(v);
+    }
+
+    function openFullAnswers(requestId, btn){
+
+        const done = KTUI.busy(btn, "Opening...");
+
+        sb.rpc("admin_get_reset_full_answers", { p_request_id: requestId }).then(function(res){
+
+            done();
+
+            if(res.error){ KTUI.notify("Could not open the answers: " + res.error.message); return; }
+            const d = res.data;
+            if(!d){ KTUI.notify("The answers are no longer available."); return; }
+
+            const typed = Object.assign({}, d.answers || {}, d.sensitive || {});
+            const on = d.on_file || {};
+
+            const map = {
+                first_name: "first_name", surname: "surname", gender: "gender", country: "country", email: "email", phone: "phone",
+                joined: "joined", plan: "plan", balance: "balance", has_pin: "has_pin", referral_code: "referral_code",
+                last_deposit_amount: "last_deposit", last_withdrawal_amount: "last_withdrawal",
+                id_number: "id_number", payment_account: "payment_accounts", device_model: "devices"
+            };
+
+            let rows = "";
+            const keys = ["first_name","surname","gender","age","country","email","phone","joined","plan","balance","has_pin","referral_code",
+                "last_deposit_amount","last_deposit_method","last_deposit_date","last_withdrawal_amount","last_withdrawal_method","last_withdrawal_date",
+                "id_number","payment_account","device_model","last_signin","extra"];
+            const labels = {};
+            VERIFY_LABELS.forEach(function(p){ labels[p[0]] = p[1]; });
+            labels.age = "Age"; labels.extra = "Extra details they wrote";
+
+            keys.forEach(function(k){
+                const typedVal = typed[k];
+                let onVal = on[map[k]];
+                if(k === "last_deposit_method" || k === "last_deposit_date" || k === "last_withdrawal_method" || k === "last_withdrawal_date") onVal = undefined;
+                if(k === "payment_account" && Array.isArray(onVal)) onVal = onVal.map(function(x){ return (x.method || "") + " " + (x.account || ""); }).join(" | ");
+                if(k === "device_model" && Array.isArray(onVal)) onVal = onVal.join(" | ");
+                const r = d.results ? d.results[k] : undefined;
+                const mark = r === true ? "✓" : r === false ? "✗" : "";
+                if(typedVal == null && onVal == null) return;
+                let typedShown = typedVal;
+                if(typedVal == null && (k === "id_number" || k === "payment_account") && d.sensitive_deleted) typedShown = "(deleted after 30 days)";
+                rows += "<tr><td>" + vEsc(labels[k] || k) + "</td><td>" + vEsc(fmtAns(typedShown)) + "</td><td>" + vEsc(fmtAns(onVal)) + "</td><td>" + mark + "</td></tr>";
+            });
+
+            const ov = document.createElement("div");
+            ov.className = "vp-overlay";
+            ov.innerHTML =
+                '<div class="vp-sheet"><h3>Full answers</h3>' +
+                '<p class="vp-note">Typed by the person vs what is on the account. Viewing is recorded. Do not copy or share this.</p>' +
+                '<table class="vp-table"><thead><tr><th>Field</th><th>They typed</th><th>On account</th><th></th></tr></thead><tbody>' + rows + "</tbody></table>" +
+                '<p class="vp-note">Secret check: ' + vEsc(d.secret_result || "not provided") + ' (the secret itself is never stored).</p>' +
+                '<button class="vp-close" type="button">Close</button></div>';
+            document.body.appendChild(ov);
+            const closeIt = function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); };
+            ov.querySelector(".vp-close").onclick = closeIt;
+            ov.addEventListener("click", function(e){ if(e.target === ov) closeIt(); });
+
+        });
+
+    }
+
+    // ===============================
     // RESET PASSWORD (real — request/reset/reject flow)
     // ===============================
     // Admin no longer sends a reset email to profiles.email (that address
@@ -1840,6 +2000,8 @@ if(verifyBtn){
     const resetPasswordStatus = document.getElementById("resetPasswordStatus");
 
     const resetPasswordActions = document.getElementById("resetPasswordActions");
+
+    const resetPasswordVerify = document.getElementById("resetPasswordVerify");
 
     function renderResetPasswordModal(){
 
@@ -1875,6 +2037,10 @@ if(verifyBtn){
             }
 
             resetPasswordStatus.innerHTML = statusHtml;
+            if(resetPasswordVerify){
+                if(pending) renderVerificationPanel(resetPasswordVerify, userId, "password");
+                else resetPasswordVerify.innerHTML = "";
+            }
 
             let buttonsHtml = '<button class="cancel-btn">Close</button>';
             if(pending){
@@ -2068,6 +2234,8 @@ if(verifyBtn){
 
     const resetTwoFactorActions = document.getElementById("resetTwoFactorActions");
 
+    const resetTwoFactorVerify = document.getElementById("resetTwoFactorVerify");
+
     function bindResetTwoFactorClose(){
         const closeBtn = resetTwoFactorActions.querySelector(".cancel-btn");
         if(closeBtn){
@@ -2097,24 +2265,40 @@ if(verifyBtn){
                 const pending = data;
 
                 resetTwoFactorStatus.textContent = pending
-                    ? "This user has requested a two-factor authentication reset. Confirm who they are in Support Chat before approving."
+                    ? "This user has requested a two-factor authentication reset. Check the verification below, then email the owner and wait for their YES before approving."
                     : "No pending two-factor reset request for this user.";
+
+                if(resetTwoFactorVerify){
+                    if(pending) renderVerificationPanel(resetTwoFactorVerify, userId, "2fa");
+                    else resetTwoFactorVerify.innerHTML = "";
+                }
 
                 let buttonsHtml = '<button class="cancel-btn">Close</button>';
                 if(pending){
-                    buttonsHtml += '<button class="reset-btn tf-reset-confirm-btn">Reset</button>';
+                    buttonsHtml += '<button class="reset-btn tf-reset-confirm-btn" disabled>Reset</button>';
                     buttonsHtml += '<button class="reset-btn reject-btn tf-reset-reject-btn">Reject</button>';
                 }
                 resetTwoFactorActions.innerHTML = buttonsHtml;
                 bindResetTwoFactorClose();
 
+                // Approve stays off until the admin ticks that the owner replied YES by email.
+                const oldTick = document.getElementById("tfOwnerTickWrap");
+                if(oldTick) oldTick.remove();
                 const confirmBtn = resetTwoFactorActions.querySelector(".tf-reset-confirm-btn");
+                if(confirmBtn){
+                    const wrap = document.createElement("label");
+                    wrap.id = "tfOwnerTickWrap";
+                    wrap.className = "vp-tick";
+                    wrap.innerHTML = '<input type="checkbox" id="tfOwnerTick"> <span>I emailed the owner and they replied YES</span>';
+                    resetTwoFactorActions.parentNode.insertBefore(wrap, resetTwoFactorActions);
+                    wrap.querySelector("input").onchange = function(){ confirmBtn.disabled = !this.checked; };
+                }
                 if(confirmBtn){
                     confirmBtn.onclick = function(){
                         if(window.KTPerm && !KTPerm.require("reset a user's two-factor authentication")) return;
                         const rejectOther = resetTwoFactorActions.querySelector(".tf-reset-reject-btn");
                         const done = KTUI.busy(confirmBtn, "Resetting...", [rejectOther]);
-                        sb.rpc("admin_reset_two_factor", { p_user_id: userId })
+                        sb.rpc("admin_reset_two_factor", { p_user_id: userId, p_owner_confirmed: true })
                             .then(({ error }) => {
                                 done();
                                 if(error){
@@ -2132,7 +2316,7 @@ if(verifyBtn){
                     rejectBtn.onclick = function(){
                         const confirmOther = resetTwoFactorActions.querySelector(".tf-reset-confirm-btn");
                         const done = KTUI.busy(rejectBtn, "Rejecting...", [confirmOther]);
-                        sb.rpc("admin_reject_reset_request", { p_user_id: userId, p_kind: "2fa" })
+                        sb.rpc("admin_reject_two_factor_reset", { p_user_id: userId })
                             .then(({ error }) => {
                                 done();
                                 if(error){

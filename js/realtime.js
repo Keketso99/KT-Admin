@@ -308,6 +308,7 @@
         payment_methods_change_requested: "users",
         unblock_requested: "users",
         two_factor_reset_requested: "users",
+        email_verification_requested: "notifications",
         support_message_received: "support-chat"
     };
 

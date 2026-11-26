@@ -26,6 +26,7 @@ const NOTIFICATION_ICONS = {
     kyc_resubmission_requested: "fa-solid fa-file-circle-question",
     unblock_requested: "fa-solid fa-user-check",
     two_factor_reset_requested: "fa-solid fa-shield-halved",
+    email_verification_requested: "fa-solid fa-envelope-circle-check",
     support_message_received: "fa-solid fa-comments"
 };
 
@@ -41,6 +42,7 @@ const NOTIFICATION_LABELS = {
     kyc_resubmission_requested: "KYC Resubmission Request",
     unblock_requested: "Account Reactivation Request",
     two_factor_reset_requested: "Two-Factor Reset Request",
+    email_verification_requested: "Email & Phone Verification Request",
     support_message_received: "New Support Message"
 };
 
@@ -155,6 +157,9 @@ function messageForEntry(row, name){
         case "two_factor_reset_requested":
             return who + " requested a two-factor authentication reset.";
 
+        case "email_verification_requested":
+            return who + " asked to verify their email and phone. Email them the code.";
+
         case "support_message_received":
             return who + ": " + (meta.preview || "sent you a message") +
                 (Number(meta.count) > 1 ? " (" + meta.count + " new messages)" : "");
@@ -249,7 +254,75 @@ function renderNotificationDetail(entry){
 
             "<div class=\"notif-detail-grid\">" + rowsHtml + "</div>" +
 
+            (entry.action === "email_verification_requested"
+                ? "<div class=\"notif-verify-box\" id=\"notifVerifyBox\">Loading the code…</div>"
+                : "") +
+
         "</div>";
+
+    if(entry.action === "email_verification_requested") loadVerificationBox(entry);
+
+}
+
+// ===============================
+// EMAIL VERIFICATION: show the code + "I sent the code" button
+// The code is read only here, through an admin-only function. It is never in
+// the notification text, the pop-up or the activity log.
+// ===============================
+
+function loadVerificationBox(entry){
+
+    const box = document.getElementById("notifVerifyBox");
+    if(!box) return;
+
+    sb.rpc("admin_get_verification_request", { p_request_id: entry.targetId }).then(({ data, error }) => {
+
+        const el = document.getElementById("notifVerifyBox");
+        if(!el) return;
+
+        if(error){ el.textContent = "Could not load the request: " + error.message; return; }
+        if(!data){ el.textContent = "This request no longer exists."; return; }
+
+        const status = data.status;
+        let html = "";
+
+        html += "<div class=\"notif-detail-row\"><span>User</span><strong>" + escapeNotifHtml(data.name || "—") + "</strong></div>";
+        html += "<div class=\"notif-detail-row\"><span>Email to send to</span><strong>" + escapeNotifHtml(data.email || "—") + "</strong></div>";
+        html += "<div class=\"notif-detail-row\"><span>Phone on account</span><strong>" + escapeNotifHtml(data.phone || "—") + "</strong></div>";
+
+        if(status === "pending" || status === "code_sent"){
+            html += "<div class=\"notif-code-label\">Code to email</div>";
+            html += "<div class=\"notif-code\">" + escapeNotifHtml(data.code || "—") + "</div>";
+        }
+
+        if(status === "pending"){
+            html += "<p class=\"notif-verify-help\">1) Email this code to the address above. 2) Then press the button, so the code box appears for the user.</p>";
+            html += "<button class=\"notif-sent-btn\" id=\"notifSentBtn\">I sent the code</button>";
+        } else if(status === "code_sent"){
+            html += "<p class=\"notif-verify-help\">Marked as sent. The user's code box is showing. The code is valid for 24 hours from when you pressed the button" +
+                (data.code_expires_at ? " (until " + escapeNotifHtml(formatFullTime(data.code_expires_at)) + ")" : "") + ".</p>";
+        } else if(status === "verified"){
+            html += "<p class=\"notif-verify-help\">Done. The user verified their email and phone.</p>";
+        } else {
+            html += "<p class=\"notif-verify-help\">This request is " + escapeNotifHtml(status) + ". Nothing to send.</p>";
+        }
+
+        el.innerHTML = html;
+
+        const btn = document.getElementById("notifSentBtn");
+        if(btn){
+            btn.onclick = function(){
+                const done = KTUI.busy(btn, "Saving...");
+                sb.rpc("admin_mark_verification_code_sent", { p_request_id: entry.targetId }).then(({ error: e2 }) => {
+                    done();
+                    if(e2){ KTUI.notify("Could not mark as sent: " + e2.message); return; }
+                    KTUI.success("Done. The user's code box is now showing.");
+                    loadVerificationBox(entry);
+                });
+            };
+        }
+
+    });
 
 }
 
@@ -339,6 +412,7 @@ function buildNotificationsData(rows, names){
         return {
             id: row.id,
             action: row.action,
+            targetId: row.target_id,
             metadata: row.metadata || {},
             icon: NOTIFICATION_ICONS[row.action] || "fa-solid fa-bell",
             title: labelForAction(row.action),

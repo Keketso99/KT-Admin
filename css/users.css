@@ -2018,3 +2018,27 @@
 .fr-drow:last-child{ border-bottom:0; }
 .fr-drow span{ color:#6b7280; flex:0 0 auto; }
 .fr-drow b{ color:#111827; text-align:right; word-break:break-word; min-width:0; }
+
+/* Verification panel inside the reset windows */
+.vp-box{margin:0 0 14px;font-size:13px;color:#222;text-align:left}
+.vp-loading{opacity:.7}
+.vp-warn{background:#fff1f0;border:1px solid #ffb4ae;color:#a3180d;border-radius:10px;padding:10px 12px;margin-bottom:10px;line-height:1.45;font-weight:600}
+.vp-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #eee}
+.vp-row span{opacity:.7}
+.vp-row strong{text-align:right;word-break:break-word}
+.vp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px}
+.vp-grid>div{display:flex;justify-content:space-between;gap:6px;background:#f6f7f9;border-radius:8px;padding:6px 8px}
+.vp-grid span{opacity:.75}
+.vp-ok{color:#15803d}.vp-bad{color:#c0392b}.vp-none{opacity:.5;font-size:12px}
+.vp-note{font-size:12px;opacity:.7;margin:8px 0 0}
+.vp-full-btn{margin-top:10px;width:100%;padding:10px;border:none;border-radius:10px;background:#1f2937;color:#fff;font-weight:600;cursor:pointer}
+.vp-tick{display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;font-size:13px;color:#222;line-height:1.4}
+.vp-tick input{width:auto!important;margin-top:2px}
+.vp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.vp-sheet{background:#fff;color:#222;border-radius:14px;padding:20px;width:640px;max-width:100%}
+.vp-sheet h3{margin:0 0 6px}
+.vp-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+.vp-table th,.vp-table td{text-align:left;padding:6px 8px;border-bottom:1px solid #eee;word-break:break-word;vertical-align:top}
+.vp-table th{font-size:12px;opacity:.7}
+.vp-close{margin-top:14px;width:100%;padding:10px;border:none;border-radius:10px;background:#e5e7eb;font-weight:600;cursor:pointer}
+@media(max-width:480px){.vp-grid{grid-template-columns:1fr}}
