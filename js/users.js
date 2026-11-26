@@ -312,7 +312,7 @@ function initUsers(){
     loadUsers();
 
     if(window.KTRealtime){
-        KTRealtime.register("users", ["profile_signals","kyc_submissions"], loadUsers);
+        KTRealtime.register("users", ["profile_signals","kyc_submissions","email_verification_requests"], loadUsers);
     }
 
     // ===============================

@@ -23,6 +23,7 @@
         "withdrawals",
         "kyc_submissions",
         "account_reset_requests",
+        "email_verification_requests",
         "profile_signals",
         "transactions",
         "activity_log",
@@ -179,7 +180,8 @@
                                      (r.pin_resets_pending || 0) +
                                      (r.change_requests_pending || 0) +
                                      (r.unblock_requests_pending || 0) +
-                                     (r.two_factor_resets_pending || 0));
+                                     (r.two_factor_resets_pending || 0) +
+                                     (r.verify_pending || 0));
         });
 
         var notifQuery = sb.from("activity_log")

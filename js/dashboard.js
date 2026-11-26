@@ -140,6 +140,9 @@ function renderPendingCounts(counts){
     var tfCell = document.getElementById("pendingTwoFactorResets");
     if(tfCell) tfCell.textContent = formatNumber(counts.twoFactorResetsPending || 0);
 
+    var veCell = document.getElementById("pendingVerifyEmail");
+    if(veCell) veCell.textContent = formatNumber(counts.verifyPending || 0);
+
 }
 
 
@@ -204,7 +207,8 @@ function loadPendingCounts(){
                 changeRequestsPending: row.change_requests_pending,
                 kycResetsPending: row.kyc_resets_pending,
                 unblockRequestsPending: row.unblock_requests_pending,
-                twoFactorResetsPending: row.two_factor_resets_pending
+                twoFactorResetsPending: row.two_factor_resets_pending,
+                verifyPending: row.verify_pending
             });
 
         })
@@ -233,7 +237,7 @@ function initDashboard(){
     if(window.KTRealtime){
         KTRealtime.register(
             "dashboard",
-            ["deposits","withdrawals","kyc_submissions","account_reset_requests","profile_signals","transactions","support_messages","support_conversations"],
+            ["deposits","withdrawals","kyc_submissions","account_reset_requests","email_verification_requests","profile_signals","transactions","support_messages","support_conversations"],
             function(){
                 loadDashboardStats();
                 loadPendingCounts();
