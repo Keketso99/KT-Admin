@@ -118,6 +118,7 @@ function initUsers(){
             else if(kind === "kyc") labels.push("KYC reset");
             else if(kind === "unblock") labels.push("Reactivation");
             else if(kind === "2fa") labels.push("Two-factor reset");
+            else if(kind === "verify") labels.push("Email verification");
         });
 
         if(user.change_requested) labels.push("Personal info change");
@@ -160,10 +161,11 @@ function initUsers(){
 
         Promise.all([
             sb.rpc("admin_list_users"),
-            sb.from("account_reset_requests").select("user_id, kind").eq("status", "pending")
+            sb.from("account_reset_requests").select("user_id, kind").eq("status", "pending"),
+            sb.rpc("admin_pending_verification_users")
         ])
 
-            .then(([usersRes, requestsRes]) => {
+            .then(([usersRes, requestsRes, verifyRes]) => {
 
                 const { data, error } = usersRes;
 
@@ -178,6 +180,14 @@ function initUsers(){
                 if(!requestsRes.error && requestsRes.data){
                     requestsRes.data.forEach(r => {
                         (resetKindsByUser[r.user_id] = resetKindsByUser[r.user_id] || []).push(r.kind);
+                    });
+                }
+
+                // users waiting for an email code (ignored if the lookup fails)
+                if(!verifyRes.error && Array.isArray(verifyRes.data)){
+                    verifyRes.data.forEach(id => {
+                        const uid = (id && typeof id === "object") ? Object.values(id)[0] : id;
+                        (resetKindsByUser[uid] = resetKindsByUser[uid] || []).push("verify");
                     });
                 }
 
@@ -1887,12 +1897,19 @@ if(verifyBtn){
                     h += '<div class="vp-row"><span>Request sent from a known device</span><strong class="' + (r.device_known ? "vp-ok" : "vp-bad") + '">' + (r.device_known ? "Yes" : "No") + "</strong></div>";
                 }
                 h += '<div class="vp-grid">';
+                const missing = [];
                 VERIFY_LABELS.forEach(function(p){
                     const v = r[p[0]];
-                    const mark = v === true ? '<b class="vp-ok">✓</b>' : v === false ? '<b class="vp-bad">✗</b>' : '<i class="vp-none">not provided</i>';
-                    h += "<div><span>" + vEsc(p[1]) + "</span>" + mark + "</div>";
+                    if(v === true || v === false){
+                        h += "<div><span>" + vEsc(p[1]) + "</span>" + (v ? '<b class="vp-ok">✓</b>' : '<b class="vp-bad">✗</b>') + "</div>";
+                    } else {
+                        missing.push(p[1]);
+                    }
                 });
                 h += "</div>";
+                if(missing.length){
+                    h += '<p class="vp-note"><b>Not provided:</b> ' + missing.map(vEsc).join(", ") + ".</p>";
+                }
                 h += '<p class="vp-note">' + vEsc(d.age_note || "") + "</p>";
                 if(d.can_view_full && d.request_id){
                     h += '<button class="vp-full-btn" type="button">View full answers</button>';
@@ -1982,6 +1999,136 @@ if(verifyBtn){
 
         });
 
+    }
+
+
+    // ===============================
+    // VERIFY EMAIL (admin emails a code by hand, then presses "I sent the code")
+    // ===============================
+
+    const verifyEmailBtn = document.querySelector(".verify-email-btn");
+    const verifyEmailModal = document.getElementById("verifyEmailModal");
+    const verifyEmailStatus = document.getElementById("verifyEmailStatus");
+    const verifyEmailBox = document.getElementById("verifyEmailBox");
+    const verifyEmailActions = document.getElementById("verifyEmailActions");
+
+    function copyToClipboard(text){
+        if(navigator.clipboard && navigator.clipboard.writeText){
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject){
+            try{
+                const ta = document.createElement("textarea");
+                ta.value = text;
+                ta.setAttribute("readonly", "");
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand("copy");
+                document.body.removeChild(ta);
+                if(ok) resolve(); else reject(new Error("copy failed"));
+            }catch(e){ reject(e); }
+        });
+    }
+
+    function bindVerifyEmailClose(){
+        const closeBtn = verifyEmailActions.querySelector(".cancel-btn");
+        if(closeBtn) closeBtn.onclick = function(){ verifyEmailModal.style.display = "none"; };
+    }
+
+    function renderVerifyEmailModal(){
+
+        if(!currentRow) return;
+
+        const userId = currentRow.dataset.userid;
+
+        verifyEmailStatus.textContent = "Checking for a request…";
+        verifyEmailBox.innerHTML = "";
+        verifyEmailActions.innerHTML = '<button class="cancel-btn">Close</button>';
+        bindVerifyEmailClose();
+
+        sb.rpc("admin_get_user_verification", { p_user_id: userId }).then(function(res){
+
+            if(res.error){ verifyEmailStatus.textContent = "Failed to check request: " + res.error.message; return; }
+
+            const d = res.data;
+            if(!d){ verifyEmailStatus.textContent = "User not found."; return; }
+
+            const req = d.request;
+            let h = "";
+            h += '<div class="vp-row"><span>User</span><strong>' + vEsc(d.name || "—") + "</strong></div>";
+            h += '<div class="vp-row"><span>Email to send to</span><strong>' + vEsc(d.email || "—") + "</strong></div>";
+            h += '<div class="vp-row"><span>Email &amp; phone verified</span><strong class="' + (d.verified ? "vp-ok" : "vp-bad") + '">' + (d.verified ? "Yes" : "No") + "</strong></div>";
+
+            let buttonsHtml = '<button class="cancel-btn">Close</button>';
+
+            if(req && (req.status === "pending" || req.status === "code_sent")){
+
+                verifyEmailStatus.textContent = req.status === "pending"
+                    ? "This user asked to verify their email and phone. Email them this code, then press I sent the code."
+                    : "The code was marked as sent. The user's code box is showing.";
+
+                h += '<div class="vp-code-label">Code to email</div>';
+                h += '<div class="vp-code-row"><div class="vp-code" id="verifyCodeText">' + vEsc(req.code || "—") + '</div>' +
+                     '<button type="button" class="vp-copy-btn" id="verifyCopyBtn">Copy</button></div>';
+
+                if(req.status === "code_sent" && req.code_expires_at){
+                    h += '<p class="vp-note">Valid until ' + vEsc(new Date(req.code_expires_at).toLocaleString()) + ".</p>";
+                }
+
+                if(req.status === "pending"){
+                    buttonsHtml += '<button class="reset-btn verify-sent-btn">I sent the code</button>';
+                }
+
+            } else {
+
+                verifyEmailStatus.textContent = d.verified
+                    ? "This user's email and phone are already verified. No request is open."
+                    : "No verification request from this user.";
+
+            }
+
+            verifyEmailBox.innerHTML = h;
+            verifyEmailActions.innerHTML = buttonsHtml;
+            bindVerifyEmailClose();
+
+            const copyBtn = document.getElementById("verifyCopyBtn");
+            if(copyBtn){
+                copyBtn.onclick = function(){
+                    copyToClipboard(String(req.code || "")).then(function(){
+                        copyBtn.textContent = "Copied";
+                        setTimeout(function(){ copyBtn.textContent = "Copy"; }, 1800);
+                    }).catch(function(){
+                        KTUI.notify("Could not copy. Press and hold the code to copy it.");
+                    });
+                };
+            }
+
+            const sentBtn = verifyEmailActions.querySelector(".verify-sent-btn");
+            if(sentBtn){
+                sentBtn.onclick = function(){
+                    const done = KTUI.busy(sentBtn, "Saving...");
+                    sb.rpc("admin_mark_verification_code_sent", { p_request_id: req.id }).then(function(r2){
+                        done();
+                        if(r2.error){ KTUI.notify("Could not mark as sent: " + r2.error.message); return; }
+                        KTUI.success("Done. The user's code box is now showing.");
+                        renderVerifyEmailModal();
+                        loadUsers();
+                    });
+                };
+            }
+
+        });
+
+    }
+
+    if(verifyEmailBtn){
+        verifyEmailBtn.onclick = function(){
+            if(!currentRow) return;
+            renderVerifyEmailModal();
+            verifyEmailModal.style.display = "flex";
+        };
     }
 
     // ===============================
