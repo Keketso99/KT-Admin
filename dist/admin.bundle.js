@@ -8848,6 +8848,7 @@ function renderPlans(){
                 <span class="plan-status plan-status-${statusClass}">
                     ${plan.is_active ? "Active" : "Disabled"}
                 </span>
+                ${plan.is_full ? '<span class="plan-status plan-status-full">Full</span>' : ""}
             </td>
 
             <td>
@@ -8892,6 +8893,8 @@ function initPlans(){
 
     const toggleButton = document.querySelector(".plan-toggle-btn");
 
+    const fullButton = document.querySelector(".plan-full-btn");
+
     const deleteButton = document.querySelector(".plan-delete-btn");
 
     const deleteConfirmModal = document.getElementById("planDeleteConfirmModal");
@@ -8904,6 +8907,16 @@ function initPlans(){
     let currentPlan = null;
 
     if(!modal) return;
+
+    // "Full" = nobody new can activate or upgrade to this plan (users already on it are not affected)
+    function showFullButton(){
+        if(!fullButton) return;
+        if(!currentPlan){ fullButton.style.display = "none"; return; }
+        fullButton.style.display = "";
+        const on = !!currentPlan.is_full;
+        fullButton.innerText = on ? "Full: on (tap to remove)" : "Full";
+        fullButton.classList.toggle("is-on", on);
+    }
 
 
     // ADD NEW PLAN
@@ -8932,6 +8945,8 @@ function initPlans(){
         saveButton.innerText = "Create Plan";
 
         toggleButton.innerText = "Deactivate";
+
+        showFullButton();
 
         modal.style.display = "flex";
 
@@ -8991,6 +9006,8 @@ function initPlans(){
       
 
         toggleButton.innerText = currentPlan.is_active ? "Deactivate" : "Activate";
+
+        showFullButton();
 
         document.querySelector(".plan-modal-header h3").innerText = "Edit Mining Plan";
 
@@ -9153,6 +9170,47 @@ function initPlans(){
             });
 
     };
+
+
+    // FULL ON / OFF (persists immediately, like Activate / Deactivate)
+
+    if(fullButton){
+
+        fullButton.onclick = function(){
+            if(window.KTPerm && !KTPerm.require("mark a mining plan as full")) return;
+
+            if(!currentRow || !currentPlan) return;
+
+            const newFull = !currentPlan.is_full;
+
+            const done = KTUI.busy(fullButton, "Saving...");
+
+            sb.from("plans").update({ is_full: newFull }).eq("id", currentPlan.id)
+
+                .then(({ error }) => {
+
+                    done();
+
+                    if(error){
+                        KTUI.notify("Failed to update Full: " + error.message);
+                        return;
+                    }
+
+                    currentPlan.is_full = newFull;
+
+                    showFullButton();
+
+                    KTUI.success(newFull
+                        ? "Plan marked Full. Nobody new can activate or upgrade to it."
+                        : "Full removed. The plan is open again.");
+
+                    loadPlans();
+
+                });
+
+        };
+
+    }
 
 
     deleteCancelButton.onclick = function(){

@@ -2910,6 +2910,16 @@ button{
 
 
 
+.plan-status-full{
+
+    background:#8e44ad;
+
+    margin-left:6px;
+
+}
+
+
+
 
 
 /* VIEW BUTTON */
@@ -3070,6 +3080,7 @@ button{
 
 .plan-save-btn,
 .plan-toggle-btn,
+.plan-full-btn,
 .plan-delete-btn,
 .plan-close-btn{
 
@@ -3101,6 +3112,20 @@ button{
 .plan-toggle-btn{
 
     background:#f39c12;
+
+}
+
+
+
+.plan-full-btn{
+
+    background:#8e44ad;
+
+}
+
+.plan-full-btn.is-on{
+
+    background:#5b2c6f;
 
 }
 
