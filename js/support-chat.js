@@ -1233,37 +1233,16 @@ function createMessageElement(message) {
     } else if (message.type !== "text" && message.fileUrl) {
 
         const isImage = message.fileMime && message.fileMime.indexOf("image/") === 0;
+        const isVideo = message.type === "video" || (message.fileMime && message.fileMime.indexOf("video/") === 0);
+
+        content.classList.add("has-attachment");
 
         if (isImage) {
-
-            const link = document.createElement("a");
-            ktApplySigned(link, "href", message.fileUrl);
-            link.target = "_blank";
-            link.rel = "noopener";
-            link.className = "message-attachment-image-link";
-
-            const img = document.createElement("img");
-            img.className = "message-attachment-image";
-            ktApplySigned(img, "src", message.fileUrl);
-            img.alt = message.fileName || "Image";
-
-            link.appendChild(img);
-            content.appendChild(link);
-
+            content.appendChild(supportBuildImageAttachment(message));
+        } else if (isVideo) {
+            content.appendChild(supportBuildVideoAttachment(message));
         } else {
-
-            const fileCard = document.createElement("a");
-            ktApplySigned(fileCard, "href", message.fileUrl);
-            fileCard.target = "_blank";
-            fileCard.rel = "noopener";
-            fileCard.className = "message-attachment-file";
-            fileCard.innerHTML =
-                '<i class="fa-solid fa-file"></i><span>' +
-                supportEscapeHtml(message.fileName || message.text || "File") +
-                "</span>";
-
-            content.appendChild(fileCard);
-
+            content.appendChild(supportBuildFileAttachment(message));
         }
 
         const caption = document.createElement("p");
@@ -3733,5 +3712,258 @@ function handleIncomingSupportMessageChange(payload) {
     }
 
     loadSupportConversations();
+
+}
+
+
+// ======================================================
+// ATTACHMENTS: display, open, close, download
+// Photos and videos open inside the app (no browser tab);
+// documents are not tappable, only their download button works.
+// ======================================================
+
+function supportResolveUrl(url) {
+    const cached = window.ktSignedUrlCached ? window.ktSignedUrlCached(url) : null;
+    if (cached) return Promise.resolve(cached);
+    return window.ktSignedUrl(url);
+}
+
+function supportSaveAttachment(url, name) {
+
+    return supportResolveUrl(url).then(function (signed) {
+
+        if (!signed) throw new Error("no link");
+
+        return fetch(signed);
+
+    }).then(function (res) {
+
+        if (!res.ok) throw new Error("download failed");
+        return res.blob();
+
+    }).then(function (blob) {
+
+        let fileName = String(name || "file").replace(/[\\/:*?"<>|]+/g, "").trim() || "file";
+
+        if (!/\.[A-Za-z0-9]{1,5}$/.test(fileName)) {
+            const sub = String(blob.type || "").split("/")[1] || "";
+            const ext = sub.split(";")[0].replace("jpeg", "jpg");
+            if (ext) fileName += "." + ext;
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = fileName;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(objectUrl); }, 10000);
+
+    });
+
+}
+
+function supportMakeDownloadButton(url, name, positionClass) {
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "message-download-btn" + (positionClass ? " " + positionClass : "");
+    btn.title = "Download";
+    btn.setAttribute("aria-label", "Download " + (name || "file"));
+    btn.innerHTML = '<i class="fa-solid fa-file-arrow-down"></i>';
+
+    let busy = false;
+
+    // keep the message's long-press / tap handlers out of this button
+    ["mousedown", "touchstart", "mouseup", "touchend"].forEach(function (evt) {
+        btn.addEventListener(evt, function (e) { e.stopPropagation(); }, { passive: true });
+    });
+
+    btn.addEventListener("click", function (e) {
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (busy) return;
+        busy = true;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        supportSaveAttachment(url, name).catch(function () {
+            KTUI.error("Couldn't download the file. Please try again.");
+        }).then(function () {
+            busy = false;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-file-arrow-down"></i>';
+        });
+
+    });
+
+    return btn;
+
+}
+
+function supportOpenMediaViewer(build) {
+
+    const overlay = document.createElement("div");
+    overlay.className = "support-media-viewer";
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "support-media-viewer-close";
+    close.title = "Close";
+    close.setAttribute("aria-label", "Close");
+    close.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+
+    let onClose = null;
+
+    function closeViewer() {
+        document.removeEventListener("keydown", onKey, true);
+        if (onClose) onClose();
+        overlay.remove();
+    }
+
+    function onKey(e) {
+        if (e.key === "Escape") {
+            e.stopPropagation();
+            closeViewer();
+        }
+    }
+
+    close.addEventListener("click", function (e) { e.stopPropagation(); closeViewer(); });
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeViewer(); });
+    overlay.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+    onClose = build(overlay);
+    overlay.appendChild(close);
+    document.body.appendChild(overlay);
+    document.addEventListener("keydown", onKey, true);
+
+}
+
+function supportOpenPhotoViewer(url, name) {
+
+    supportOpenMediaViewer(function (overlay) {
+
+        const img = document.createElement("img");
+        img.alt = name || "Photo";
+        ktApplySigned(img, "src", url);
+        overlay.appendChild(img);
+
+        return null;
+
+    });
+
+}
+
+function supportOpenVideoPlayer(url, name) {
+
+    supportOpenMediaViewer(function (overlay) {
+
+        const video = document.createElement("video");
+        video.controls = true;
+        video.autoplay = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("controlsList", "nodownload nofullscreen");
+        video.setAttribute("disablePictureInPicture", "");
+        video.setAttribute("aria-label", name || "Video");
+        video.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+        supportResolveUrl(url).then(function (signed) {
+            if (signed && video.isConnected) {
+                video.src = signed;
+                const p = video.play();
+                if (p && p.catch) p.catch(function () {});
+            }
+        });
+
+        overlay.appendChild(video);
+
+        // closing the player stops the video completely
+        return function () {
+            video.pause();
+            video.removeAttribute("src");
+            video.load();
+        };
+
+    });
+
+}
+
+function supportBuildImageAttachment(message) {
+
+    const box = document.createElement("div");
+    box.className = "message-attachment-media";
+
+    const img = document.createElement("img");
+    img.className = "message-attachment-photo";
+    img.alt = message.fileName || "Photo";
+    img.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    ktApplySigned(img, "src", message.fileUrl);
+
+    img.addEventListener("click", function () {
+        supportOpenPhotoViewer(message.fileUrl, message.fileName);
+    });
+
+    box.appendChild(img);
+    box.appendChild(supportMakeDownloadButton(message.fileUrl, message.fileName || "photo", "on-media dl-bottom-right"));
+
+    return box;
+
+}
+
+function supportBuildVideoAttachment(message) {
+
+    const box = document.createElement("div");
+    box.className = "message-video-box";
+
+    const video = document.createElement("video");
+    video.muted = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("preload", "metadata");
+    video.setAttribute("disablePictureInPicture", "");
+
+    supportResolveUrl(message.fileUrl).then(function (signed) {
+        if (signed) video.src = signed + "#t=0.1";
+    });
+
+    const play = document.createElement("button");
+    play.type = "button";
+    play.className = "message-video-play";
+    play.setAttribute("aria-label", "Play video");
+    play.innerHTML = '<span><i class="fa-solid fa-play"></i></span>';
+    play.addEventListener("click", function () {
+        supportOpenVideoPlayer(message.fileUrl, message.fileName);
+    });
+
+    box.appendChild(video);
+    box.appendChild(play);
+    box.appendChild(supportMakeDownloadButton(message.fileUrl, message.fileName || "video", "on-media dl-top-right"));
+
+    return box;
+
+}
+
+function supportBuildFileAttachment(message) {
+
+    const name = message.fileName || message.text || "File";
+
+    const row = document.createElement("div");
+    row.className = "message-attachment-file";
+
+    const icon = document.createElement("i");
+    icon.className = "fa-solid fa-file";
+
+    const label = document.createElement("span");
+    label.className = "file-name";
+    label.textContent = name;
+
+    row.appendChild(icon);
+    row.appendChild(label);
+    row.appendChild(supportMakeDownloadButton(message.fileUrl, name, ""));
+
+    return row;
 
 }
