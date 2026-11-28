@@ -18619,18 +18619,64 @@ function renderMessages() {
     // Remember where the admin was, so redrawing the list never makes the window jump.
     const keepTop = container.scrollTop;
 
-    const fragment = document.createDocumentFragment();
+    // Messages that did not change keep their existing element (photos and videos are NOT
+    // reloaded), so only new / changed messages are drawn. This is what keeps the window
+    // still while a message is added, like the user app.
+    const existing = {};
+
+    Array.prototype.forEach.call(container.children, function (el) {
+        if (el._ktSig !== undefined && el.dataset && el.dataset.messageId) {
+            existing[el.dataset.messageId] = el;
+        }
+    });
+
+    const nodes = [];
 
     (currentChat.messages || []).forEach(function (message) {
-        fragment.appendChild(createMessageElement(message));
+
+        const sig = supportMessageSignature(message);
+        let el = existing[message.id];
+
+        if (el && el._ktSig === sig) {
+
+            if (!messageSearchActive) {
+                // clear leftover search highlights on a reused message
+                Array.prototype.forEach.call(el.querySelectorAll(".message-text"), function (textEl) {
+                    if (textEl.querySelector("mark")) textEl.textContent = textEl.textContent;
+                });
+            }
+
+        } else {
+
+            el = createMessageElement(message);
+            el._ktSig = sig;
+
+        }
+
+        nodes.push(el);
+
     });
 
     // Attachments / voice notes that are still uploading (or failed to send).
     pendingSends.forEach(function (p) {
-        if (p.chatId === currentChat.id) fragment.appendChild(createPendingSendElement(p));
+        if (p.chatId === currentChat.id) nodes.push(createPendingSendElement(p));
     });
 
-    container.replaceChildren(fragment);
+    const keep = new Set(nodes);
+
+    Array.prototype.slice.call(container.children).forEach(function (el) {
+        if (!keep.has(el)) container.removeChild(el);
+    });
+
+    let cursor = container.firstChild;
+
+    nodes.forEach(function (node) {
+        if (node === cursor) {
+            cursor = cursor.nextSibling;
+        } else {
+            container.insertBefore(node, cursor);
+        }
+    });
 
     if (container.scrollTop !== keepTop) container.scrollTop = keepTop;
 
@@ -18642,6 +18688,26 @@ function renderMessages() {
     if (messageSearchActive) {
         performMessageSearch();
     }
+
+}
+
+// Everything that changes how one message looks. If this is unchanged the old element is reused.
+function supportMessageSignature(message) {
+
+    const replied = message.replyToId && currentChat
+        ? (currentChat.messages || []).find(function (m) { return m.id === message.replyToId; })
+        : null;
+
+    const userRead = !!(currentChat && currentChat.userLastReadAt) &&
+        new Date(message.createdAt).getTime() <= new Date(currentChat.userLastReadAt).getTime();
+
+    return JSON.stringify([
+        message,
+        replied ? [replied.text, !!replied.sent, replied.senderName] : null,
+        userRead,
+        pinMessageSelectionMode,
+        pinMessageSelectionMode && selectedPinMessageIds.indexOf(message.id) !== -1
+    ]);
 
 }
 
@@ -18808,6 +18874,7 @@ function createMessageElement(message) {
 // Keeps the chat glued to the last message while photos / videos finish loading
 // (their height changes after the message is drawn). Stops as soon as the admin scrolls.
 let messagesPinUntil = 0;
+let messagesSmoothUntil = 0;
 let messagesAutoPinReady = false;
 
 function setupMessagesAutoPin(container) {
@@ -18816,7 +18883,13 @@ function setupMessagesAutoPin(container) {
     messagesAutoPinReady = true;
 
     function pinIfNeeded() {
-        if (Date.now() < messagesPinUntil) container.scrollTop = container.scrollHeight;
+        if (Date.now() >= messagesPinUntil) return;
+        if (Date.now() < messagesSmoothUntil) {
+            // a smooth slide is running: just aim it at the new bottom, never jump
+            container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+        } else {
+            container.scrollTop = container.scrollHeight;
+        }
     }
 
     container.addEventListener("load", pinIfNeeded, true);
@@ -18837,6 +18910,7 @@ function scrollMessagesToBottom(smooth) {
     messagesPinUntil = Date.now() + 2000;
 
     if (smooth === true) {
+        messagesSmoothUntil = Date.now() + 1500;
         setTimeout(function () {
             container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
         }, 50);
