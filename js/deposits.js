@@ -766,6 +766,14 @@ function openDepositReview(id){
             if(u) image.src = u; else ktImgFail(image);
         }, function(){ ktImgFail(image); });
 
+        if(typeof ktAttachPhotoTools === "function"){
+            ktAttachPhotoTools(
+                image,
+                deposit.proof || "",
+                "deposit-proof-" + String(deposit.fullName || "user").replace(/\s+/g, "-") + "-" + String(deposit.id || "").slice(0, 8)
+            );
+        }
+
     }
 
 

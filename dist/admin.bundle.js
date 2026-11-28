@@ -7379,6 +7379,14 @@ function openDepositReview(id){
             if(u) image.src = u; else ktImgFail(image);
         }, function(){ ktImgFail(image); });
 
+        if(typeof ktAttachPhotoTools === "function"){
+            ktAttachPhotoTools(
+                image,
+                deposit.proof || "",
+                "deposit-proof-" + String(deposit.fullName || "user").replace(/\s+/g, "-") + "-" + String(deposit.id || "").slice(0, 8)
+            );
+        }
+
     }
 
 
@@ -14058,6 +14066,13 @@ if (verificationSearch) {
                     load(e.idFront, reviewIdFront);
                     load(e.idBack, reviewIdBack);
                     load(e.selfie, reviewSelfie);
+
+                    if(typeof ktAttachPhotoTools === "function"){
+                        var who = String(e.name || "user").replace(/\s+/g, "-");
+                        ktAttachPhotoTools(reviewIdFront, e.idFront || "", "id-front-" + who);
+                        ktAttachPhotoTools(reviewIdBack, e.idBack || "", "id-back-" + who);
+                        ktAttachPhotoTools(reviewSelfie, e.selfie || "", "selfie-" + who);
+                    }
                 })(entry);
 
                 document.getElementById("adminNoteInput").value = "";
@@ -21353,7 +21368,7 @@ function supportSaveAttachment(url, name) {
 
         if (!/\.[A-Za-z0-9]{1,5}$/.test(fileName)) {
             const sub = String(blob.type || "").split("/")[1] || "";
-            const ext = sub.split(";")[0].replace("jpeg", "jpg");
+            const ext = sub.split(";")[0].split("+")[0].replace("jpeg", "jpg");
             if (ext) fileName += "." + ext;
         }
 
@@ -21573,6 +21588,38 @@ function supportBuildFileAttachment(message) {
     return row;
 
 }
+
+
+// ======================================================
+// PHOTO TOOLS FOR OTHER PAGES (Deposits proof, Verification documents)
+// Click the photo = same in-app viewer as Support Chat; round download button on the photo.
+// ======================================================
+
+function ktAttachPhotoTools(img, path, name) {
+
+    if (!img) return;
+
+    const host = img.parentElement;
+    if (!host) return;
+
+    host.classList.add("kt-photo-host");
+
+    Array.prototype.slice.call(host.children).forEach(function (el) {
+        if (el.classList && el.classList.contains("message-download-btn")) host.removeChild(el);
+    });
+
+    img.classList.add("kt-photo-clickable");
+
+    img.onclick = path ? function () {
+        if (img.getAttribute("src")) supportOpenPhotoViewer(path, name);
+    } : null;
+
+    if (path) {
+        host.appendChild(supportMakeDownloadButton(path, name, "on-media dl-bottom-right"));
+    }
+
+}
+
 
 
 /* ===== js/media.js ===== */

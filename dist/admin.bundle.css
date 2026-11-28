@@ -12466,6 +12466,34 @@ body.activity-modal-open{
 }
 
 
+/* Photo tools on other pages (Deposits proof, Verification documents) */
+.kt-photo-host{
+    position:relative;
+}
+
+.kt-photo-clickable{
+    cursor:pointer;
+}
+
+.proof-image .message-download-btn.dl-bottom-right{
+    right:28px;
+    bottom:28px;
+}
+
+.documents .message-download-btn{
+    flex:0 0 30px;
+    width:30px;
+    height:30px;
+    font-size:13px;
+}
+
+.documents .message-download-btn.dl-bottom-right{
+    right:16px;
+    bottom:16px;
+}
+
+
+
 /* ===== css/media.css ===== */
 /* =========================================================
    KT CLOUD MINING ADMIN

@@ -514,6 +514,13 @@ if (verificationSearch) {
                     load(e.idFront, reviewIdFront);
                     load(e.idBack, reviewIdBack);
                     load(e.selfie, reviewSelfie);
+
+                    if(typeof ktAttachPhotoTools === "function"){
+                        var who = String(e.name || "user").replace(/\s+/g, "-");
+                        ktAttachPhotoTools(reviewIdFront, e.idFront || "", "id-front-" + who);
+                        ktAttachPhotoTools(reviewIdBack, e.idBack || "", "id-back-" + who);
+                        ktAttachPhotoTools(reviewSelfie, e.selfie || "", "selfie-" + who);
+                    }
                 })(entry);
 
                 document.getElementById("adminNoteInput").value = "";
