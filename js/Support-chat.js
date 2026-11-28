@@ -1126,16 +1126,23 @@ function renderMessages() {
     const container = supportChatElement("messages");
     if (!container || !currentChat) return;
 
-    container.innerHTML = "";
+    // Remember where the admin was, so redrawing the list never makes the window jump.
+    const keepTop = container.scrollTop;
+
+    const fragment = document.createDocumentFragment();
 
     (currentChat.messages || []).forEach(function (message) {
-        container.appendChild(createMessageElement(message));
+        fragment.appendChild(createMessageElement(message));
     });
 
     // Attachments / voice notes that are still uploading (or failed to send).
     pendingSends.forEach(function (p) {
-        if (p.chatId === currentChat.id) container.appendChild(createPendingSendElement(p));
+        if (p.chatId === currentChat.id) fragment.appendChild(createPendingSendElement(p));
     });
+
+    container.replaceChildren(fragment);
+
+    if (container.scrollTop !== keepTop) container.scrollTop = keepTop;
 
     // Only once the messages have actually loaded (not while still loading).
     if (currentChat.messagesLoaded) {
@@ -1308,10 +1315,45 @@ function createMessageElement(message) {
 
 }
 
-function scrollMessagesToBottom() {
+// Keeps the chat glued to the last message while photos / videos finish loading
+// (their height changes after the message is drawn). Stops as soon as the admin scrolls.
+let messagesPinUntil = 0;
+let messagesAutoPinReady = false;
+
+function setupMessagesAutoPin(container) {
+
+    if (messagesAutoPinReady || !container) return;
+    messagesAutoPinReady = true;
+
+    function pinIfNeeded() {
+        if (Date.now() < messagesPinUntil) container.scrollTop = container.scrollHeight;
+    }
+
+    container.addEventListener("load", pinIfNeeded, true);
+    container.addEventListener("loadedmetadata", pinIfNeeded, true);
+    container.addEventListener("wheel", function () { messagesPinUntil = 0; }, { passive: true });
+    container.addEventListener("touchmove", function () { messagesPinUntil = 0; }, { passive: true });
+
+}
+
+// smooth = true: after sending / receiving, slide down to the last message (same feel as the user app).
+// smooth = false/undefined: jump straight to the bottom (opening a chat).
+function scrollMessagesToBottom(smooth) {
 
     const container = supportChatElement("messages");
-    if (container) container.scrollTop = container.scrollHeight;
+    if (!container) return;
+
+    setupMessagesAutoPin(container);
+    messagesPinUntil = Date.now() + 2000;
+
+    if (smooth === true) {
+        setTimeout(function () {
+            container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+        }, 50);
+        return;
+    }
+
+    container.scrollTop = container.scrollHeight;
 
 }
 
@@ -1423,7 +1465,7 @@ function sendMessage() {
             if (!currentChat.messages.some(function (m) { return m.id === res.data.id; })) {
                 currentChat.messages.push(mapSupportMessageRow(res.data));
                 renderMessages();
-                scrollMessagesToBottom();
+                scrollMessagesToBottom(true);
             }
 
             loadSupportConversations();
@@ -2734,7 +2776,7 @@ function createPendingSendElement(p) {
 function refreshPendingView(p) {
     if (currentChat && currentChat.id === p.chatId) {
         renderMessages();
-        scrollMessagesToBottom();
+        scrollMessagesToBottom(true);
     }
 }
 
@@ -2808,7 +2850,7 @@ function runPendingSend(p) {
 
                 if (currentChat && currentChat.id === p.chatId) {
                     renderMessages();
-                    scrollMessagesToBottom();
+                    scrollMessagesToBottom(true);
                 }
 
                 loadSupportConversations();
@@ -3695,7 +3737,7 @@ function handleIncomingSupportMessageChange(payload) {
         updatePinnedMessageBar();
 
         if (row.sender_type === "user") {
-            scrollMessagesToBottom();
+            scrollMessagesToBottom(true);
 
             chatUserTyping = false;
             updateChatHeaderStatus();
